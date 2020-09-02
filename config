@@ -1,0 +1,20 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+[remote "gitlab"]
+	url = git@gitlab.com:jpboth/genomics-rs.git
+	fetch = +refs/heads/*:refs/remotes/gitlab/*
+[branch "ByteLoading"]
+	remote = gitlab
+	merge = refs/heads/ByteLoading
+[branch "bitEnc"]
+	remote = gitlab
+	merge = refs/heads/bitEnc
+[branch "bitenc"]
+	remote = gitlab
+	merge = refs/heads/bitenc
+[branch "master"]
+	remote = gitlab
+	merge = refs/heads/master
