@@ -5,12 +5,9 @@
 
 
 
-extern crate clap;
 use clap::{App, Arg, SubCommand};
 
 
-// for needletail
-extern crate needletail;
 
 
 
@@ -18,7 +15,6 @@ extern crate needletail;
 #[doc(no_inline)]
 use std::process;
 
-extern crate time;
 
 // usage parsefastq -f datafile --bits m (or -b m)  [kmer --count n | -b n] [--csize l] [-t j]
 // subcommand are given as module call without any -, options are given with -- for long syntax or - for short syntax 

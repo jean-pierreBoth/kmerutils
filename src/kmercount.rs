@@ -697,7 +697,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
                                     filter.add(& key).unwrap();
                                     nb_sent += 1;
                                     let msg = (kmin, count);
-                                    sender_i.send(msg);
+                                    sender_i.send(msg).unwrap();
                                 } // end if counted >= 2
                             } // end if !already
                         } //  end if dispatch
@@ -727,7 +727,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
         let receptor_handle = scope.spawn(move |_| {
             let mut nb_received : u64 = 0;
             let mut idump = 1;
-            r.for_each(|msg| { let _res = msg.0.dump(&mut bufw);
+            r.into_iter().for_each(|msg| { let _res = msg.0.dump(&mut bufw);
                                bufw.write(unsafe { &mem::transmute::<u16, [u8;2]>(msg.1)} ).unwrap();
                                nb_received += 1;
                                if (nb_received * 10) >= idump * nb_kmer_to_dump {
@@ -876,7 +876,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             let receptor_handle = scope.spawn( move |_| {
                 let mut kmer_counter_i  = KmerCounter::new(0.03, capacity/(nb_threads as usize), nb_bits);
                 let mut nb_received = 0u64;
-                receiver.for_each(|msg| { // just insert
+                receiver.into_iter().for_each(|msg| { // just insert
                     kmer_counter_i.insert_kmer(msg);
                     nb_received += 1;
                     if nb_received % 500_000_000 == 0 {
@@ -901,7 +901,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
                 // is taken from H.Li. Pb is that inequal repartition of AT/CG give a non uniform
                 // repartion of kmin.
                 let i = kmin.dispatch(nb_threads);
-                channels[i].borrow().send(kmin);
+                channels[i].borrow().send(kmin).unwrap();
             }
             nbseq += 1;
             if nbseq % 10_000_000 == 0 {
