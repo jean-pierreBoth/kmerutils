@@ -4,18 +4,15 @@ use std::process;
 extern crate lazy_static;
 
 // for logging (debug mostly, switched at compile time in cargo.toml)
-extern crate log;
-extern crate simple_logger;
 
-extern crate clap;
 use clap::{App, Arg};
 
 use std::path::Path;
 
 // our modules
-extern crate genomics;
+extern crate kmerutils;
 
-use genomics::kmercount::*;
+use kmerutils::kmercount::*;
 
 lazy_static! {
     #[allow(dead_code)]
