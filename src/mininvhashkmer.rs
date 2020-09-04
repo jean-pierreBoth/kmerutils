@@ -278,12 +278,12 @@ mod tests {
 
     use crate::kmergenerator::*;
     use crate::sequence::*;
-    use simple_logger;
+    use env_logger::{Builder};
     #[test]
     // initialize once log system for tests.
     fn init_log() {
         // we do not call unwrap as it is an error to init twice and possibly some one else initialized it
-        let _res = simple_logger::init();
+        Builder::from_default_env().init();
     }
 
     #[test]

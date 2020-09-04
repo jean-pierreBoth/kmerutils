@@ -4,7 +4,7 @@ extern crate kmerutils;
 // Cf Ch11-03 of rust book second edition
 
 extern crate log;
-extern crate simple_logger;
+use env_logger;
 
 use std::rc::Rc;
 
@@ -18,7 +18,7 @@ use kmerutils::anchor::*;
 #[test]
 fn test_mininvhash_redis() {
     //
-    let _res = simple_logger::init();
+    env_logger::Builder::from_default_env().init();
     //
     let anchor_parameters = Rc::new(AnchorsGeneratorParameters::new(String::from("./tests/2readEcoli.fastq"),
                                                                 200, 3, 16,100));

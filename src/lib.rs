@@ -1,10 +1,9 @@
 extern crate rand;
 
 // for logging (debug mostly, switched at compile time in cargo.toml)
-extern crate log;
-extern crate simple_logger;
-
+#[macro_use]
 extern crate lazy_static;
+
 
 
 // basic stuff
@@ -47,12 +46,17 @@ pub mod redisbase;
 
 pub mod prelude;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    // initialize once log system for tests.
-    fn init_log() {
-        let _res = simple_logger::init();
-    }
-}  // end of tests
+
+lazy_static! {
+    #[allow(dead_code)]
+    pub static ref LOG: u64 = {
+        let res = init_log();
+        res
+    };
+}
+// install a logger facility
+fn init_log() -> u64 {
+    env_logger::Builder::from_default_env().init();
+    println!("\n ************** initializing logger from env *****************\n");    
+    return 1;
+}

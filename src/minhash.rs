@@ -246,14 +246,6 @@ mod tests {
     #[allow(unused_imports)]
     use crate::nohasher::NoHashHasher;
     
-
-    use simple_logger;
-    #[test]
-    // initialize once log system for tests.
-    fn init_log() {
-        let _res = simple_logger::init();
-    }
-
     #[test]
     fn test_minhash_count_range_intersection_fnv() {
         // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.

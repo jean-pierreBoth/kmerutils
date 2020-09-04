@@ -3,6 +3,8 @@ use std::process;
 #[macro_use]
 extern crate lazy_static;
 
+use env_logger::{Builder};
+
 // for logging (debug mostly, switched at compile time in cargo.toml)
 
 use clap::{App, Arg};
@@ -11,7 +13,6 @@ use std::path::Path;
 
 // our modules
 extern crate kmerutils;
-
 use kmerutils::kmercount::*;
 
 lazy_static! {
@@ -24,7 +25,7 @@ lazy_static! {
 
 // install a logger facility
 fn init_log() -> u64 {
-    simple_logger::init().unwrap();
+    Builder::from_default_env().init();
     println!("\n ************** initializing logger *****************\n");    
     return 1;
 }

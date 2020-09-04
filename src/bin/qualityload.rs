@@ -8,10 +8,9 @@
 #[macro_use]
 extern crate lazy_static;
 
-// for logging (debug mostly, switched at compile time in cargo.toml)
-#[macro_use]
-extern crate log;
-extern crate simple_logger;
+// for logging (debug mostly, switched at compile time in cargo.toml or env variable RUST_LOG)
+use log::*;
+use env_logger::{Builder};
 
 
 use ::clap::{App, Arg};
@@ -23,6 +22,8 @@ use ::std::process;
 use ::std::io::{Cursor,Write};
 use ::xdr_codec::{Pack};
 use ::zmq::{Message};
+use std::convert::TryFrom;
+
 
 use ::std::io;
 use ::std::cmp;
@@ -46,7 +47,7 @@ lazy_static! {
 
 // install a logger facility
 fn init_log() -> u64 {
-    simple_logger::init().unwrap();
+    Builder::from_default_env().init();
     println!("\n ************** initializing logger *****************\n");    
     return 1;
 }
@@ -134,9 +135,9 @@ impl<'a> QualityServer<'a> {
         // now we send cursor to the socket
         //
         let rawbuf = out_cursor.get_ref().as_slice();
-        let msg = Message::from_slice(rawbuf).unwrap();
+        let msg = Message::try_from(rawbuf).unwrap();
         info!("reply_error : sending err msg ");
-        let res = self.socket.send_msg(msg, 0);
+        let res = self.socket.send(msg, 0);
         if res.is_err() {
             println!(" could not even send err msg") 
         }
@@ -161,9 +162,9 @@ impl<'a> QualityServer<'a> {
         // now we send cursor to the socket
         //
         let rawbuf = out_cursor.get_ref().as_slice();
-        let msg = Message::from_slice(rawbuf).unwrap();
+        let msg = Message::try_from(rawbuf).unwrap();
         debug!("send_quality_slice: sending message nb quals {}", quals.len());
-        let res = self.socket.send_msg(msg, 0);
+        let res = self.socket.send(msg, 0);
         if res.is_err() {
             println!(" get_initial_handle : error sending message") 
         }

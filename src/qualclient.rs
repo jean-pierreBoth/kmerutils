@@ -17,6 +17,7 @@ use self::xdr_codec::{Pack, Unpack};
 
 use std::io::{Cursor,Read};
 use self::zmq::{Message};
+use std::convert::TryFrom;
 
 use rand::{Rng,thread_rng};
 
@@ -102,13 +103,13 @@ impl QualityClient {
         // now have a full buffer to transmit, get a &[u8] slice from cursor
         let rawbuf = buffer.get_ref().as_slice();
         // make up a zmq message
-        let resmsg = Message::from_slice(rawbuf);
+        let resmsg = Message::try_from(rawbuf);
         if resmsg.is_err() {
             println!(" construction of msg from slice failed ... ");
         }        
         let msg = resmsg.unwrap();
         log::debug!(" sending message ");
-        let _res = self.socket.send_msg(msg, 0).unwrap();
+        let _res = self.socket.send(msg, 0).unwrap();
         //
         // must wait for handle back from server
         //
