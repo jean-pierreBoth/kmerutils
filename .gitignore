@@ -3,3 +3,5 @@ Runs
 Cargo.lock
 rls*
 *.fastq
+*.pdf
+*.html

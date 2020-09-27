@@ -2,6 +2,9 @@
 name = "kmerutils"
 version = "0.0.1"
 authors = ["jeanpierre.both@gmail.com"]
+repository = "https://github.com/jean-pierreBoth/kmerutils"
+documentation = "https://docs.rs/kmerutils"
+keywords = ["genomics", "hash", "kmer"]
 edition = "2018"
 
 
@@ -52,20 +55,20 @@ histogram =  {version = "0.6", doc = false}
 multimap= {version =  "0.4.0", doc = false}
 
 # for networking
-zmq= {version =  "0.8.2"}
+zmq= {version =  "0.9"}
 xdr-codec= {version = "0.2.5" , doc = false}
 
 # for //
 crossbeam-utils = "0.7"
-crossbeam-channel = "0.2"
+crossbeam-channel = "0.4"
 
 parking_lot = "0.11"
 rayon = {version = "1.4",  doc = false}
 num_cpus = {version = "1.13.0", doc = false}
 
 time = {version = "0.2",  doc = false}
-ndarray = {version = "0.13" , doc = false}
-needletail = "0.4.0"
+ndarray = {version = "0.13", doc = false}
+needletail = {version = "0.4", doc = false}
 wavelet-matrix = { version = "0.4.7", doc = false}
 clap = {version = "2.33", doc = false}
 
@@ -86,4 +89,4 @@ redis = { version = "0.9.0"}
 # decreasing order of log for debug build : (max_level_)trace debug info warn error off
 # decreasing order of log for release build (release_max_level_)  .. idem
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_debug"] }
-simple_logger = { version = "1.0"}
+env_logger = { version = "0.7"}
