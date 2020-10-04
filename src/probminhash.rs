@@ -62,7 +62,9 @@ impl Distribution<f64> for  ExpRestricted01  {
 // adapted from class MaxValueTracker
 struct MaxValueTracker {
     m : usize,
+    // last_index = 2*m-2. max of array is at slot last_index
     last_index : usize,
+    // dimensioned to m hash functions
     values : Vec<f64>
 }
 
@@ -105,6 +107,18 @@ impl MaxValueTracker {
     /// return the maximum value maintained in the data structure
     pub fn get_max_value(&self) -> f64 {
         return self.values[self.last_index]
+    }
+
+    #[allow(dead_code)]
+    pub fn get_parent_slot(&self, slot : usize) -> usize {
+        assert!(slot <= self.m);
+        return self.m + (slot/2) as usize   // m + upper integer value of k/2 beccause of 0 based indexation
+    }
+
+    /// get value MaxValueTracker at slot
+#[allow(dead_code)]
+    pub fn get_value(&self, slot: usize) -> f64 {
+        self.values[slot]
     }
 } // end of impl MaxValueTracker
 
@@ -184,3 +198,49 @@ impl ProbMinHash3 {
 
 
 }  // end of impl ProbMinHash3
+
+
+//=================================================================
+
+
+#[cfg(test)]
+mod tests {
+
+use super::*;
+
+    #[test]    
+    // This test stores random values in a MaxValueTracker and check for max at higher end of array
+    fn test_max_value_tracker() {
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(45678 as u64);
+
+        let nbhash = 100;
+        let unif_01 = Uniform::<f64>::new(0., 1.);
+        let unif_m = Uniform::<usize>::new(0, nbhash);
+
+        let mut tracker = MaxValueTracker::new(nbhash);
+        //
+        let mut vmax = 0f64;
+        let loop_size = 5000;
+        //
+        for _ in 0..loop_size {
+            let k = unif_m.sample(&mut rng);
+            let xsi = unif_01.sample(&mut rng);
+            vmax = vmax.max(xsi);
+            tracker.update(k,xsi);
+            // check equality of max
+            assert!( !( vmax > tracker.get_max_value() && vmax < tracker.get_max_value()) );
+            // check for sibling and their parent coherence
+        }
+        // check for sibling and their parent coherence
+       for i in 0..nbhash {
+                let sibling = i^1;
+                let sibling_value = tracker.get_value(sibling);
+                let i_value = tracker.get_value(i);
+                let pidx = tracker.get_parent_slot(i);
+                let pidx_value = tracker.get_value(pidx);
+                assert!(sibling_value <=  pidx_value && i_value <= pidx_value);
+                assert!( !( sibling_value > pidx_value  &&   i_value >  pidx_value) );
+            }
+    }
+
+}  // end of module tests
