@@ -85,29 +85,84 @@ impl MaxValueTracker {
     // and accordingly
     // sibling ok k is k+1 if k even, k-1 else so it is given by bitxor(k,1)
     fn update(&mut self, k:usize, value:f64) {
-        trace!("max value tracker update {} {}", k, value);
+        assert!(k < self.m);
+        trace!("\n max value tracker update k, value , value at k {} {} {} ", k, value, self.values[k]);
         let mut current_value = value;
         let mut current_k = k;
-        while current_value < self.values[current_k] {
+        let mut more = false;
+        if current_value < self.values[current_k] {
+            more = true;
+        }
+        
+        while more {
             trace!("mxvt update k value {} {}", current_k, current_value);
             self.values[current_k] = current_value;
             let pidx = self.m + (current_k/2) as usize;   // m + upper integer value of k/2 beccause of 0 based indexation
             if pidx > self.last_index {
                 break;
             }
-            let siblidx = current_k^1;      // get sibling index of k with numerationbeginning at 0
+            let siblidx = current_k^1;      // get sibling index of k with numeration beginning at 0
+            assert!(self.values[siblidx] <= self.values[pidx]);
             if self.values[siblidx] >= self.values[pidx] {
                 break;                      // means parent stores the value of sibling, no more propagation needed
             }
-            // now we now parent stores the value of index k
-            if current_value < self.values[siblidx] {
+            // now we now parent stores the value of index k beccause  self.values[siblidx] < self.values[pidx]
+            trace!("propagating current_value {} sibling  {} ? ", current_value, self.values[siblidx]);
+            if current_value <= self.values[siblidx] {
+                trace!("     propagating current_value {} to parent {}", current_value, pidx);
                 // if value is less than its sibling , we must set the parent to sibling value and propagate
                 current_value = self.values[siblidx];
             }
             current_k = pidx;
+            if current_value >= self.values[current_k]  {
+                more = false;
+            }
+     //       current_k = pidx;
         }
     } // end of update function 
     
+
+    fn update1(&mut self, k:usize, value:f64) {
+        assert!(k < self.m);
+        trace!("\n max value tracker update k, value , value at k {} {} {} ", k, value, self.values[k]);
+        let mut current_value = value;
+        let mut current_k = k;
+        let mut more = false;
+        if current_value <= self.values[current_k] {
+            more = true;
+        }
+        
+        while more {
+            trace!("mxvt update k value {} {}", current_k, current_value);
+            self.values[current_k] = current_value;
+            let pidx = self.m + (current_k/2) as usize;   // m + upper integer value of k/2 beccause of 0 based indexation
+            if pidx > self.last_index {
+                break;
+            }
+            let siblidx = current_k^1;      // get sibling index of k with numeration beginning at 0
+            assert!(self.values[siblidx] <= self.values[pidx]);
+            assert!(self.values[current_k] <= self.values[pidx]);
+            //
+            if self.values[siblidx] >= self.values[pidx] && self.values[current_k] >= self.values[pidx] {
+                break;     // means parent current and sibling are equals no more propagation needed
+            }
+            // now either self.values[siblidx] <self.values[pidx] or current_value < self.values[pidx]
+            trace!("propagating current_value {} sibling  {} ? ", current_value, self.values[siblidx]);
+            //
+            if self.values[siblidx] <= current_value {
+                    trace!("     propagating current_value {} to parent {}", current_value, pidx);
+            } else if current_value < self.values[siblidx] {
+                    trace!("     propagating sibling value {} to parent {}", self.values[siblidx], pidx);
+                    current_value = self.values[siblidx];
+            }
+            current_k = pidx;
+            if current_value >= self.values[current_k]  {
+                more = false;
+            }
+        }
+    } // end of update function 
+
+
     /// return the maximum value maintained in the data structure
     pub fn get_max_value(&self) -> f64 {
         return self.values[self.last_index]
@@ -184,7 +239,7 @@ impl ProbMinHash3 {
                 self.maxvaluetracker.values[k] = h;
                 self.signature[k] = id;
                 // 
-                self.maxvaluetracker.update(k, h);
+                self.maxvaluetracker.update1(k, h);
                 qmax = self.maxvaluetracker.get_max_value();
             }
             h = winv * i as f64;
@@ -194,10 +249,10 @@ impl ProbMinHash3 {
             }
             h = h + winv * self.exp01.sample(&mut rng);
             println!("hash_item :  i h qmax =  {}   {}   {} ", i, h, qmax);
-            if i >= 300 {
+            if i >= 50 {
                 self.maxvaluetracker.dump();
             }
-            assert!(i <= 300);
+            assert!(i <= 50);
         }
     } // end of hash_item
 
@@ -252,6 +307,7 @@ use super::*;
         //
         for _ in 0..loop_size {
             let k = unif_m.sample(&mut rng);
+            assert!(k < nbhash);
             let xsi = unif_01.sample(&mut rng);
             vmax = vmax.max(xsi);
             tracker.update(k,xsi);
@@ -345,7 +401,11 @@ use super::*;
             }
         }
         //
-        trace!("inter / card = {} ", inter as f64/siga.len() as f64);
+        waprobhash.maxvaluetracker.dump();
+        wbprobhash.maxvaluetracker.dump();
+  
+        //
+        trace!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
     } // end of test_prob_count_intersection
 
 
