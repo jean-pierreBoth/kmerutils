@@ -79,6 +79,8 @@ impl MaxValueTracker {
         MaxValueTracker{m, last_index, values}
     }
 
+ 
+    
     // update slot k with value value
     // 0 indexation imposes some changes with respect to the the algo 4 of the paper
     // parent of k is m + (k/2)
@@ -90,45 +92,10 @@ impl MaxValueTracker {
         let mut current_value = value;
         let mut current_k = k;
         let mut more = false;
-        if current_value < self.values[current_k] {
-            more = true;
-        }
-        
-        while more {
-            trace!("mxvt update k value {} {}", current_k, current_value);
-            self.values[current_k] = current_value;
-            let pidx = self.m + (current_k/2) as usize;   // m + upper integer value of k/2 beccause of 0 based indexation
-            if pidx > self.last_index {
-                break;
-            }
-            let siblidx = current_k^1;      // get sibling index of k with numeration beginning at 0
-            assert!(self.values[siblidx] <= self.values[pidx]);
-            if self.values[siblidx] >= self.values[pidx] {
-                break;                      // means parent stores the value of sibling, no more propagation needed
-            }
-            // now we now parent stores the value of index k beccause  self.values[siblidx] < self.values[pidx]
-            trace!("propagating current_value {} sibling  {} ? ", current_value, self.values[siblidx]);
-            if current_value <= self.values[siblidx] {
-                trace!("     propagating current_value {} to parent {}", current_value, pidx);
-                // if value is less than its sibling , we must set the parent to sibling value and propagate
-                current_value = self.values[siblidx];
-            }
-            current_k = pidx;
-            if current_value >= self.values[current_k]  {
-                more = false;
-            }
-     //       current_k = pidx;
-        }
-    } // end of update function 
-    
-
-    fn update1(&mut self, k:usize, value:f64) {
-        assert!(k < self.m);
-        trace!("\n max value tracker update k, value , value at k {} {} {} ", k, value, self.values[k]);
-        let mut current_value = value;
-        let mut current_k = k;
-        let mut more = false;
         if current_value <= self.values[current_k] {
+            if current_value >= self.values[current_k] {
+                assert!(1==0);
+            }
             more = true;
         }
         
@@ -149,11 +116,12 @@ impl MaxValueTracker {
             // now either self.values[siblidx] <self.values[pidx] or current_value < self.values[pidx]
             trace!("propagating current_value {} sibling  {} ? ", current_value, self.values[siblidx]);
             //
-            if self.values[siblidx] <= current_value {
-                    trace!("     propagating current_value {} to parent {}", current_value, pidx);
-            } else if current_value < self.values[siblidx] {
-                    trace!("     propagating sibling value {} to parent {}", self.values[siblidx], pidx);
-                    current_value = self.values[siblidx];
+            if current_value < self.values[siblidx] {
+                trace!("     propagating sibling value {} to parent {}", self.values[siblidx], pidx);
+                current_value = self.values[siblidx];
+            }
+            else {
+                trace!("     propagating current_value {} to parent {}", current_value, pidx);   
             }
             current_k = pidx;
             if current_value >= self.values[current_k]  {
@@ -225,7 +193,7 @@ impl ProbMinHash3 {
     /// It is user responsability to enforce that. See method hashWSet
     pub fn hash_item(&mut self, id:usize, weight:f64) {
         assert!(weight > 0.);
-        println!("hash_item : id {}  weight {} ", id, weight);
+        trace!("hash_item : id {}  weight {} ", id, weight);
         let winv = 1./weight;
         let unif0m = Uniform::<usize>::new(0, self.m);
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(id as u64);
@@ -236,10 +204,9 @@ impl ProbMinHash3 {
             let k = unif0m.sample(&mut rng);
             assert!(k < self.m);
             if h < self.maxvaluetracker.values[k] {
-                self.maxvaluetracker.values[k] = h;
                 self.signature[k] = id;
                 // 
-                self.maxvaluetracker.update1(k, h);
+                self.maxvaluetracker.update(k, h);
                 qmax = self.maxvaluetracker.get_max_value();
             }
             h = winv * i as f64;
@@ -248,11 +215,7 @@ impl ProbMinHash3 {
                 break;
             }
             h = h + winv * self.exp01.sample(&mut rng);
-            println!("hash_item :  i h qmax =  {}   {}   {} ", i, h, qmax);
-            if i >= 50 {
-                self.maxvaluetracker.dump();
-            }
-            assert!(i <= 50);
+            trace!("hash_item :  i h qmax =  {}   {}   {} ", i, h, qmax);
         }
     } // end of hash_item
 
@@ -280,7 +243,7 @@ impl ProbMinHash3 {
 #[cfg(test)]
 mod tests {
 
-use log::trace;
+use log::*;
 
 #[allow(dead_code)]
 fn log_init() {
@@ -289,6 +252,43 @@ fn log_init() {
 
 use super::*;
 
+
+    #[test]
+    // This tests exponential random sampling in [0,1) 
+    // by comparing theoretical mean and estimated mean and checking for deviation 
+    // with nb_sampled = 1_000_000_000 we get 
+    // mu_th 0.4585059174632017 mean 0.45850733816056904  sigma  0.000009072128699429336 
+    // test = (mu_th - mean)/sigma = -0.15660022189165437
+    // But as it needs some time we set nb_sampled to 10_000_000. 
+    // test is often negative, so mu_th is approximated by above ?. to check
+    fn test_exp01() {
+        log_init();
+        //
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(234567 as u64);
+        let mut xsi;
+        let lambda = 0.5f64;
+        let mut mu_th = (-lambda - 1.) * (-lambda).exp() + 1.;
+        mu_th =  mu_th / (lambda * (1. - (-lambda).exp()));
+        //
+        let nb_sampled = 10_000_000;
+        let mut sampled = Vec::<f64>::with_capacity(nb_sampled);
+        let exp01 = ExpRestricted01::new(lambda);
+        //  
+        for _ in 0..nb_sampled {
+            xsi = exp01.sample(&mut rng);
+        //    trace!("xs= {}", xsi);
+            sampled.push(xsi);
+        }
+        let sum = sampled.iter().fold(0., |acc, x| acc +x);
+        let mean = sum / nb_sampled as f64;
+        //
+        let mut s2 = sampled.iter().fold(0., |acc, x| acc +(x-mean)*(x-mean));
+        s2 = s2 / (nb_sampled - 1)  as f64;
+        // 
+        println!("mu_th {} mean {}  sigma  {} ", mu_th, mean, (s2/nb_sampled as f64).sqrt());
+        let test = (mu_th - mean) / (s2/nb_sampled as f64).sqrt();
+        println!("test {}", test);
+    }
     #[test]    
     // This test stores random values in a MaxValueTracker and check for max at higher end of array
     fn test_max_value_tracker() {
@@ -330,16 +330,17 @@ use super::*;
     } // end of test_probminhash_count_range_intersection
 
     #[test] 
-    fn test_probminhash_count_intersection() {
+    // This test checks that with equal weights we fall back to Jaccard estimate
+    fn test_probminhash_count_intersection_equal_weights() {
         //
         log_init();
         //
-        debug!("test_probminhash_count_intersection");
-        println!("test_probminhash_count_intersection");
+        debug!("test_probminhash_count_intersection_equal_weights");
+        println!("test_probminhash_count_intersection_equal_weights");
         // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
         // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
         //
-        let set_size = 200;
+        let set_size = 100;
         let nbhash = 10;
         //
         // choose weights for va and vb elements
@@ -347,7 +348,7 @@ use super::*;
         let mut wb = Vec::<f64>::with_capacity(set_size);
         // initialize wa, weight 20 up to 130
         for i in 0..set_size {
-            if i < 130 {
+            if i < 70 {
                 wa.push(20.);
             }
             else {
@@ -356,7 +357,7 @@ use super::*;
         }
         // initialize wb weight 10 above 70
         for i in 0..set_size {
-            if i < 70 {
+            if i < 50 {
                 wb.push(0.);
             }
             else {
@@ -403,10 +404,90 @@ use super::*;
         //
         waprobhash.maxvaluetracker.dump();
         wbprobhash.maxvaluetracker.dump();
-  
         //
-        trace!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
+        info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
     } // end of test_prob_count_intersection
+
+
+
+#[test] 
+// This test checks JaccardProbability with unequal weights inside sets
+fn test_probminhash_count_intersection_unequal_weights() {
+    //
+    log_init();
+    //
+    println!("test_probminhash_count_intersection_unequal_weights");
+    debug!("test_probminhash_count_intersection_unequal_weights");
+    // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
+    // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
+    //
+    let set_size = 100;
+    let nbhash = 50;
+    //
+    // choose weights for va and vb elements
+    let mut wa = Vec::<f64>::with_capacity(set_size);
+    let mut wb = Vec::<f64>::with_capacity(set_size);
+    // initialize wa, weight 20 up to 130
+    for i in 0..set_size {
+        if i < 70 {
+            wa.push(2. * i as f64);
+        }
+        else {
+            wa.push(0.);
+        }
+    }
+    // initialize wb weight 10 above 70
+    for i in 0..set_size {
+        if i < 50 {
+            wb.push(0.);
+        }
+        else {
+            wb.push( 1./ (i * i) as f64);
+        }
+    }        
+    // compute Jp as in 
+    let mut jp = 0.;
+    for i in 0..set_size {
+        if wa[i] > 0. && wb[i] > 0. {
+            let mut den = 0.;
+            for j in 0..set_size {
+                den += (wa[j]/wa[i]).max(wb[j]/wb[i]);
+            }
+            jp += 1./den;
+        }
+    }
+    trace!("Jp = {} ",jp);
+    // probminhash 
+    trace!("\n\n hashing wa");
+    let mut waprobhash = ProbMinHash3::new(nbhash);
+    for i in 0..set_size {
+        if wa[i] > 0. {
+            waprobhash.hash_item(i, wa[i]);
+        }
+    }
+    waprobhash.maxvaluetracker.dump();
+    //
+    trace!("\n\n hashing wb");
+    let mut wbprobhash = ProbMinHash3::new(nbhash);
+    for i in 0..set_size {
+        if wb[i] > 0. {
+            wbprobhash.hash_item(i, wb[i]);
+        }
+    }        
+    let siga = waprobhash.get_signature();
+    let sigb = wbprobhash.get_signature();
+    let mut inter = 0;
+    for i in 0..siga.len() {
+        if siga[i] == sigb[i] {
+            inter += 1;
+        }
+    }
+    //
+    waprobhash.maxvaluetracker.dump();
+    wbprobhash.maxvaluetracker.dump();
+    //
+    info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
+} // end of test_prob_count_intersection
 
 
 
