@@ -170,7 +170,7 @@ pub struct ProbMinHash3 {
     m : usize,
     /// field to keep track of max hashed values
     maxvaluetracker : MaxValueTracker,
-    /// a expoential law restricted to interval [0., 1)
+    /// a exponential law restricted to interval [0., 1)
     exp01 : ExpRestricted01,
     ///  final signature of distribution. allocated to size m
     signature : Vec<usize>,
@@ -276,7 +276,6 @@ use super::*;
         //  
         for _ in 0..nb_sampled {
             xsi = exp01.sample(&mut rng);
-        //    trace!("xs= {}", xsi);
             sampled.push(xsi);
         }
         let sum = sampled.iter().fold(0., |acc, x| acc +x);
@@ -317,13 +316,13 @@ use super::*;
         }
         // check for sibling and their parent coherence
         for i in 0..nbhash {
-                let sibling = i^1;
-                let sibling_value = tracker.get_value(sibling);
-                let i_value = tracker.get_value(i);
-                let pidx = tracker.get_parent_slot(i);
-                let pidx_value = tracker.get_value(pidx);
-                assert!(sibling_value <=  pidx_value && i_value <= pidx_value);
-                assert!( !( sibling_value > pidx_value  &&   i_value >  pidx_value) );
+            let sibling = i^1;
+            let sibling_value = tracker.get_value(sibling);
+            let i_value = tracker.get_value(i);
+            let pidx = tracker.get_parent_slot(i);
+            let pidx_value = tracker.get_value(pidx);
+            assert!(sibling_value <=  pidx_value && i_value <= pidx_value);
+            assert!( !( sibling_value > pidx_value  &&   i_value >  pidx_value) );
         }
         assert!(!( vmax > tracker.get_max_value()  && vmax < tracker.get_max_value() ));
         tracker.dump();
@@ -331,7 +330,7 @@ use super::*;
 
     #[test] 
     // This test checks that with equal weights we fall back to Jaccard estimate
-    fn test_probminhash_count_intersection_equal_weights() {
+    fn test_probminhash3_count_intersection_equal_weights() {
         //
         log_init();
         //
@@ -412,7 +411,7 @@ use super::*;
 
 #[test] 
 // This test checks JaccardProbability with unequal weights inside sets
-fn test_probminhash_count_intersection_unequal_weights() {
+fn test_probminhash3_count_intersection_unequal_weights() {
     //
     log_init();
     //
@@ -442,7 +441,7 @@ fn test_probminhash_count_intersection_unequal_weights() {
             wb.push(0.);
         }
         else {
-            wb.push( 1./ (i * i) as f64);
+            wb.push( (i as f64).powi(4));
         }
     }        
     // compute Jp as in 
