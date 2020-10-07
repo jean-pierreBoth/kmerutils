@@ -80,7 +80,7 @@ pub struct KmerCoord {
 
 /// type supporting 16 bases kmer as u32.
 
-#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Debug)]
 pub struct Kmer16b32bit(pub u32);
 
 
@@ -201,7 +201,7 @@ impl FromStr for Kmer16b32bit {
 /// This is a type for Kmer less than 14 bases 2 bit encoded
 /// Real number of base is encoded in upper 4 bits!!!!
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub struct Kmer32bit(pub u32);
 
 // we need to implement PartialEq, Eq PartialOrd and Ord for Kmer32bit.
@@ -415,7 +415,7 @@ impl FromStr for Kmer32bit {
 // This representation is consistent with Kmer32bit as self.0 gives the word supporting value of kmer
 
 /// The type supporting Kmer for number of bases between 17 and 32.
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub struct  Kmer64bit(pub u64, pub u8);
 
 

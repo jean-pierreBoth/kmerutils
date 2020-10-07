@@ -1,6 +1,8 @@
 //! Implementation of ProbMinHash as described in O. Ertl
 
-use log::{trace,debug};
+use log::{trace};
+
+use std::fmt::{Debug};
 
 use rand::distributions::{Distribution,Uniform};
 use rand::prelude::*;
@@ -166,22 +168,28 @@ pub trait WeightedSet {
 }
 
 
-pub struct ProbMinHash3 {
+/// implementation of the algorithm ProbMinHash3 as described in Etrl Paper
+/// D must be convertible injectively into a use for random generator initialization hence the requirement Into<usize>
+/// If all data are directly referred to by an index D is the index (usize)
+pub struct ProbMinHash3<D> 
+            where D:Copy+Eq+Into<usize>+Debug   {
     m : usize,
     /// field to keep track of max hashed values
     maxvaluetracker : MaxValueTracker,
     /// a exponential law restricted to interval [0., 1)
     exp01 : ExpRestricted01,
     ///  final signature of distribution. allocated to size m
-    signature : Vec<usize>,
+    signature : Vec<D>,
 } // end of struct ProbMinHash3
 
 
-impl ProbMinHash3 {
-    pub fn new(nbhash:usize) -> Self {
+impl<D> ProbMinHash3<D> 
+            where D:Copy+Eq+Debug+Into<usize> {
+
+    pub fn new(nbhash:usize, initobj : D) -> Self {
         assert!(nbhash >= 2);
         let lambda = ((nbhash as f64)/((nbhash - 1) as f64)).ln();
-        let h_signature = (0..nbhash).map( |_| usize::MAX).collect();
+        let h_signature = (0..nbhash).map( |_| initobj).collect();
         ProbMinHash3{m:nbhash, maxvaluetracker: MaxValueTracker::new(nbhash as usize), 
                     exp01:ExpRestricted01::new(lambda), signature:h_signature}
     } // end of new
@@ -191,12 +199,12 @@ impl ProbMinHash3 {
     /// It is the building block of the computation, but this method 
     /// does not check for unicity of id added in hash computation.  
     /// It is user responsability to enforce that. See method hashWSet
-    pub fn hash_item(&mut self, id:usize, weight:f64) {
+    pub fn hash_item(&mut self, id:D, weight:f64) {
         assert!(weight > 0.);
-        trace!("hash_item : id {}  weight {} ", id, weight);
+        trace!("hash_item : id {:?}  weight {} ", id, weight);
         let winv = 1./weight;
         let unif0m = Uniform::<usize>::new(0, self.m);
-        let mut rng = Xoshiro256PlusPlus::seed_from_u64(id as u64);
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(id.into() as u64);
         let mut h = winv * self.exp01.sample(&mut rng);
         let mut i = 1;
         let mut qmax = self.maxvaluetracker.get_max_value();
@@ -220,13 +228,13 @@ impl ProbMinHash3 {
     } // end of hash_item
 
     /// return final signature.
-    pub fn get_signature(&self) -> &Vec<usize> {
+    pub fn get_signature(&self) -> &Vec<D> {
         return &self.signature
     }
 
     /// hash data when given by an iterable WeightedSet
     pub fn hash_wset<T>(&mut self, data: &mut T)
-        where T: WeightedSet<Object=usize> + Iterator<Item=usize> {
+        where T: WeightedSet<Object=D> + Iterator<Item=D> {
             while let Some(obj) = &data.next() {
                 let weight = data.get_weight(&obj);
                 self.hash_item(*obj, weight);
@@ -377,7 +385,7 @@ use super::*;
         trace!("Jp = {} ",jp);
         // probminhash 
         trace!("\n\n hashing wa");
-        let mut waprobhash = ProbMinHash3::new(nbhash);
+        let mut waprobhash = ProbMinHash3::new(nbhash, 0);
         for i in 0..set_size {
             if wa[i] > 0. {
                 waprobhash.hash_item(i, wa[i]);
@@ -386,7 +394,7 @@ use super::*;
         waprobhash.maxvaluetracker.dump();
         //
         trace!("\n\n hashing wb");
-        let mut wbprobhash = ProbMinHash3::new(nbhash);
+        let mut wbprobhash = ProbMinHash3::new(nbhash,0 );
         for i in 0..set_size {
             if wb[i] > 0. {
                 wbprobhash.hash_item(i, wb[i]);
@@ -458,7 +466,7 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     trace!("Jp = {} ",jp);
     // probminhash 
     trace!("\n\n hashing wa");
-    let mut waprobhash = ProbMinHash3::new(nbhash);
+    let mut waprobhash = ProbMinHash3::new(nbhash, 0);
     for i in 0..set_size {
         if wa[i] > 0. {
             waprobhash.hash_item(i, wa[i]);
@@ -467,7 +475,7 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     waprobhash.maxvaluetracker.dump();
     //
     trace!("\n\n hashing wb");
-    let mut wbprobhash = ProbMinHash3::new(nbhash);
+    let mut wbprobhash = ProbMinHash3::new(nbhash, 0);
     for i in 0..set_size {
         if wb[i] > 0. {
             wbprobhash.hash_item(i, wb[i]);
