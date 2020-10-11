@@ -1,7 +1,12 @@
 //! This file contains structure for Kmer generation from a compressed sequence
 //! Essentially we provide for iterators which extract kmer from a range in a sequence
 //
+use log::{trace};
 
+use indexmap::{IndexMap};
+
+use fnv::FnvBuildHasher;
+type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 
 pub use crate::kmer::*;
@@ -191,6 +196,8 @@ pub trait KmerGenerationPattern<T:KmerT> {
     fn generate_kmer_pattern(&self, seq : & Sequence) -> Vec<T>;
     /// generate all kmers inclused in begin..end with end excluded as in rust conventions.
     fn generate_kmer_pattern_in_range(&self, seq : & Sequence, begin:usize, end:usize) -> Vec<T>;   
+    ///
+    fn generate_kmer_distribution(&self, seq : & Sequence) -> Vec<(T,usize)>;
 }
 
 
@@ -229,6 +236,11 @@ impl  <T:KmerT> KmerGenerator<T> {
     where Self: KmerGenerationPattern<T> {
         self.generate_kmer_pattern_in_range(seq, begin, end)
     }
+    /// generic driver for kmer distribution pattern
+    pub fn generate_weighted_kmer(&self, seq : &Sequence) -> Vec<(T,usize)>  where Self : KmerGenerationPattern<T> {
+        self.generate_kmer_distribution(seq)
+    }
+    ///
     pub fn get_kmer_size(&self) -> usize { self.kmer_size as usize}
 }  // end of impl KmerGenerator
 
@@ -257,6 +269,45 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         return kmer_vect;
     }  // end of generate_kmer_pattern
 
+    /// generate all kmers associated to their multiplicity
+    /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
+    fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer16b32bit,usize)> {
+        if self.kmer_size != 16u8 {
+            panic!("Kmer16b32bit has 16 bases!!");
+        }
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
+        let mut kmer_distribution : FnvIndexMap::<u32,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmeriter = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
+        loop {
+            match kmeriter.next(){
+                Some(kmer) => {
+                    // we must convert Kmer16b32bit to u64 and be able to retrieve the original Kmer16b32bit
+                    *kmer_distribution.entry(kmer.get_compressed_value()).or_insert(0) += 1;
+                },
+                None => break,
+            }
+        }
+        // convert to a Vec
+        let mut hashed_kmers = kmer_distribution.keys();
+        let mut weighted_kmer = Vec::<(Kmer16b32bit,usize)>::with_capacity(kmer_distribution.len());
+        loop {
+            match hashed_kmers.next() {
+                Some(key) => {
+                    if let Some(weight) = kmer_distribution.get(key) {
+                        // get back to Kmer16b32bit from 
+                        weighted_kmer.push((Kmer16b32bit(*key),*weight));
+                    };
+                },
+                None => break,
+            }
+        }
+        //
+        return weighted_kmer;
+    }  // end of generate_kmer_pattern
+
+
 
     fn generate_kmer_pattern_in_range(&self, seq : &Sequence, begin:usize, end:usize) -> Vec<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
@@ -280,7 +331,9 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         //
         return kmer_vect;
     }  // end of generate_kmer_pattern
+
 }  // end of impl KmerGenerationPattern<'a, Kmer16b32bit>
+
 
 
 // ======================= implementation for Kmer32bit ====================
@@ -308,7 +361,49 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         return kmer_vect;
     }  // end of generate_kmer_pattern
 
-    
+
+    /// generate all kmers associated to their multiplicity
+    /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
+    fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer32bit,usize)> {
+        if self.kmer_size > 14u8 {
+            panic!("Kmer32bit has more than 14 bases!!");
+        }
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
+        let mut kmer_distribution : FnvIndexMap::<u32,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmeriter = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size, seq);
+        loop {
+            match kmeriter.next(){
+                Some(kmer) => {
+                    trace!(" storing kmer {} ", String::from_utf8_lossy(kmer.get_uncompressed_kmer().as_slice()));                    // we must convert Kmer64bit to u64 and be able to retrieve the original Kmer64bit
+                    // we must convert Kmer16b32bit to u64 and be able to retrieve the original Kmer16b32bit
+                    *kmer_distribution.entry(kmer.0).or_insert(0) += 1;
+                },
+                None => break,
+            }
+        }
+        // convert to a Vec
+        let mut hashed_kmers = kmer_distribution.keys();
+        let mut weighted_kmer = Vec::<(Kmer32bit,usize)>::with_capacity(kmer_distribution.len());
+        loop {
+            match hashed_kmers.next() {
+                Some(key) => {
+                    trace!(" retrieved key {:b} ", key);  
+                    if let Some(weight) = kmer_distribution.get(key) {
+                        // get back to Kmer32bit from 
+                        weighted_kmer.push((Kmer32bit(*key),*weight));
+                    };
+                },
+                None => break,
+            }
+        }
+        //
+        return weighted_kmer;
+    }  // end of generate_kmer_pattern
+
+
+
     fn generate_kmer_pattern_in_range(&self, seq : &Sequence, begin:usize, end:usize) -> Vec<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer16b32bit has less than 14 bases!!");
@@ -327,7 +422,10 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         // as we have set range in kmeriter we iter as long as we get a kmer
         loop {
             match kmeriter.next(){
-                Some(kmer) => kmer_vect.push(kmer),
+                Some(kmer) => {
+                    trace!(" storing kmer {} ", String::from_utf8_lossy(kmer.get_uncompressed_kmer().as_slice()));                    // we must convert Kmer64bit to u64 and be able to retrieve the original Kmer64bit
+                    kmer_vect.push(kmer)
+                },
                 None => break,
             }
         }
@@ -363,7 +461,54 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         return kmer_vect;
     }  // end of generate_kmer_pattern
 
-    
+
+    /// generate all kmers associated to their multiplicity
+    /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
+    fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer64bit,usize)> {
+        if self.kmer_size > 32u8 {
+            panic!("Kmer64bit has less than 32 bases!!");
+        }
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let kmer_size = self.kmer_size as usize;
+        let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
+        let mut kmer_distribution : FnvIndexMap::<u64,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmeriter = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size, seq);
+        let mut nb_base = 0;
+        loop {
+            match kmeriter.next(){
+                Some(kmer) => {
+                    trace!(" storing {} ", String::from_utf8_lossy(kmer.get_uncompressed_kmer().as_slice()));                    // we must convert Kmer64bit to u64 and be able to retrieve the original Kmer64bit
+                    *kmer_distribution.entry(kmer.get_compressed_value()).or_insert(0) += 1;
+                    if nb_base == 0 {
+                        nb_base = kmer.1;
+                    }
+                },
+                None => break,
+            }
+        }
+        // convert to a Vec
+        let mut hashed_kmers = kmer_distribution.keys();
+        let mut weighted_kmer = Vec::<(Kmer64bit,usize)>::with_capacity(kmer_distribution.len());
+        loop {
+            match hashed_kmers.next() {
+                Some(key) => {
+                    trace!(" retrieved key {:b} ", key);  
+                   // we must convert Kmer64bit to u64 and be able to retrieve the original Kmer64bit
+                    if let Some(weight) = kmer_distribution.get(key) {
+                        // get back to  Kmer64bit 
+                        weighted_kmer.push((Kmer64bit(*key, nb_base),*weight));
+                    };
+                },
+                None => break,
+            }
+        }
+        //
+        return weighted_kmer;
+    }  // end of generate_kmer_pattern
+
+
+
     fn generate_kmer_pattern_in_range(&self, seq : &Sequence, begin:usize, end:usize) -> Vec<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
@@ -451,7 +596,12 @@ pub fn generate_all_kmer64bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //
+
+    #[allow(dead_code)]
+    fn log_init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+        //
     //   11010000001010100000000100111101
     //    T C A A A G G G A A A C A T T C
     //   In this test all bytes are complete
@@ -587,7 +737,48 @@ mod tests {
     }  // end of test_gen_kmer
 
 
+    #[test]
+    fn test_generate_weighted_kmer32bit() {
+        //
+        log_init();
+        // got a string of 80 bases shoud have 66 Kmers OK
+        let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATT");
+        // transform to a Vec<u8> and then a Sequence
+        let slu8 = seqstr.as_bytes();
+        // get a sequence with 2 bits compression
+        let seq = Sequence::new(&slu8,2);
+        let weighted_kmer : Vec<(Kmer32bit,usize)> = KmerGenerator::new(3).generate_weighted_kmer(&seq);
+        for x in weighted_kmer {
+            let ukmer = (x.0).get_uncompressed_kmer();
+            println!("kmer {:?}  {} ,   weight {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1);
+        }
+    } // end of test_generate_weighted_kmer32bit
     
+
+    #[test]
+    fn test_generate_weighted_kmer64bit() {
+        //
+        log_init();
+        // got a string with repetition of the beginning to have some long kmers with multiplicity >= 2
+        let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTTCAAAGGGAAACATTCAAAATCAG");
+        // transform to a Vec<u8> and then a Sequence
+        let slu8 = seqstr.as_bytes();
+        // get a sequence with 2 bits compression
+        let seq = Sequence::new(&slu8,2);
+        let weighted_kmer : Vec<(Kmer64bit,usize)> = KmerGenerator::new(15).generate_weighted_kmer(&seq);
+        // first 9 kmers have weight 2 else weight 1
+        let mut i = 0;
+        for x in weighted_kmer {
+            let ukmer = (x.0).get_uncompressed_kmer();
+            assert!(i <= 8 && x.1 == 2);
+            assert!( i >9 && x.1 == 1);
+            i = i+1;
+            println!("kmer {:?}  {} ,   weight {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1);
+        }
+    } // end of test_generate_weighted_kmer64bit
+
+
+
     #[test]
     fn test_generate_kmer16b32bit_pattern() {
         // got a string of 80 bases shoud have 66 Kmers OK
@@ -609,7 +800,6 @@ mod tests {
         let str = String::from_utf8_lossy(v.as_slice());
         assert_eq!(str, seqstr[lastpos..seqstr.len()]);
     }
-
 
         
     #[test]

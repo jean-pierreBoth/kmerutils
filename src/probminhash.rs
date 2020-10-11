@@ -94,10 +94,7 @@ impl MaxValueTracker {
         let mut current_value = value;
         let mut current_k = k;
         let mut more = false;
-        if current_value <= self.values[current_k] {
-            if current_value >= self.values[current_k] {
-                assert!(1==0);
-            }
+        if current_value < self.values[current_k] {
             more = true;
         }
         
