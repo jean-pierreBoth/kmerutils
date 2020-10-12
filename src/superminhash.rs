@@ -13,12 +13,12 @@
 
 use log::trace;
 
-use std::{mem, cmp};
+use std::{cmp};
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
 use std::marker::PhantomData;
 use rand::prelude::*;
 use rand::distributions::*;
-use rand_xorshift::XorShiftRng;
+use rand_xoshiro::Xoshiro256PlusPlus;
 use std::f64;
 
 #[allow(unused_imports)]
@@ -26,11 +26,6 @@ use crate::invhash;
 #[allow(unused_imports)]
 use fnv::FnvHasher;
 
-// shift for gerenerating multiple hash values
-const MULTISHIFT : usize = 27;
-
-// seed for generating multiple hash values
-const MULTISEED : u64 = 0x90b45d39fb6da1fa;
 
 
 /// This type is used to store already hashed data and implements
@@ -185,21 +180,12 @@ impl <'a, T:Hash ,  H : 'a + Hasher+Default> SuperMinHash<'a,T, H> {
         let mut hasher = self.b_hasher.build_hasher();
         to_sketch.hash(&mut hasher);
         let hval1 : u64 = hasher.finish();
-        //            trace!("to hash  hashed : {:?} {:?} ", to_sketch[i], hval1); # needs T : Debug
-        // now we need 4 u32 to get a seed... 
-        let tmp = hval1.wrapping_mul(crate::superminhash::MULTISEED);
-        let hval2 = tmp ^ (tmp >> crate::superminhash::MULTISHIFT);
-        // transmute hval1 and hval2 to a [u8;8]
-        let s1  = unsafe { mem::transmute::<u64, [u8;8]>(hval1) };
-        let s2  = unsafe { mem::transmute::<u64, [u8;8]>(hval2) };
-        let mut seed_xor : [u8;16] = [ 0,0,0,0,  0,0,0,0,  0,0,0,0,  0,0,0,0];
-        for iseed in 0..8 {
-            seed_xor[iseed] = s1[iseed];
-            seed_xor[iseed+8] = s2[iseed];
-        }
         // Then initialize random numbers generators with seedxor,
         // we have one random generator for each element to sketch
-        let mut rand_generator = XorShiftRng::from_seed(seed_xor);
+        // CAVEAT : if collisions occurs the generators used are not in bijection with data
+        // In probminhash we imposed T to verifiy Into<usize>. We have to be coherent..
+        let mut rand_generator = Xoshiro256PlusPlus::seed_from_u64(hval1);
+//        trace!("sketch hval1 :  {:?} ",hval1); // needs T : Debug
         //
         let mut j:usize = 0;
         let irank = (self.item_rank) as i64;
@@ -287,6 +273,13 @@ pub fn get_jaccard_index_estimate(hsketch: &Vec<f64>  , other_sketch: &Vec<f64>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    #[allow(dead_code)]
+    fn log_init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[test]
     fn test_build_hasher() {
         let bh = BuildHasherDefault::<FnvHasher>::default();
@@ -296,13 +289,14 @@ mod tests {
 
     #[test]
     fn test_range_intersection_fnv() {
+        log_init();
         // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
         // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
         //
         let va : Vec<usize> = (0..1000).collect();
         let vb : Vec<usize> = (900..2000).collect();
         let bh = BuildHasherDefault::<FnvHasher>::default();
-        let mut sminhash : SuperMinHash<usize, FnvHasher>= SuperMinHash::new(50, &bh);
+        let mut sminhash : SuperMinHash<usize, FnvHasher>= SuperMinHash::new(70, &bh);
         // now compute sketches
         println!("sketching a ");
         let resa = sminhash.sketch_slice(&va);
