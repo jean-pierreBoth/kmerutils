@@ -473,8 +473,15 @@ impl KmerT for Kmer64bit {
 
     fn push(&self, base : u8) -> Kmer64bit {
         // shift left 2 bits, insert new base and enforce saved number of bases.
-        let new_kmer = (self.0 << 2) | (base as u64 & 0b11);
-        debug!("in push new_kmer = {:b}",  new_kmer);
+        // Note that the left shift pushes garbage bit between 4 upper bits and lower bits coding value.
+        // We are cautious to clean them by using value_mask which reset those bit to 0!
+        // It is useful when implementing PartialEq and compressed value 
+        // We could use as a mask for value field : (0b1 << (2*self.get_nb_bases())) - 1 which enforce 0 bit between 4 upper bits
+        // and lower bits coding value.
+        let value_mask :u64 = (0b1 << (2*self.get_nb_base())) - 1;
+        // shift left 2 bits, insert new base and enforce saved number of bases.
+        let new_kmer = ((self.0 << 2) & value_mask) | (base as u64 & 0b11);
+        trace!("in push new_kmer = {:b}",  new_kmer);
         Kmer64bit(new_kmer, self.1)
     }
 
