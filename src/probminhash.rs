@@ -8,6 +8,8 @@ use rand::distributions::{Distribution,Uniform};
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
+use wyhash::*;
+
 /// Structure for defining exponential sampling of parameter lambda restricted with support restricted
 /// to unit interval [0,1).
 /// Specially adapted for ProbminHash3 and 4.
@@ -240,6 +242,55 @@ impl<D> ProbMinHash3<D>
 
 
 }  // end of impl ProbMinHash3
+
+
+
+/// fisher Yates random permutation generation, with lazy generation
+/// of an array of size n
+pub struct FYshuffle {
+    m: usize,
+    rng : Xoshiro256PlusPlus,
+    /// uniform distribution on [0,1)
+    unif_01 : Uniform<f64>,
+    ///
+    v : Vec<usize>,
+    ///
+    lastidx : usize,
+}
+
+impl FYshuffle {
+    pub fn new(m: usize) -> FYshuffle {
+        let v : Vec<usize> = (0..m).map(|x| x).collect();
+        // seed Xoshiro256PlusPlus with WyRng...
+        let mut rng_init = WyRng::default();
+        FYshuffle{m:m, rng:Xoshiro256PlusPlus::seed_from_u64(rng_init.next_u64()), unif_01: Uniform::<f64>::new(0., 1.), v : v, lastidx:m}
+    }
+
+    // See https://www.geeksforgeeks.org/generate-a-random-permutation-of-1-to-n/
+    // and The algorithm design manual S.Skiena P.458
+    pub fn next(&mut self) -> usize {
+        if self.lastidx >= self.m {
+            self.lastidx = 0;
+        }
+        let xsi = self.unif_01.sample(&mut self.rng);
+        // sample between self.lastidx (included) and self.m (excluded)
+        let idx = self.lastidx + (xsi * (self.m - self.lastidx) as f64) as usize;
+        let val = self.v[idx];
+        self.v[idx] = self.v[self.lastidx];
+        self.v[self.lastidx] = val;
+        self.lastidx += 1;
+        val
+    }
+
+    pub fn reset(&mut self) {
+        self.lastidx = 0;
+    }
+
+    pub fn get_values(&self) -> &Vec<usize> {
+        &self.v
+    }
+
+}  // end of impl FYshuffle
 
 
 //=================================================================
@@ -492,6 +543,39 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     //
     info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
 } // end of test_prob_count_intersection
+
+
+#[test]
+// We check we have a unifom distribution of values at each rank of v
+// variance is 5
+fn test_fyshuffle() {
+
+    log_init();
+
+    let m = 4;
+    let mut fypermut = FYshuffle::new(m);
+    let nb_permut = 500000;
+    let mut freq : Vec<usize> = (0..m).map(|_| 0).collect();
+
+    for _ in 0..nb_permut {
+        fypermut.next();
+        let v = fypermut.get_values();
+        for k in 0..v.len() {
+            freq[k] += v[k];
+        }
+    }
+
+    let th_freq = 1.5;
+    let th_var = 5./4.;
+    let sigma = (th_var/ (nb_permut as f64)).sqrt();
+    for i in 0..freq.len() {
+        let rel_error = ((freq[i] as f64)/ (nb_permut as f64) - th_freq)/ sigma;
+        trace!(" slot i {} , rel error = {}", i, rel_error);
+        assert!( rel_error.abs() < 3.)
+    }
+    trace!("  freq = {:?}", freq);
+} // end of test_fyshuffle
+
 
 
 

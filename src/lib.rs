@@ -26,6 +26,7 @@ pub mod minhash;
 pub mod superminhash; 
 pub mod nohasher;
 pub mod mininvhashkmer;
+pub mod probminhash;
 #[macro_use]
 pub mod nthash;
 
@@ -55,6 +56,7 @@ lazy_static! {
     };
 }
 // install a logger facility
+// set RUST_LOG to trace, warn debug off ....
 fn init_log() -> u64 {
     env_logger::Builder::from_default_env().init();
     println!("\n ************** initializing logger from env *****************\n");    

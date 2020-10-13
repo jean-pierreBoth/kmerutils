@@ -1,9 +1,10 @@
-//! This structure is mostly dedicated to doing simultanuously minhash and
+//! This module is mostly dedicated to doing simultanuously minhash and
 //! related counting with compressed kmers.
+//! 
 //! This implementation of minhash is highly inspired by the finch module
-//! but we need some genericity on types representing Kmer and Hash
-//! We thus provide a generic module that can then relies on invertible hash
-//! and thus can avoid storing hashed kmer.
+//! but we need some genericity on types representing Kmer and Hash.  
+//! We provide a generic module that relies on invertible hash
+//! so we can avoid storing hashed kmer as hash value correspond bijectively to Kmers
 
 //
 
@@ -179,6 +180,7 @@ impl <T:CompressedKmerT ,  H : Hasher+Default> MinInvHashCountKmer<T, H> {
                 });
                 // 
                 self.counts.insert(new_hash, 1u8);
+                // just keep the number of minhash asked for
                 if self.hashes.len() > self.size {
                     let hashitem = self.hashes.pop().unwrap();
                     let _old_count = self.counts.remove(&hashitem.hash).unwrap();
@@ -217,7 +219,9 @@ impl <T:CompressedKmerT ,  H : Hasher+Default> MinInvHashCountKmer<T, H> {
 
 
 
-/// compute different distances from sketch. What do we do of counts?
+/// compute different distances from sketch.
+/// The arguments are supposed to come from get_sketchcount method that returns sorted (!!!) InvHashCountKmer
+/// What do we do of counts? See ProbMinHash
 pub fn minhash_distance<T:CompressedKmerT>(sketch1: &Vec<InvHashCountKmer<T> >, sketch2: &Vec<InvHashCountKmer<T> >) ->  MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;

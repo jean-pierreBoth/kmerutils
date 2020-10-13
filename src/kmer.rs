@@ -15,8 +15,8 @@ use std::hash::Hash;
 use std::cmp::Ord;
 use std::str::FromStr;
 
-use log::debug;
-use log::trace;
+#[allow(unused)]
+use log::{debug,trace};
 
 use crate::nthash::*;
 

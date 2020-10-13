@@ -73,14 +73,17 @@ wavelet-matrix = { version = "0.4.7", doc = false}
 clap = {version = "2.33", doc = false}
 
 #  for hashing 
+wyhash = {version = "0.4", doc = false}
 rand = {version = "0.7", doc = false}
 rand_xorshift = {version = "0.2", doc = false}
+rand_xoshiro = {version = "0.4", doc = false}
 
 cuckoofilter = {version="0.5", doc=false}
 bloom = {version="0.3", doc=false}
 metrohash = "1.0.5"
 
-fxhash = { version= "0.2"}
+fxhash = { version= "0.2", doc = false}
+indexmap = { version = "1.6", doc = false}
 fnv = {version= "1.0"}
 
 lazy_static = { version = "1.4"}
@@ -88,5 +91,5 @@ lazy_static = { version = "1.4"}
 redis = { version = "0.9.0"}
 # decreasing order of log for debug build : (max_level_)trace debug info warn error off
 # decreasing order of log for release build (release_max_level_)  .. idem
-log = { version = "0.4", features = ["max_level_debug", "release_max_level_debug"] }
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_debug"] }
 env_logger = { version = "0.7"}
