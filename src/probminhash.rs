@@ -310,7 +310,7 @@ impl FYshuffle {
 /// If all data are directly referred to by an index D is the index (usize)
 pub struct ProbMinHash2<D> 
             where D:Copy+Eq+Into<usize>+Debug   {
-    _m : usize,
+    m : usize,
     /// field to keep track of max hashed values
     maxvaluetracker : MaxValueTracker,
     /// random permutation generator
@@ -329,8 +329,8 @@ impl <D> ProbMinHash2<D>
 
     pub fn new(nbhash:usize, initobj:D) -> Self {
         let h_signature = (0..nbhash).map( |_| initobj).collect();
-        let betas : Vec<f64> = (0..nbhash).map(| x | (nbhash as f64)/ (nbhash - x + 1) as f64).collect();
-        ProbMinHash2{_m:nbhash, 
+        let betas : Vec<f64> = (0..nbhash).map(| x | (nbhash as f64)/ (nbhash - x) as f64).collect();
+        ProbMinHash2{ m:nbhash, 
                     maxvaluetracker: MaxValueTracker::new(nbhash as usize), 
                     permut_generator : FYshuffle::new(nbhash),
                     betas : betas,
@@ -348,7 +348,7 @@ impl <D> ProbMinHash2<D>
         let winv : f64 = 1./weight;
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(id.into() as u64);
         self.permut_generator.reset();
-        let mut i = 1;
+        let mut i = 0;
         let x : f64 = rng.sample(Exp1);
         let mut h : f64 = winv * x;
         let mut qmax = self.maxvaluetracker.get_max_value();
@@ -364,7 +364,10 @@ impl <D> ProbMinHash2<D>
             }
             i = i+1;
             let x : f64 = rng.sample(Exp1);
+            // note : we have incremented i before accessing to betas to be coherent i initialization to 0
+            // and beta indexing.
             h = h + winv * self.betas[i] * x;
+            assert!(i < self.m);
         }
     }  // end of hash_item 
 
