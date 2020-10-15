@@ -18,6 +18,9 @@ use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
 use wyhash::*;
+use std::hash::Hash;
+
+use indexmap::{IndexMap};
 
 /// Structure for defining exponential sampling of parameter lambda restricted with support restricted
 /// to unit interval [0,1).
@@ -167,6 +170,9 @@ impl MaxValueTracker {
     } // end of dump
 } // end of impl MaxValueTracker
 
+
+
+
 /// A Trait to define association of a weight to an object.
 /// Typically we could implement Trait WeightedSet for an IndexMap<Object, f64> giving a weight to each object
 /// or 
@@ -176,11 +182,13 @@ pub trait WeightedSet {
 }
 
 
+
+
 /// implementation of the algorithm ProbMinHash3 as described in Etrl Paper
 /// D must be convertible injectively into a usize for random generator initialization hence the requirement Into<usize>
 /// If all data are directly referred to by an index D is the index (usize)
 pub struct ProbMinHash3<D> 
-            where D:Copy+Eq+Into<usize>+Debug   {
+            where D:Copy+Eq+Into<usize>+Hash+Debug   {
     m : usize,
     /// field to keep track of max hashed values
     maxvaluetracker : MaxValueTracker,
@@ -192,7 +200,7 @@ pub struct ProbMinHash3<D>
 
 
 impl<D> ProbMinHash3<D> 
-            where D:Copy+Eq+Debug+Into<usize> {
+            where D:Copy+Eq+Debug+Into<usize>+Hash {
 
     pub fn new(nbhash:usize, initobj : D) -> Self {
         assert!(nbhash >= 2);
@@ -250,6 +258,28 @@ impl<D> ProbMinHash3<D>
     } // end of hash method
 
 
+    /// computes set signature when set is given as an IndexMap with weights corresponding to values.
+    /// This ensures that objects are assigned a weight only once, so that we really have a set of objects with weight associated.
+    /// Otherwise the raw method hash_item can be used with the constraint that objects are sent ONCE in the hash method.
+    pub fn hash_weigthed_idxmap<H>(&mut self, data: &mut IndexMap<D, f64, H>) 
+                where   H : std::hash::BuildHasher, 
+    {
+        let mut objects = data.keys();
+        loop {
+            match objects.next() {
+                Some(key) => {
+                    trace!(" retrieved key {:?} ", key);  
+                   // we must convert Kmer64bit to u64 and be able to retrieve the original Kmer64bit
+                    if let Some(weight) = data.get(key) {
+                        // we got weight as something convertible to f64
+                        self.hash_item(*key, *weight);
+                    };
+                },
+                None => break,
+            }
+        }
+    }  // end of hash_weigthed_idxmap
+
 }  // end of impl ProbMinHash3
 
 
@@ -305,7 +335,7 @@ impl FYshuffle {
 
 
 
-/// implementation of the algorithm ProbMinHash4 as described in Etrl Paper
+/// implementation of the algorithm ProbMinHash2 as described in Ertl Paper
 /// D must be convertible injectively into a usize for random generator initialization hence the requirement Into<usize>
 /// If all data are directly referred to by an index D is the index (usize)
 pub struct ProbMinHash2<D> 
@@ -372,7 +402,7 @@ impl <D> ProbMinHash2<D>
     }  // end of hash_item 
 
 
-}  // end of implementation blaock for ProbMinHash4
+}  // end of implementation block for ProbMinHash2
 
 
 
