@@ -284,6 +284,123 @@ impl<D> ProbMinHash3<D>
 
 
 
+
+/// implementation of the algorithm ProbMinHash3a as described in Etrl.
+/// This version of ProbMinHash3 is faster but requires some more memory as it requires storing states
+/// between 2 passes on data.
+/// D must be convertible injectively into a usize for random generator initialization hence the requirement Into<usize>
+/// If all data are directly referred to by an index D is the index (usize)
+pub struct ProbMinHash3a<D> 
+            where D:Copy+Eq+Into<usize>+Hash+Debug   {
+    m : usize,
+    /// field to keep track of max hashed values
+    maxvaluetracker : MaxValueTracker,
+    /// a exponential law restricted to interval [0., 1)
+    exp01 : ExpRestricted01,
+    /// Buffer to store object to be processed in second pass. Stores (object, inverse weight, generator)
+    to_be_processed : Vec<(D, f64, Xoshiro256PlusPlus)>,
+    ///  final signature of distribution. allocated to size m
+    signature : Vec<D>,
+} // end of struct ProbMinHash3a
+
+
+
+impl <D> ProbMinHash3a<D> 
+        where D:Copy+Eq+Debug+Into<usize>+Hash {
+
+    pub fn new(nbhash:usize, initobj : D) -> Self {
+        assert!(nbhash >= 2);
+        let lambda = ((nbhash as f64)/((nbhash - 1) as f64)).ln();
+        let h_signature = (0..nbhash).map( |_| initobj).collect();
+        ProbMinHash3a{m:nbhash, 
+                maxvaluetracker: MaxValueTracker::new(nbhash as usize), 
+                exp01:ExpRestricted01::new(lambda), 
+                to_be_processed : Vec::<(D, f64, Xoshiro256PlusPlus)>::new(),
+                signature:h_signature}
+    } // end of new
+
+
+    /// incrementally adds an item in hash signature.
+    /// It is the building block of the computation, but this method 
+    /// does not check for unicity of id added in hash computation.  
+    /// It is user responsability to enforce that. See method hashWSet
+    pub fn hash_weigthed_idxmap<H>(&mut self, data: &IndexMap<D, f64, H>) 
+                where   H : std::hash::BuildHasher  {
+        //
+        let mut objects = data.keys();
+        let unif0m = Uniform::<usize>::new(0, self.m);
+        let mut qmax:f64 = self.maxvaluetracker.get_max_value();
+
+        loop {
+            if let Some(key) = objects.next() {
+                if let Some(weight) = data.get(key) {
+                    trace!("hash_item : id {:?}  weight {} ", key, weight);
+                    let winv = 1./weight;
+                    let key_usize : usize = (*key).into();
+                    let mut rng = Xoshiro256PlusPlus::seed_from_u64(key_usize as u64);
+                    let h = winv * self.exp01.sample(&mut rng);
+                    qmax = self.maxvaluetracker.get_max_value();
+                    
+                    if h < qmax {
+                        let k = unif0m.sample(&mut rng);
+                        assert!(k < self.m);
+                        if h < self.maxvaluetracker.values[k] {
+                            self.signature[k] = *key;
+                            // 
+                            self.maxvaluetracker.update(k, h);
+                            qmax = self.maxvaluetracker.get_max_value();
+                        }
+                        if winv < qmax {
+                            // we store point for further processing in second step, if inequality is not verified
+                            // it cannot be added anymore anywhere.
+                            self.to_be_processed.push((*key,winv, rng));
+                        }                       
+                    } // end if h < qmax
+                } // end some weight
+            } // end some key
+            else { 
+                break;
+            }
+        } // end initial loop
+        //
+        // now we have second step
+        //
+        let mut i = 2;    // by comparison to ProbMinHash3 we are not at i = 2 !!
+        // 
+        while self.to_be_processed.len() > 0 {
+            let mut insert_pos = 0;
+            trace!(" i : {:?}  , nb to process : {}", i , self.to_be_processed.len());
+            for j in 0..self.to_be_processed.len() {
+                let (key, winv, rng) = &mut self.to_be_processed[j];
+                let mut h = (*winv) * (i - 1) as f64;
+                if h < self.maxvaluetracker.get_max_value() {
+                    h = h + (*winv) * self.exp01.sample(rng);
+                    let k = unif0m.sample(rng);
+                    if h < self.maxvaluetracker.values[k] {
+                        self.signature[k] = *key;
+                        // 
+                        self.maxvaluetracker.update(k, h);
+                        qmax = self.maxvaluetracker.get_max_value();
+                    }
+                    if (*winv) * (i as f64) < qmax {
+                        self.to_be_processed[insert_pos] = (*key, *winv, rng.clone());
+                        insert_pos = insert_pos + 1;
+                    }
+                }
+            }  // end of for j
+            self.to_be_processed.truncate(insert_pos);
+            i = i+1;
+        }  // end of while 
+    } // end of hash_weigthed_idxmap
+
+    /// return final signature.
+    pub fn get_signature(&self) -> &Vec<D> {
+        return &self.signature;
+    }
+} // end of ProbMinHash3a
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// fisher Yates random permutation generation, with lazy generation
 /// of an array of size n
 pub struct FYshuffle {
@@ -413,6 +530,11 @@ impl <D> ProbMinHash2<D>
 mod tests {
 
 use log::*;
+
+use indexmap::{IndexMap};
+
+use fnv::FnvBuildHasher;
+type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 #[allow(dead_code)]
 fn log_init() {
@@ -581,6 +703,77 @@ use super::*;
 
 #[test] 
 // This test checks JaccardProbability with unequal weights inside sets
+fn test_probminhash3a_count_intersection_unequal_weights() {
+    //
+    log_init();
+    //
+    println!("test_probminhash3a_count_intersection_unequal_weights");
+    debug!("test_probminhash3a_count_intersection_unequal_weights");
+    // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
+    // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
+    //
+    let set_size = 100;
+    let nbhash = 50;
+    //
+    // choose weights for va and vb elements
+    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(70, FnvBuildHasher::default());
+    // initialize wa, weight 20 up to 130
+    for i in 0..set_size {
+        if i < 70 {
+            *wa.entry(i).or_insert(0.) += 2. * i as f64;
+        }
+    }
+    let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(70, FnvBuildHasher::default());
+    // initialize wb weight 10 above 70
+    for i in 0..set_size {
+        if i >= 50 {
+            wb.entry(i).or_insert((i as f64).powi(4));
+        }
+    }        
+    // compute Jp as in Ertl paper
+    let mut jp = 0.;
+    for i in 0..set_size {
+        let wa_i = *wa.get(&i).unwrap_or(&0.);
+        let wb_i = *wb.get(&i).unwrap_or(&0.);
+        if wa_i > 0. &&  wb_i > 0. {
+            let mut den = 0.;
+            for j in 0..set_size {
+                let wa_j = *wa.get(&j).unwrap_or(&0.);
+                let wb_j = *wb.get(&j).unwrap_or(&0.);
+                den += (wa_j/wa_i).max(wb_j/wb_i);
+            }
+            jp += 1./den;
+        }
+    }
+    trace!("Jp = {} ",jp);
+    // probminhash 
+    trace!("\n\n hashing wa");
+    let mut waprobhash = ProbMinHash3a::new(nbhash, 0);
+    waprobhash.hash_weigthed_idxmap(&wa);
+    //
+    trace!("\n\n hashing wb");
+    let mut wbprobhash = ProbMinHash3a::new(nbhash, 0);
+    wbprobhash.hash_weigthed_idxmap(&wb);
+    //     
+    let siga = waprobhash.get_signature();
+    let sigb = wbprobhash.get_signature();
+    let mut inter = 0;
+    for i in 0..siga.len() {
+        if siga[i] == sigb[i] {
+            inter += 1;
+        }
+    }
+    //
+    waprobhash.maxvaluetracker.dump();
+    wbprobhash.maxvaluetracker.dump();
+    //
+    info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
+} // end of test_probminhash3a_count_intersection_unequal_weights
+
+
+
+#[test] 
+// This test checks JaccardProbability with unequal weights inside sets
 fn test_probminhash3_count_intersection_unequal_weights() {
     //
     log_init();
@@ -596,7 +789,7 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     // choose weights for va and vb elements
     let mut wa = Vec::<f64>::with_capacity(set_size);
     let mut wb = Vec::<f64>::with_capacity(set_size);
-    // initialize wa, weight 20 up to 130
+    // initialize wa, weight 2*i up to 70
     for i in 0..set_size {
         if i < 70 {
             wa.push(2. * i as f64);
@@ -605,7 +798,7 @@ fn test_probminhash3_count_intersection_unequal_weights() {
             wa.push(0.);
         }
     }
-    // initialize wb weight 10 above 70
+    // initialize wb weight i^4 above 50
     for i in 0..set_size {
         if i < 50 {
             wb.push(0.);
@@ -657,6 +850,8 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     //
     info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
 } // end of test_probminhash3_count_intersection_unequal_weights
+
+
 
 
 #[test]
