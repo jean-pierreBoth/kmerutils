@@ -1,9 +1,9 @@
-//! This structure is mostly dedicated to doing simultanuously minhash and
-//! related counting with compressed kmers.
-//! This implementation of minhash is highly inspired by the finch module
-//! but we need some genericity on types representing Kmer and Hash
-//! We thus provide a generic module that can then relies on invertible hash
-//! and thus can avoid storing hashed kmer.
+//! This module implementes original minhash algorithm and is highly inspired by the finch module.
+//! The implementation is more generic as it was designed to hash various type of compressed Kmers or 
+//! in fact any type T that satisfies Hash+Clone
+//! Moreover it can just computes Jaccard estimate or keep track of objects hashed.
+//! 
+//! See also module invhash to keep track of objects hashed with inversible hash
 
 //
 
@@ -28,7 +28,7 @@ use std::collections::{BinaryHeap, HashMap};
 
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
 
-use std::fmt;
+use std::fmt::Debug;
 
 
 
@@ -39,9 +39,14 @@ pub type ItemHash = u64;
 
 
 
-/// If we use an inversible hash we do not need to keep item (the kmer)
-/// for other hash  we need copying and storing of Kmer... whence the Option<T> field
+// If we use an inversible hash we do not need to keep item (the kmer)
+// for other hash  we need copying and storing of Kmer... whence the Option<T> field
 
+/// A HashedItem is a hashed item and possibly the associated object (of type T) if
+/// we want to keep track of objects contributiong to minhash signature.
+/// This can be useful in genomics. Note that using invertible hash if objects hashes 
+/// are stored in a u32 or a u64 (as in some Kmer representation) we can retrive objects
+/// from hashed value. (See module invhash)
 #[derive(Debug,Clone)]
 pub struct HashedItem<T:Clone+Hash> {
     hash: ItemHash,
@@ -80,8 +85,8 @@ pub struct HashCount<T:Clone+Hash> {
 /// result of minhash distance computations a tuple for containment, jaccard, common, total
 pub struct MinHashDist(pub f64, pub f64, pub u64, pub u64);
 
-pub struct MinHashCount<T: Hash+Clone, H: Hasher+Default> {
-    keep_kmer:bool,
+pub struct MinHashCount<T: Hash+Clone+Debug, H: Hasher+Default> {
+    keep_item:bool,
     hashes: BinaryHeap<HashedItem<T>>,
     b_hasher: BuildHasherDefault<H>,
     counts: HashMap<ItemHash, u16, BuildHasherDefault<H>>,
@@ -94,14 +99,14 @@ pub struct MinHashCount<T: Hash+Clone, H: Hasher+Default> {
 
 
 
-impl <T:Hash + Clone + fmt::Display ,  H : Hasher+Default> MinHashCount<T, H> {
+impl <T:Hash + Clone + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
     /// an allocator , size is capacity measured as  max number of hashed item
-    /// store_kmer is to ask( or not) to keep the kmers hashed.
+    /// keep_item is to ask( or not) to keep the objects (kmers) hashed.
     /// if using an invertible hasher for compressed kmers we do not need to keep track of kmers
     /// as they can be recovered from hashed values.
-    pub fn new(size: usize, store_kmer: bool) -> Self {
+    pub fn new(size: usize, keep_item: bool) -> Self {
         MinHashCount {
-            keep_kmer: store_kmer,
+            keep_item: keep_item,
             b_hasher: BuildHasherDefault::<H>::default(),
             hashes: BinaryHeap::with_capacity(size + 1),
             counts: HashMap::with_capacity_and_hasher(size, BuildHasherDefault::<H>::default()),
@@ -140,7 +145,7 @@ impl <T:Hash + Clone + fmt::Display ,  H : Hasher+Default> MinHashCount<T, H> {
                 // let _ = self.heap_lock.lock().unwrap();
                 self.hashes.push(HashedItem {
                     hash: new_hash,
-                    item: if self.keep_kmer {
+                    item: if self.keep_item {
                         Some(item.clone())
                     }
                     else {
@@ -170,7 +175,6 @@ impl <T:Hash + Clone + fmt::Display ,  H : Hasher+Default> MinHashCount<T, H> {
     pub fn get_sketchcount(self) -> Vec<HashCount<T> > {
         // this consumes the binary heap
         let mut vec = self.hashes.into_sorted_vec();
-        
         let mut results = Vec::with_capacity(vec.len());
         for item in vec.drain(..) {
             let counts = *self.counts.get(&item.hash).unwrap();
@@ -183,7 +187,18 @@ impl <T:Hash + Clone + fmt::Display ,  H : Hasher+Default> MinHashCount<T, H> {
         results
     }  // end of get_sketchcount
 
-    
+    /// returns 
+    pub fn get_signature(&self) -> Option<&BinaryHeap<HashedItem<T>> > {
+        if self.keep_item == true {
+            return None;
+        }
+        else {
+            return Some(&self.hashes);
+        }
+    } // end of get_signature
+
+
+
 }  // end of impl MinHashCount
 
 
@@ -263,6 +278,10 @@ mod tests {
         minhash_b.sketch_slice(&vb);
         let sketch_a = minhash_a.get_sketchcount();
         let sketch_b = minhash_b.get_sketchcount();
+        //
+//        if let Some(opthashes) = minhash_a.get_signature() {
+//            trace!(" nb objects {} ", opthashes.len());
+//        }
         // 
         let resdist = minhash_distance(&sketch_a, &sketch_b);
         trace!("distance minhash (contain, dist, common, total):  {}  {}   {}  {} ",

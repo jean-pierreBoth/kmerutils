@@ -228,7 +228,6 @@ impl <'a, T:Hash ,  H : 'a + Hasher+Default> SuperMinHash<'a,T, H> {
     }  // end of sketch
 
     
-    // We use XorShiftRng for speed as we do not need crypto security
     /// the arg value is an array ( a slice) of values to hash.
     /// It can be used in streaming to update current sketch
     pub fn sketch_slice(&mut self, to_sketch : &[T]) -> Result <(),()> {

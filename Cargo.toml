@@ -75,6 +75,7 @@ clap = {version = "2.33", doc = false}
 #  for hashing 
 wyhash = {version = "0.4", doc = false}
 rand = {version = "0.7", doc = false}
+rand_distr = {version = "0.3", doc = false}
 rand_xorshift = {version = "0.2", doc = false}
 rand_xoshiro = {version = "0.4", doc = false}
 
