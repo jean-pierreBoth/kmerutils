@@ -297,7 +297,6 @@ mod tests {
         let bh = BuildHasherDefault::<FnvHasher>::default();
         let mut sminhash : SuperMinHash<usize, FnvHasher>= SuperMinHash::new(70, &bh);
         // now compute sketches
-        println!("sketching a ");
         let resa = sminhash.sketch_slice(&va);
         if !resa.is_ok() {
             println!("error in sketcing va");
@@ -305,7 +304,6 @@ mod tests {
         }
         let ska = sminhash.get_hsketch().clone();
         sminhash.reinit();
-        println!("\n \n sketching b ");
         let resb = sminhash.sketch_slice(&vb);
         if !resb.is_ok() {
             println!("error in sketching vb");
@@ -314,7 +312,8 @@ mod tests {
         let skb = sminhash.get_hsketch();
         //
         let jac = get_jaccard_index_estimate(&ska, &skb).unwrap();
-        println!(" jaccard est {}", jac);
+        let jexact = 0.05;
+        println!(" jaccard estimate {jacfmt:.2}, j exact : {jexactfmt:.2} ", jacfmt=jac, jexactfmt=jexact);
         // we have 10% common values and we sample a sketch of size 50 on 2000 values , we should see intersection
        assert!( jac > 0.);
     } // end of test_range_intersection
@@ -353,7 +352,8 @@ mod tests {
         let skb = sminhash.get_hsketch();
         //
         let jac = get_jaccard_index_estimate(&ska, &skb).unwrap();
-        println!(" jaccard : {} ", jac);
+        let jexact = 0.05;
+        println!(" jaccard estimate : {}  exact value : {} ", jac, jexact);
         // we have 100 common values and we sample a sketch of size 50 on 2000 values , we should see intersection
         // J theo : 0.05
         assert!(jac > 0.);
