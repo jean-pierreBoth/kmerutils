@@ -1,11 +1,20 @@
-//! Implementation of ProbMinHash2 and ProbMinHash3 as described in O. Ertl
+//! Implementation of ProbMinHash2, ProbMinHash3 and ProbMinHash3a as described in O. Ertl
 //! https://arxiv.org/abs/1911.00675
-//! 
+//! * ProbminHash3a is the fastest but at the cost of some internal storage.
+//! * Probminhash3 is the same algorithm but without the time optimization requiring more storage.
+//!     It can be used in streaming
 //! * Probminhash2 is statistically equivalent to P-Minhash as described in :
 //! Moulton Jiang "Maximally consistent sampling and the Jaccard index of probability distributions"
-//! https://ieeexplore.ieee.org/document/8637426 or https://arxiv.org/abs/1809.04052  
-//! * ProbminHash3 
-//!
+//! https://ieeexplore.ieee.org/document/8637426 or https://arxiv.org/abs/1809.04052
+//! It is given as a fallback in case ProbminHash3* algorithms do not perform well, or for comparison.
+//! 
+//! The generic type D must satisfy D:Copy+Eq+Hash+Debug+Into<usize>
+//! The constraint Into<usize> is a kind of hack.
+//! D must be convertible injectively into a usize beccause the alogrithm requires 
+//! a random generator initialization (with a size) for each object hashed.
+//! I objects are indexed in an IndexMap for example the probminhash function can work on the index
+//! instead of the object itself and the Into constraint becomes a no constraint 
+//! 
 //! 
 //! 
 use log::{trace};
@@ -22,7 +31,7 @@ use std::hash::Hash;
 
 use indexmap::{IndexMap};
 
-/// Structure for defining exponential sampling of parameter lambda restricted with support restricted
+/// Structure for defining exponential sampling of parameter lambda with support restricted
 /// to unit interval [0,1).
 /// Specially adapted for ProbminHash3 and 4.
 // All comments follow notations in Ertl article
@@ -175,7 +184,7 @@ impl MaxValueTracker {
 
 /// A Trait to define association of a weight to an object.
 /// Typically we could implement Trait WeightedSet for an IndexMap<Object, f64> giving a weight to each object
-/// or 
+/// or encapsulate a function associating a weight to an object
 pub trait WeightedSet {
     type Object;
     fn get_weight(&self, obj:&Self::Object) -> f64;
@@ -184,9 +193,11 @@ pub trait WeightedSet {
 
 
 
-/// implementation of the algorithm ProbMinHash3 as described in Etrl Paper
+/// implementation of the algorithm ProbMinHash3.
 /// D must be convertible injectively into a usize for random generator initialization hence the requirement Into<usize>
-/// If all data are directly referred to by an index D is the index (usize)
+/// If all data are referred to by an index, for example if objects are stored in an IndexMap<D, f64, H>,
+/// D is the index.  
+/// see function hash_weigthed_idxmap
 pub struct ProbMinHash3<D> 
             where D:Copy+Eq+Into<usize>+Hash+Debug   {
     m : usize,
@@ -211,10 +222,10 @@ impl<D> ProbMinHash3<D>
     } // end of new
     
 
-    /// incrementally adds an item in hash signature.
+    /// incrementally adds an item in hash signature. It can be used in streaming.
     /// It is the building block of the computation, but this method 
     /// does not check for unicity of id added in hash computation.  
-    /// It is user responsability to enforce that. See method hashWSet
+    /// It is the user's responsability to enforce that. See method hash_weigthed_idxmap
     pub fn hash_item(&mut self, id:D, weight:f64) {
         assert!(weight > 0.);
         trace!("hash_item : id {:?}  weight {} ", id, weight);
@@ -289,7 +300,7 @@ impl<D> ProbMinHash3<D>
 /// This version of ProbMinHash3 is faster but requires some more memory as it requires storing states
 /// between 2 passes on data.
 /// D must be convertible injectively into a usize for random generator initialization hence the requirement Into<usize>
-/// If all data are directly referred to by an index D is the index (usize)
+/// If all data are directly referred to by an index D, is the index (usize)
 pub struct ProbMinHash3a<D> 
             where D:Copy+Eq+Into<usize>+Hash+Debug   {
     m : usize,
@@ -320,7 +331,6 @@ impl <D> ProbMinHash3a<D>
     } // end of new
 
 
-    /// incrementally adds an item in hash signature.
     /// It is the building block of the computation, but this method 
     /// does not check for unicity of id added in hash computation.  
     /// It is user responsability to enforce that. See method hashWSet
@@ -485,7 +495,7 @@ impl <D> ProbMinHash2<D>
     } // end of new
 
 
-    /// incrementally adds an item in hash signature.
+    /// incrementally adds an item in hash signature. It can be used in streaming.
     /// It is the building block of the computation, but this method 
     /// does not check for unicity of id added in hash computation.  
     /// It is user responsability to enforce that. See method hashWSet
@@ -521,7 +531,21 @@ impl <D> ProbMinHash2<D>
 
 }  // end of implementation block for ProbMinHash2
 
-
+/// computes the weighted jaccard index of 2 signatures.
+/// The 2 signatures must come from two equivalent instances of the same ProbMinHash algorithm
+/// with the same number of hash signatures 
+pub fn compute_probminhash_jaccard<D:Eq>(siga : &Vec<D>, sigb : &Vec<D>) -> f64 {
+    let sig_size = siga.len();
+    assert_eq!(sig_size, sigb.len());
+    let mut inter = 0;
+    for i in 0..siga.len() {
+        if siga[i] == sigb[i] {
+            inter += 1;
+        }
+    }
+    let jp = inter as f64/siga.len() as f64;
+    jp
+}  // end of compute_probminhash_jaccard
 
 //=================================================================
 
@@ -654,7 +678,8 @@ use super::*;
             else {
                 wb.push(10.);
             }
-        }        
+        }
+
         // compute Jp as in 
         let mut jp = 0.;
         for i in 0..set_size {
@@ -686,17 +711,13 @@ use super::*;
         }        
         let siga = waprobhash.get_signature();
         let sigb = wbprobhash.get_signature();
-        let mut inter = 0;
-        for i in 0..siga.len() {
-            if siga[i] == sigb[i] {
-                inter += 1;
-            }
-        }
+        //
+        let jp_approx = compute_probminhash_jaccard(siga, sigb);
         //
         waprobhash.maxvaluetracker.dump();
         wbprobhash.maxvaluetracker.dump();
         //
-        info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
+        info!("exact jp = {} ,jp estimated = {} ", jp, jp_approx);
     } // end of test_prob_count_intersection
 
 
@@ -839,16 +860,12 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     let siga = waprobhash.get_signature();
     let sigb = wbprobhash.get_signature();
     let mut inter = 0;
-    for i in 0..siga.len() {
-        if siga[i] == sigb[i] {
-            inter += 1;
-        }
-    }
+    let jp_approx = compute_probminhash_jaccard(siga, sigb);
     //
     waprobhash.maxvaluetracker.dump();
     wbprobhash.maxvaluetracker.dump();
     //
-    info!("jp = {} , inter / card = {} ", jp, inter as f64/siga.len() as f64);
+    info!("jp exact = {} , jp estimate {} ", jp, jp_approx;
 } // end of test_probminhash3_count_intersection_unequal_weights
 
 
