@@ -859,13 +859,12 @@ fn test_probminhash3_count_intersection_unequal_weights() {
     }        
     let siga = waprobhash.get_signature();
     let sigb = wbprobhash.get_signature();
-    let mut inter = 0;
     let jp_approx = compute_probminhash_jaccard(siga, sigb);
     //
     waprobhash.maxvaluetracker.dump();
     wbprobhash.maxvaluetracker.dump();
     //
-    info!("jp exact = {} , jp estimate {} ", jp, jp_approx;
+    info!("jp exact = {} , jp estimate {} ", jp, jp_approx);
 } // end of test_probminhash3_count_intersection_unequal_weights
 
 

@@ -312,18 +312,9 @@ mod tests {
             return;
         }
         let skb = sminhash.get_hsketch();
-        // now we count
-        let mut count = 0;
-        for i in 0..ska.len() {
-            if ska[i] == skb[i] {
-                trace!(" intersection {:?} ", ska[i]);
-                count += 1;
-            }
-        }
         //
-        println!("count intersection {} ", count);
-        let jac = count as f64/ska.len() as f64;
-        println!(" jaccard est {} ", jac);
+        let jac = get_jaccard_index_estimate(&ska, &skb).unwrap();
+        println!(" jaccard est {}", jac);
         // we have 10% common values and we sample a sketch of size 50 on 2000 values , we should see intersection
        assert!( jac > 0.);
     } // end of test_range_intersection
@@ -360,19 +351,11 @@ mod tests {
             return;
         }
         let skb = sminhash.get_hsketch();
-        // now we count
-        let mut count = 0;
-        for i in 0..ska.len() {
-            if ska[i] == skb[i] {
-                trace!(" intersection {:?} ", ska[i]);
-                count += 1;
-            }
-        }
         //
-        let jac = count as f64/ska.len() as f64;
-        println!("count intersection {} ", count);
-        println!(" jaccard est {} ", jac);
-        // we have 10% common values and we sample a sketch of size 50 on 2000 values , we should see intersection
+        let jac = get_jaccard_index_estimate(&ska, &skb).unwrap();
+        println!(" jaccard : {} ", jac);
+        // we have 100 common values and we sample a sketch of size 50 on 2000 values , we should see intersection
+        // J theo : 0.05
         assert!(jac > 0.);
     } // end of test_range_intersection_already_hashed
     

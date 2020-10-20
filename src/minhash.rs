@@ -1,6 +1,6 @@
 //! This module implementes original minhash algorithm and is highly inspired by the finch module.
 //! The implementation is more generic as it was designed to hash various type of compressed Kmers or 
-//! in fact any type T that satisfies Hash+Clone
+//! in fact any type T that satisfies Hash+Clone+Copy
 //! Moreover it can just computes Jaccard estimate or keep track of objects hashed.
 //! 
 //! See also module invhash to keep track of objects hashed with inversible hash
@@ -20,7 +20,8 @@
 #[allow(unused_imports)]
 use crate::invhash;
 
-use log::trace;
+#[allow(unused_imports)]
+use log::{debug, trace};
 
 use std::cmp::Ordering;
 
@@ -47,27 +48,27 @@ pub type ItemHash = u64;
 /// This can be useful in genomics. Note that using invertible hash if objects hashes 
 /// are stored in a u32 or a u64 (as in some Kmer representation) we can retrive objects
 /// from hashed value. (See module invhash)
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Copy)]
 pub struct HashedItem<T:Clone+Hash> {
     hash: ItemHash,
     item: Option<T>,
 }
 
-impl<T:Hash+Clone> PartialEq for HashedItem<T> {
+impl<T:Hash+Clone+Copy> PartialEq for HashedItem<T> {
     fn eq(&self, other: &HashedItem<T>) -> bool {
         other.hash.eq(&self.hash)
     }
 }
 
-impl<T:Clone+Hash> Eq for HashedItem<T> {}
+impl<T:Clone+Copy+Hash> Eq for HashedItem<T> {}
 
-impl<T:Clone+Hash> Ord for HashedItem<T> {
+impl<T:Clone+Hash+Copy> Ord for HashedItem<T> {
     fn cmp(&self, other: &HashedItem<T>) -> Ordering {
         self.hash.cmp(&other.hash)
     }
 }
 
-impl<T:Clone+Hash> PartialOrd for HashedItem<T> {
+impl<T:Clone+Hash+Copy> PartialOrd for HashedItem<T> {
     fn partial_cmp(&self, other: &HashedItem<T>) -> Option<Ordering> {
         Some(self.hash.cmp(&other.hash))
     }
@@ -77,7 +78,7 @@ impl<T:Clone+Hash> PartialOrd for HashedItem<T> {
 
 // size is 2*8+2 bytes !!
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HashCount<T:Clone+Hash> {
+pub struct HashCount<T:Clone+Copy+Hash> {
     pub hashed: HashedItem<T>,
     pub count: u16,
 }
@@ -99,7 +100,7 @@ pub struct MinHashCount<T: Hash+Clone+Debug, H: Hasher+Default> {
 
 
 
-impl <T:Hash + Clone + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
+impl <T:Hash + Clone + Copy + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
     /// an allocator , size is capacity measured as  max number of hashed item
     /// keep_item is to ask( or not) to keep the objects (kmers) hashed.
     /// if using an invertible hasher for compressed kmers we do not need to keep track of kmers
@@ -125,7 +126,8 @@ impl <T:Hash + Clone + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
         let mut hasher = self.b_hasher.build_hasher();
         item.hash(&mut hasher);
         let new_hash : u64 = hasher.finish();
-
+        //
+        // trace!(" pushing item {:?}, hash {}", item, new_hash);
         // do we insert
         let add_hash = match self.hashes.peek() {
             None => true,
@@ -172,14 +174,14 @@ impl <T:Hash + Clone + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
 
 
     /// returns a sorted vecotr of the sketch
-    pub fn get_sketchcount(self) -> Vec<HashCount<T> > {
-        // this consumes the binary heap
-        let mut vec = self.hashes.into_sorted_vec();
-        let mut results = Vec::with_capacity(vec.len());
-        for item in vec.drain(..) {
+    pub fn get_sketchcount(&self) -> Vec<HashCount<T> > {
+        trace!("get_sketchcount  got nb hashes : {} ",self.hashes.len());
+        let mut results = Vec::with_capacity(self.hashes.len());
+        for item in self.hashes.iter() {
+            trace!(" got hash : {:?}", item.hash);
             let counts = *self.counts.get(&item.hash).unwrap();
             let counted_item = HashCount {
-                hashed: item,
+                hashed: *item,
                 count: counts,
             };
             results.push(counted_item);
@@ -204,17 +206,24 @@ impl <T:Hash + Clone + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
 
 
 /// compute different distances from sketch. What do we do of counts?
-pub fn minhash_distance<T:Hash+Clone>(sketch1: &Vec<HashCount<T> >, sketch2: &Vec<HashCount<T> >) ->  MinHashDist {
+pub fn minhash_distance<T:Hash+Clone+Copy>(sketch1: &Vec<HashCount<T> >, sketch2: &Vec<HashCount<T> >) ->  MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;
     let mut common: u64 = 0;
     let mut total: u64 = 0;
     let sketch_size = sketch1.len();
-
-    while i < sketch1.len() && j < sketch2.len() {
-        if sketch1[i].hashed < sketch2[j].hashed {
+    //
+    trace!("sketch1 len : {}, sketch2 len : {}", sketch1.len(), sketch2.len());
+    //
+    let mut items1 : Vec<HashedItem<T>> = sketch1.iter().map(|x| x.hashed).collect();
+    items1.sort_unstable();
+    let mut items2 : Vec<HashedItem<T>> = sketch2.iter().map(|x| x.hashed).collect();
+    items2.sort_unstable();
+    //    
+    while i < items1.len() && j < items2.len() {
+        if items1[i] < items2[j] {
             i += 1;
-        } else if sketch2[j].hashed < sketch1[i].hashed {
+        } else if items2[j] < items1[i] {
             j += 1;
         } else {
             i += 1;
@@ -229,13 +238,13 @@ pub fn minhash_distance<T:Hash+Clone>(sketch1: &Vec<HashCount<T> >, sketch2: &Ve
     //
     // try to increase total up to asked sketch size
     //
-    if total < sketch1.len() as u64 {
+    if total < items1.len() as u64 {
         // try to increase total.
-        if i < sketch1.len() {
-            total += (sketch1.len() - i) as u64;
+        if i < items1.len() {
+            total += (items1.len() - i) as u64;
         }
-        if j < sketch1.len() {
-            total += (sketch1.len() - j) as u64;
+        if j < items1.len() {
+            total += (items1.len() - j) as u64;
         }
         // now if ever total increase too much we truncate it
         if total > sketch_size as u64 {
@@ -260,9 +269,17 @@ mod tests {
     use self::fnv::FnvHasher; // extern fnv declared in test so we use self::fnv , if declared above we use super::fnv
     #[allow(unused_imports)]
     use crate::nohasher::NoHashHasher;
-    
+
+    #[allow(dead_code)]
+    fn log_init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+
+
     #[test]
     fn test_minhash_count_range_intersection_fnv() {
+        log_init();
         // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
         // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
         //
@@ -278,14 +295,17 @@ mod tests {
         minhash_b.sketch_slice(&vb);
         let sketch_a = minhash_a.get_sketchcount();
         let sketch_b = minhash_b.get_sketchcount();
-        //
-//        if let Some(opthashes) = minhash_a.get_signature() {
-//            trace!(" nb objects {} ", opthashes.len());
-//        }
         // 
         let resdist = minhash_distance(&sketch_a, &sketch_b);
-        trace!("distance minhash (contain, dist, common, total):  {}  {}   {}  {} ",
+        debug!("distance minhash (contain, dist, common, total):  {}  {}   {}  {} ",
                resdist.0, resdist.1, resdist.2, resdist.3);
+        if let Some(opthashes) = minhash_a.get_signature() {
+            trace!(" nb objects {} ", opthashes.len());
+        }
+        else {
+            println!("minhash_a.get_signature() returned None");
+        }
+        // 
         assert!(resdist.2 > 0);
         //
     } // end of test_range_intersection
