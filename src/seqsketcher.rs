@@ -10,8 +10,8 @@ use crate::kmer::*;
 use crate::kmergenerator::*;
 
 use crate::minhash::*;
-use crate::invhash;
-use crate::superminhash::*;
+use probminhash::invhash;
+use probminhash::superminhash::*;
 
 use log::info;
 use log::trace;
