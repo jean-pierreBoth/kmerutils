@@ -36,6 +36,7 @@ pub mod seqsketcher;
 pub mod kmer;
 pub mod kmergenerator;
 pub mod kmercount;
+pub mod jaccardweight;
 
 // contig generation
 
