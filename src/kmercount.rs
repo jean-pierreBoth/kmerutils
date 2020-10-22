@@ -22,6 +22,7 @@ use std::collections::hash_map::DefaultHasher;
 use metrohash::{MetroHash64};
 use fnv::*;
 
+use probminhash::invhash::*;
 pub use crate::kmergenerator::*;
 
 // a magic for file dump of unique kmers
@@ -61,7 +62,6 @@ pub trait KmerCountT {
 
 // our modules
 
-use crate::invhash::*;
 
 /// The structure to count kmers. 
 pub struct KmerCounter<Kmer>  {

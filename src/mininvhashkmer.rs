@@ -34,8 +34,7 @@ use std::marker::PhantomData;
 
 use log::trace;
 
-#[allow(unused_imports)]
-use crate::invhash::*;
+use probminhash::invhash::*;
 
 pub use crate::kmer::*;
 
@@ -282,16 +281,18 @@ mod tests {
 
     use crate::kmergenerator::*;
     use crate::sequence::*;
-    use env_logger::{Builder};
-    #[test]
+    use env_logger;
+
     // initialize once log system for tests.
-    fn init_log() {
+#[allow(dead_code)]
+    fn init_log_test() {
         // we do not call unwrap as it is an error to init twice and possibly some one else initialized it
-        Builder::from_default_env().init();
+        let _ = env_logger::builder().is_test(true).try_init();
     }
 
     #[test]
     fn test_minhash_count_range_intersection_fnv() {
+        init_log_test();
         // we construct 2 ranges [a..b] [c..d], with a<b, b < d, c<d sketch them and compute jaccard.
         // we should get something like max(b,c) - min(b,c)/ (b-a+d-c)
         //

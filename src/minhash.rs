@@ -18,7 +18,7 @@
 
 
 #[allow(unused_imports)]
-use crate::invhash;
+use probminhash::invhash;
 
 #[allow(unused_imports)]
 use log::{debug, trace};

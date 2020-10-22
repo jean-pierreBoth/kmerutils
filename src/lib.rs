@@ -23,14 +23,11 @@ pub mod qserverclient;
 // hashing stuff
 
 pub mod minhash;
-pub mod superminhash; 
 pub mod nohasher;
 pub mod mininvhashkmer;
-pub mod probminhash;
 #[macro_use]
 pub mod nthash;
 
-pub mod invhash;
 
 pub mod seqsketcher;
 
