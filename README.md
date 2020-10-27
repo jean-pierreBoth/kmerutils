@@ -24,39 +24,23 @@ Kmer can be stored in 16-bit, 32-bit or 64-bit words thus providing compressed s
 
 ## Hashing
 
-* Superminhash
-
-An implementation of Superminhash :  
-**A new minwise Hashing Algorithm for Jaccard Similarity Estimation**
-Otmar Ertl 2017-2018 Cf [superminhash](https://arxiv.org/abs/1706.05698)
-
-The hash values are computed by the sketch method or can be computed before entering SuperMinHash methods.
-In this case (pre-hashed values) so the structure just computes permutation according to the paper.
-
-It runs in one pass on data so it can be used in streaming.
-
 * Minhash
 
 A generic Minhash implementation based on BinaryHeap and HashMap
 
-* Inversible Hash
-
-The  module invhash.rs provides a rust implementation for inversible hash in 32bit and 64 bits version
-See Thomas Wang's invertible integer hash functions.
-at [Wang](https://gist.github.com/lh3/59882d6b96166dfc3d8d) for a snapshot.
-
-See also:  
-[Thomas Wang's 32 Bit Mix Function](http://www.cris.com/~Ttwang/tech/inthash.htm)
-or [blink](https://chromium.googlesource.com/chromium/blink/+/master/Source/wtf/HashFunctions.h)
-and [chris foster blog](http://c42f.github.io/2015/09/21/inverting-32-bit-wang-hash.html)
-
 * Nthash
 
-this is a recursive hashing described in:
-    **"ntHash: recursive nucleotide hashing"**  
+This is a recursive hashing described in: **"ntHash: recursive nucleotide hashing"**  
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
 
+* Probminhash and Superminhash
+ 
+Similarity between sequences can be estimated by counting common Kmers (i.e by estimating a Jaccard index) between sequences.
+Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm. A probability Jaccard index taking into account Kmer multiplicity is possible with the Probminhash family algorithm. 
+Probminhash and superminhash are provided by the crate probminhash  
+(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash))
+  
 ## Counting Kmer
 
 Kmer counting is multi-threaded and filters unique kmer in a cuckoo filter to spare memory.
