@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use log::*;
 
+use std::fmt::{Debug};
+
 #[allow(unused_imports)]
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
 use indexmap::{IndexMap};
@@ -14,6 +16,56 @@ use crate::kmergenerator::*;
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 use probminhash::probminhash::*;
+
+
+
+pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, idxb: &IndexMap<D, f64, Hidx>, 
+                                                        sketch_size : usize, return_object: bool)  -> (f64, Option<Vec<D>>)
+            where   D : Copy+Eq+Hash+Debug+Default,
+                    H:  Hasher+Default ,
+                    Hidx : std::hash::BuildHasher {
+        //
+        let mut pminhasha = ProbMinHash3a::<D,H>::new(sketch_size, D::default());
+        pminhasha.hash_weigthed_idxmap(idxa);
+        let mut pminhashb = ProbMinHash3a::<D,H>::new(sketch_size, D::default());
+        pminhashb.hash_weigthed_idxmap(idxb);
+        let siga = pminhasha.get_signature();
+        let sigb = pminhashb.get_signature();
+        let jac : f64;
+        if !return_object {
+            jac = compute_probminhash_jaccard(&siga, &sigb);
+            return (jac,None);
+        }
+        else {
+            return probminhash_get_jaccard_objects(&siga, &sigb);
+        }
+}  // end of compute_probminhash3a_jaccard
+
+
+
+pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>) -> (f64, Option<Vec<D>>) {
+    let sig_size = siga.len();
+    assert_eq!(sig_size, sigb.len());
+    //
+    let mut common_objects =  Vec::<D>::new();
+    let mut inter = 0;
+    for i in 0..siga.len() {
+        if siga[i] == sigb[i] {
+            inter += 1;
+            common_objects.push(siga[i]);
+        }
+    }
+    let jp = inter as f64/siga.len() as f64;
+    //
+    if jp > 0. {
+        return (jp,Some(common_objects));
+    }
+    else {
+        return (0., None);
+    }
+}  // end of compute_probminhash_jaccard
+
+
 
 
 
@@ -152,6 +204,7 @@ mod tests {
         // initialize test logging
         log_init_test();
         let kmer_size = 5;
+        let sketch_size = 50;
         // 80 bases
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
         let seqabytes = seqstr.as_bytes();
@@ -179,15 +232,60 @@ mod tests {
             let hashval = kmer.0;
             hashval
         };
-        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, 50, kmer_size, kmer_revcomp_hash_fn);
+        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         debug!("vecsig with revcomp hash  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
         assert!(vecsig[1] >= 1.);
-        //
+        // now we try with identity hash
         println!("calling with identity hash");
-        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, 50, kmer_size, kmer_identity);
+        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_identity);
         debug!("vecsig with identity  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
+        // get the kmer in intersection if any between seqa and its reverse complement.
+        if vecsig[1] > 0. {
+            // means we have a kmer in common in seqa and reverse complement of seqa. We check it
+            println!("got intersection with reverse complement seq");
+            let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqa.size(), FnvBuildHasher::default());
+            let mut pminhasha = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
+            // generate all kmers include in range arg. dependance upon kmer_size in seqa 
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqa);
+            kmergen.set_range(0, seqa.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = kmer_identity(&kmer);
+                        debug!(" kmer in seqa {:?}, hvalval  {:?} ", kmer.get_uncompressed_kmer(), hashval);
+                        *wa.entry(hashval as usize).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop
+            pminhasha.hash_weigthed_idxmap(&wa);
+            //
+            let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqarevcomp.size(), FnvBuildHasher::default());
+            let mut pminhashb = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
+            // generate all kmers include in range arg. dependance upon kmer_size 
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqarevcomp);
+            kmergen.set_range(0, seqarevcomp.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = kmer_identity(&kmer);
+                        trace!(" kmer in seqrevcomp {:?}, hvalval  {:?} ", kmer.get_uncompressed_kmer(), hashval);
+                        *wb.entry(hashval as usize).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop    
+            pminhashb.hash_weigthed_idxmap(&wb);
+            let (jac, common) = probminhash_get_jaccard_objects(pminhasha.get_signature(), pminhashb.get_signature());
+            debug!("jac for common objects = {}", jac);
+            if jac > 0. {
+                // with kmer size = 5 we have ACGTA and TACGT that are common!
+                trace!("common kemrs {:?}", common.unwrap());
+            }
+        }  // end search of intersecting kmers
+        //
         assert!(vecsig[1] <= 0.1);
 
     }  // end of test_probminhash_kmer_smallb
