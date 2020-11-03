@@ -143,7 +143,7 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
     // CAVEAT We have a 2 step conversion
     // TO DO try to get some real information on what happened
     //
-    fn redis_dump(&self, con: &redis::Connection) -> std::result::Result<u64, String> {
+    fn redis_dump(&self, con: &mut redis::Connection) -> std::result::Result<u64, String> {
         // generate SliceAnchorKeyRedis        
         let key:SliceAnchorKeyRedis = self.get_key_for_redis();
         let inv_value = key.clone();
@@ -300,7 +300,7 @@ impl <T:CompressedKmerT> ReadAnchors<T> {
     // keys is sequence of bytes consisting of readnum+slicepos
     // values is list of kmers values (without nb base encoding)
     // return the number of anchors dumped
-    pub fn redis_dump(&self, db: &redis::Connection) -> usize {
+    pub fn redis_dump(&self, db: &mut redis::Connection) -> usize {
         let mut nb_anchor_dumped = 0;
         //
         for anchor in &self.anchors {
@@ -397,8 +397,8 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
                 let kmer_generator = KmerGenerator::<T>::new(nb_bases as u8);
                 let mut read_anchor = ReadAnchors::<T>::new(&self.slice_params);  // pass a ref to Rc which will be cloned.
                 read_anchor.initialize_from_sequence(&kmer_generator, &newseq, num_read);
-                if let Some(ref real_con) = self.con {
-                    read_anchor.redis_dump(&real_con);
+                if let Some(ref mut real_con) = self.con {
+                    read_anchor.redis_dump(real_con);
                 }
                 if self.store_anchor {
                     self.anchors.push(read_anchor);
@@ -423,12 +423,14 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
     }
 
     
-    fn redis_bgrewriteaof(&self) -> usize {
-        match self.con {
-            Some(ref real_con) => { redis::cmd("BGREWRITEAOF").execute(real_con); },
-            _ => (),
+    fn redis_bgrewriteaof(&mut self) -> usize {
+        if self.con.is_some() {
+            redis::cmd("BGREWRITEAOF").execute(self.con.as_mut().unwrap());
+            return 1;
         }
-        return 1;
+        else {
+            return 0;
+        }
     }
 
     
