@@ -1,7 +1,6 @@
 //! This module computes sketches of (part of) sequences via superminhash or minhash
 //! of adjacent blocks in read sequences
-//! It is designed to complement probability transitions// returns times sketches
-
+//! See also jaccardweight module
 
 use std::ops::Range;
 use std::hash::{BuildHasherDefault};
@@ -16,7 +15,7 @@ use probminhash::superminhash::*;
 use log::info;
 use log::trace;
 
-
+/// computes a sketch of kmer of size kmer_size generated from range in seq with Superminhash algorithm
 pub fn sketch_seqrange_superminhash(seq: &Sequence, range:&Range<usize>, kmer_size:usize, sketch_size: usize) -> Vec<f64> {
     //
     info!("seqsketcher : entering superminhash_sketch_sequence");
@@ -63,7 +62,7 @@ pub fn sketch_seqrange_superminhash(seq: &Sequence, range:&Range<usize>, kmer_si
 } // end of sketch_sequence_superminhash
 
 
-
+/// computes a sketch and count of kmers of size kmer_size generated from range in seq with Superminhash algorithm
 pub fn sketch_seqrange_minhash(seq: &Sequence, range:&Range<usize>, kmer_size:usize, sketch_size: usize) -> Vec<HashCount<u32> > {
     //
     trace!("seqsketcher : entering sketch_seqrange_minhash");
