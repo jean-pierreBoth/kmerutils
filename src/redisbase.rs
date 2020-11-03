@@ -7,7 +7,7 @@
 //  Only the trait implementation ToRedisArgs and FromRedisValue are specific to redis
 
 extern crate redis;
-use self::redis::{FromRedisValue,ToRedisArgs};
+use self::redis::{FromRedisValue,ToRedisArgs,RedisWrite};
 
 use std::str;
 
@@ -58,7 +58,7 @@ pub struct SliceAnchorValueRedis {
 
 // beware each basic write_redis_args push a new vec<u8> coming fromm a call to into_bytes.
 impl redis::ToRedisArgs for SliceAnchorValueRedis {
-    fn write_redis_args(&self, out: &mut Vec<Vec<u8>>) {
+    fn write_redis_args<W:RedisWrite+?Sized> (&self, out: &mut W) {
         // minhash is a vector of ItemHash (u64) and count (u8)
         let mut key:Vec<u8> = Vec::new();
         let nb_kmer = self.hk_count.len();
@@ -74,7 +74,7 @@ impl redis::ToRedisArgs for SliceAnchorValueRedis {
             }
         }
         trace!("SliceAnchorValueRedis encoded sliceanchor for redis (kmer/count {:?}", &key);
-        out.push(key); 
+        out.write_arg(&key); 
     } // end of write_redis_args
 }  // end impl redis::ToRedisArgs for SliceAnchorValueRedis
 
@@ -143,7 +143,7 @@ pub struct SliceAnchorKeyRedis {
 
 impl ToRedisArgs for SliceAnchorKeyRedis {
     // we concatenate all fields of SliceAnchorKeyRedis as string and return corresponding Vec<u8>
-    fn write_redis_args(&self, out: &mut Vec<Vec<u8>>) {
+    fn write_redis_args<W:RedisWrite+?Sized>(&self, out: &mut W) {
         let mut key:Vec<u8> = Vec::new();
         // This suppose that filename is a valid utf-8 but filename are !?  CAVEAT
         key.extend_from_slice(self.filename.as_bytes());
@@ -159,7 +159,7 @@ impl ToRedisArgs for SliceAnchorKeyRedis {
         key.push(':' as u8);           
         key.extend_from_slice(& self.slicepos.to_string().as_bytes());
         //
-        out.push(key);
+        out.write_arg(&key);
     }  // end of write_redis_args
     
 }  // end of impl ToRedisArgs for SliceAnchorKeyRedis
@@ -183,7 +183,7 @@ pub struct MinhashKeyRedis {
 
 impl ToRedisArgs for  MinhashKeyRedis {
     // we concatenate all fields of SliceAnchorKeyRedis as string and return corresponding Vec<u8>
-    fn write_redis_args(&self, out: &mut Vec<Vec<u8>>) {
+    fn write_redis_args<W:RedisWrite+?Sized>(&self, out: &mut W) {
         let mut key:Vec<u8> = Vec::new();
         // This suppose that filename is a valid utf-8 but filename are !?  CAVEAT
         key.extend_from_slice(self.filename.as_bytes());
@@ -197,7 +197,7 @@ impl ToRedisArgs for  MinhashKeyRedis {
         key.push(':' as u8);           
         key.extend_from_slice(& self.minhash_val.to_string().as_bytes());
         //
-        out.push(key);
+        out.write_arg(&key);
     }  // end of write_redis_args
     
 }  // end of impl ToRedisArgs for MinhashKeyRedis
