@@ -19,7 +19,7 @@ type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 use probminhash::probminhash::*;
 
 
-
+/// given 2 weighted set given as IndexMap, compute weighted jaccard index and return common objects if any or None
 pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, idxb: &IndexMap<D, f64, Hidx>, 
                                                         sketch_size : usize, return_object: bool)  -> (f64, Option<Vec<D>>)
             where   D : Copy+Eq+Hash+Debug+Default,
@@ -43,7 +43,7 @@ pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, 
 }  // end of compute_probminhash3a_jaccard
 
 
-
+/// given 2 signatures of objects sets, compute weighted jaccard index and return common objects if any or None
 pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>) -> (f64, Option<Vec<D>>) {
     let sig_size = siga.len();
     assert_eq!(sig_size, sigb.len());
@@ -70,9 +70,10 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 
 
 
-/// compute jaccard probability index between a sequence and a vecor of sequences sequences for Kmer16b32bit
-/// and returns a vector of Jaccard probability index
-pub fn sketch_seqrange_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec<&Sequence>, sketch_size: usize, fhash : F) -> Vec<f64> 
+/// compute jaccard probability index between a sequence and a vector of sequences for Kmer16b32bit
+/// and returns a vector of Jaccard probability index.
+/// This function is threaded (with Rayon) so it is best used with a vector of sequence of sufficient size
+pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec<&Sequence>, sketch_size: usize, fhash : F) -> Vec<f64> 
     where F : Fn(&Kmer16b32bit) -> u32 + Sync + Send{
     //
     info!("seqsketcher : entering sketch_seqrange_probminhash3a_kmer16b32bit");
@@ -131,18 +132,65 @@ pub fn sketch_seqrange_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &V
 } // end of sketch_seqrange_probminhash3a_kmer16b32bit
 
 
+/// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size.
+/// The size of signature of each sequence is sketch_size.
+/// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
+/// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
+/// 
+pub fn sketch_probminhash3a_kmer32bit<F>(vseq : &Vec<&Sequence>, sketch_size: usize, kmer_size : u8, fhash : F) -> Vec<Vec<usize> >
+    where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
+    //
+    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<usize>) {
+        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
+        kmergen.set_range(0, seqb.size()).unwrap();
+        loop {
+            match kmergen.next() {
+                Some(kmer) => {
+                    let hashval = fhash(&kmer);
+                    *wb.entry(hashval as usize).or_insert(0.) += 1.;
+                },
+                None => break,
+            }
+        }  // end loop 
+        let mut pminhashb = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
+        pminhashb.hash_weigthed_idxmap(&wb);
+        let sigb = pminhashb.get_signature();
+        // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+        return (i,sigb.clone());
+    };
+    //
+    let sig_with_rank : Vec::<(usize,Vec<usize>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+    // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+    let mut jaccard_vec = Vec::<Vec<usize>>::with_capacity(vseq.len());
+    for _ in 0..vseq.len() {
+        jaccard_vec.push(Vec::new());
+    }
+    // CAVEAT , boxing would avoid the clone?
+    for i in 0..sig_with_rank.len() {
+        let slot = sig_with_rank[i].0;
+        jaccard_vec[slot] = sig_with_rank[i].1.clone();
+    }
+    jaccard_vec
+}  // end of sketchprobminhash3a_kmer32bit
+
+
+
 
 
 /// Compute jaccard probability index between a sequence and a vecor of sequences sequences for Kmer16b32bit
 /// and returns a vector of Jaccard probability index
 /// the fhash function is a hash function 
-pub fn sketch_seqrange_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<&Sequence>, sketch_size: usize, 
+pub fn jaccard_index_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<&Sequence>, sketch_size: usize, 
                     kmer_size : u8, fhash : F) -> Vec<f64> 
-                    where F : Fn(&Kmer32bit) -> u32 {
+                    where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
     //
-    info!("seqsketcher : entering sketch_seqrange_probminhash3a");
+    info!("seqsketcher : entering compute_jaccard_index_probminhash3a_kmer32bit");
     // a vector to return results
     let mut jaccard_vec = Vec::<f64>::with_capacity(vseqb.len());
+    for _ in 0..vseqb.len() {
+        jaccard_vec.push(0.);
+    }
     // default is invertible hash and then superminhash without any hashing
     let mut pminhasha = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
     let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqa.size(), FnvBuildHasher::default());
@@ -165,15 +213,14 @@ pub fn sketch_seqrange_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<
     let siga = pminhasha.get_signature();
     trace!("siga = {:?}", siga);
     // loop on vseqb to // with rayon
-    for seqb in vseqb {
+    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,f64) {
         let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
+        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(16, &seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
             match kmergen.next() {
                 Some(kmer) => {
                     let hashval = fhash(&kmer);
-                    trace!(" kmer in seqb {:?}  hashval {:?} ", kmer.get_uncompressed_kmer(), hashval);
                     *wb.entry(hashval as usize).or_insert(0.) += 1.;
                 },
                 None => break,
@@ -182,12 +229,16 @@ pub fn sketch_seqrange_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<
         let mut pminhashb = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
         pminhashb.hash_weigthed_idxmap(&wb);
         let sigb = pminhashb.get_signature();
-        trace!("sigb = {:?}", sigb);
-        let jac64 = compute_probminhash_jaccard(siga, sigb);
-        jaccard_vec.push(jac64);
+        let jac = compute_probminhash_jaccard(siga, sigb);        
+        return (i,jac);
+    };
+    let jac_with_rank : Vec::<(usize,f64)> = (0..vseqb.len()).into_par_iter().map(|i| comput_closure(vseqb[i],i)).collect();
+    // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+    for i in 0..jac_with_rank.len() {
+        let slot = jac_with_rank[i].0;
+        jaccard_vec[slot] = jac_with_rank[i].1;
     }
     return jaccard_vec;
-    //
 } // end of sketch_seqrange_probminhash3a_kmer32bit
 
 
@@ -242,13 +293,13 @@ mod tests {
             let hashval = kmer.0;
             hashval
         };
-        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_revcomp_hash_fn);
+        let vecsig = jaccard_index_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         debug!("vecsig with revcomp hash  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
         assert!(vecsig[1] >= 1.);
         // now we try with identity hash
         println!("calling with identity hash");
-        let vecsig = sketch_seqrange_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_identity);
+        let vecsig = jaccard_index_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_identity);
         debug!("vecsig with identity  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
         // get the kmer in intersection if any between seqa and its reverse complement.
@@ -333,8 +384,8 @@ mod tests {
             let hashval = kmer.0;
             hashval
         };
-        let vec_0 = sketch_seqrange_probminhash3a_kmer16b32bit(&seqa, &vec![vecseqb[0]], 50, kmer_revcomp_hash_fn);
-        let vec_1 = sketch_seqrange_probminhash3a_kmer16b32bit(&seqa, &vec![vecseqb[1]], 50, kmer_revcomp_hash_fn);
+        let vec_0 = jaccard_index_probminhash3a_kmer16b32bit(&seqa, &vec![vecseqb[0]], 50, kmer_revcomp_hash_fn);
+        let vec_1 = jaccard_index_probminhash3a_kmer16b32bit(&seqa, &vec![vecseqb[1]], 50, kmer_revcomp_hash_fn);
         let mut vecsig = Vec::<f64>::with_capacity(2);
         vecsig.push(vec_0[0]);
         vecsig.push(vec_1[0]);
@@ -343,11 +394,12 @@ mod tests {
         assert!(vecsig[1] >= 1.);
         //
         println!("calling with identity hash");
-        let vecsig = sketch_seqrange_probminhash3a_kmer16b32bit(&seqa, &vecseqb, 50, kmer_identity);
+        let vecsig = jaccard_index_probminhash3a_kmer16b32bit(&seqa, &vecseqb, 50, kmer_identity);
         debug!("vecsig with identity  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
         assert!(vecsig[1] <= 0.1);
     }  // end of test_probminhash_kmer_16b32bit
+
 
 #[test]
 // This test checks for parallel computation of signature with the same sequences as  test_probminhash_kmer_16b32bit
@@ -371,7 +423,7 @@ mod tests {
             let hashval = probminhash::invhash::int32_hash(canonical.0);
             hashval
         }; 
-        let vec_jac = sketch_seqrange_probminhash3a_kmer16b32bit(&seqa, &vecseqb, kmer_size, kmer_revcomp_hash_fn);
+        let vec_jac = jaccard_index_probminhash3a_kmer16b32bit(&seqa, &vecseqb, kmer_size, kmer_revcomp_hash_fn);
         debug!("vecsig with revcomp hash  {:?}", vec_jac);
         let jac_theo_0 = (40-kmer_size) as f64 / (80-kmer_size) as f64;
         assert!(vec_jac[0] >= 0.75 * jac_theo_0);
