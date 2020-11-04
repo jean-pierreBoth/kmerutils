@@ -1,4 +1,6 @@
-//! This module contains trait/struct to count kmers
+//! This module contains trait/struct to count kmers.
+//! Counting facilities are accessible to the parsefastq commands and subcommands
+
 // We take a slice of kmer and count them
 
 
@@ -837,14 +839,16 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
 
 
 
-/// This function counts K-mers from a vector of Sequence
-/// One thread generates all kmer and dispatch them to counter threads.
-/// via messages.
-// In fact as number of threads increase, it is more efficient than count_kmer_thread_independant
 
 use std::cell::{RefCell};
 use crossbeam_channel::{Sender};
 
+/// This function counts K-mers from a vector of Sequence.
+/// One thread generates all kmer and dispatch them to counter threads via messages.
+/// - nb_threas : the number of thread we want.
+/// - kmer size : the size of kmers we count
+/// - count_size : number of bits in bloom filter for the counter. 8 (one byte) or 16 in case of high coverage as in ONT.
+// In fact as number of threads increase, it is more efficient than count_kmer_thread_independant
 pub fn count_kmer_threaded_one_to_many<Kmer>(seqvec : &Vec<Sequence>, nb_threads:usize, count_size:usize, kmer_size:usize) -> KmerCounterPool<Kmer>
 where Kmer: CompressedKmerT+DispatchableT+Send,
       KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>

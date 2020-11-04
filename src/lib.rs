@@ -29,7 +29,7 @@ pub mod mininvhashkmer;
 pub mod nthash;
 
 
-pub mod seqsketcher;
+pub mod seqminhash;
 
 // kmer stuff
 

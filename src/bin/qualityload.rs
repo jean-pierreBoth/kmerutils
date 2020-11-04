@@ -1,8 +1,9 @@
-//! loads quality compressed in a wavelet matrix
-//! provides a server to quality data.
-//! statistics provided for free by Wavelet matrix
-
-
+//! loads quality from a fastq file and provides a server to quality data.  
+//! Qualities are re-mapped to values between in [0..7] so that they need only 3 bits of storage and are
+//! stored in a wavelet matrix.  
+//! The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6].
+//! The server is launched on the current machine by the command:  
+//!  **qualityloader -f filename [ -p portnum] [ --wavelet]**.
 
 
 #[macro_use]
@@ -10,6 +11,8 @@ extern crate lazy_static;
 
 // for logging (debug mostly, switched at compile time in cargo.toml or env variable RUST_LOG)
 use log::*;
+#[allow(unused_imports)]
+use log::Level::{Debug,Trace};
 use env_logger::{Builder};
 
 
@@ -31,11 +34,9 @@ use ::std::mem;
 
 
 // our modules
-extern crate kmerutils;
 use kmerutils::quality::*;
 use kmerutils::qserverclient::*;
 
-const DEBUG : u64 = 0;
 
 lazy_static! {
     #[allow(dead_code)]
@@ -223,7 +224,7 @@ impl<'a> QualityServer<'a> {
         }
         // get the QSequenceRaw, we need to decompress, cause a copy.
         let seqraw = self.qualities[seqnum as usize].decompress();
-        if DEBUG > 0 {
+        if log_enabled!(Trace) {
             for i in 0..cmp::min(10, seqraw.len()) {
                 println!("send qual {} {}" , i, seqraw.qseq[i]);
             }
@@ -257,7 +258,7 @@ impl<'a> QualityServer<'a> {
         }
         // get the QSequenceRaw, we need to decompress, cause a copy.
         let seqraw = self.qualities[seqnum as usize].decompress();
-        if DEBUG > 0 {
+        if log_enabled!(Trace) {
             for i in 0..cmp::min(10, seqraw.len()) {
                 println!("send qual {} {}" , i, seqraw.qseq[i]);
             }
@@ -362,7 +363,7 @@ fn main() {
     }
     else {
         println!("-f filename is mandatory");
-        println!(" usage qualityloade -f name --wawelet (or -w) --port (-p) num");
+        println!(" usage qualityloader -f name --wawelet (or -w) --port (-p) num");
         process::exit(1);
     }
 

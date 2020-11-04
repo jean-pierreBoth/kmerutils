@@ -1,3 +1,12 @@
+//! This module provides signature computation and jaccard probability index using the probminhash crate.
+//! The jaccard probability index compute a Jaccard index between a given sequence and each sequence in a Vector of sequence.
+//! The kmers of a given size are generated for each sequence, and a jaccard index, taking into account the multiplicity 
+//! of different kmers in the sequence is computed.
+//! 
+//! It is also possible to ask for the common Kmers found in the signature of 2 sequences
+//! 
+//! 
+//! 
 #[allow(unused_imports)]
 use log::*;
 

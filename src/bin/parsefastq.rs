@@ -1,6 +1,8 @@
 //! fastq parser , a kind of driver for subcommands.
-//! contains subcommands to compute stats/sketch counting kmers and more to come
-
+//! contains subcommands to compute stats/ or counting kmers.  
+//! usage parsefastq -f datafile --bits m (or -b m)  [kmer --count n | -b n] [--csize l] [-t j]
+//! - -b  m : m gives the number of bits per base 2,4 or 8 (8 means no compression)
+//! - -t  j : j gives the number of threads to use
 
 
 
@@ -22,7 +24,6 @@ use std::process;
 
 
 // our modules
-extern crate kmerutils;
 use kmerutils::io::*;
 use kmerutils::kmercount::*;
 use kmerutils::parsearg::*;
