@@ -1,6 +1,6 @@
 //! a tool to sketch sequences of a data file
 //! The algorithm used for sketching are probminhash3a and probminhash2
-//! usage datasketcher -m "method" -o outputfilename -s sketch_size  -k kmer_size
+//! usage datasketcher -m "method" -o outputfilename -s sketch_size  -k kmer_size  -d dumpname
 //! - -s  sketch_size gives the size of signature to use for each sequence.
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
 //! - -k kmer_size gives the size of kmer to use 
@@ -23,6 +23,10 @@ use kmerutils::kmergenerator::*;
 use kmerutils::jaccardweight::*;
 
 use needletail::FastxReader;
+use std::io;
+use ::std::io::{Write};
+use ::std::fs;
+use ::std::fs::OpenOptions;
 
 // install a logger facility
 fn init_log() -> u64 {
@@ -30,6 +34,9 @@ fn init_log() -> u64 {
     println!("\n ************** initializing logger *****************\n");    
     return 1;
 }
+
+
+const MAGIC_SIG_DUMP : u32 = 0xceabeadd;
 
 /// format of file dump
 ///  - magic 
@@ -58,12 +65,18 @@ fn main() {
                         .short("k")
                         .takes_value(true)
                         .help("expecting a kmer size"))
+                    .arg(Arg::with_name("dumpfile")
+                        .long("dumpfile")
+                        .short("df")
+                        .takes_value(true)
+                        .help("expecting name of dumpfile for signature"))
                 ) 
                 .get_matches();
 
     let fname;
     let kmer_size;
     let sketch_size;
+    let dumpfname;
     // check for all necessary args
     if matches.is_present("file") {
         fname = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
@@ -74,6 +87,7 @@ fn main() {
         println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
         process::exit(1);
     }
+    //
     if matches.is_present("sketch_size") {
         sketch_size = matches.value_of("sketch_size").ok_or("bad value").unwrap().parse::<usize>().unwrap();
         println!("got sketch_size , {}", sketch_size);
@@ -82,7 +96,8 @@ fn main() {
         println!("--sketch is mandatory");
         println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
         process::exit(1);
-    }    
+    } 
+    // kmer options
     if matches.is_present("kmer_size") {
         kmer_size = matches.value_of("kmer_size").ok_or("bad value").unwrap().parse::<u8>().unwrap();
         println!("got kmer_size , {}", kmer_size);
@@ -90,9 +105,20 @@ fn main() {
     else {
         println!("--kmer is mandatory");
         println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
+        process::exit(1
+        );
+    }  
+    // dumpfile optins
+    if matches.is_present("dumpfile") {
+        dumpfname = matches.value_of("dumpfile").ok_or("bad value").unwrap().parse::<String>().unwrap();
+        println!("got dumpfile  , {}", dumpfname);
+    }
+    else {
+        println!("--dumpfile is mandatory");
+        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size --dumfile (-df) fname");
         process::exit(1);
     }     
-
+    //
     let path = Path::new(&fname);
     let f_info_res = path.metadata();
     match f_info_res {
@@ -115,8 +141,24 @@ fn main() {
         let canonical =  kmer.reverse_complement().min(*kmer);
         let hashval = probminhash::invhash::int32_hash(canonical.0);
         hashval
-    };  
-
+    };
+    //
+    // create file to dump signature
+    //
+    let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
+    let dumpfile;
+    if dumpfile_res.is_ok() {
+        dumpfile = dumpfile_res.unwrap();
+    } else {
+        println!("cannot open {}", dumpfname);
+        std::process::exit(1);
+    }
+    let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
+    sigbuf.write(& MAGIC_SIG_DUMP.to_be_bytes()).unwrap();
+    sigbuf.write(& sketch_size.to_be_bytes()).unwrap();
+    sigbuf.write(& kmer_size.to_be_bytes()).unwrap();
+    sigbuf.write(& 4u32.to_be_bytes()).unwrap();
+    //
     loop {
         let sequenceblock = readblockseq(& mut reader, blocksize);
         if sequenceblock.len() == 0 {
@@ -126,9 +168,11 @@ fn main() {
         // do the computation
         let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         // dump the signature
+        let resd = dump_signatures(&signatures, &mut sigbuf);
+        if !resd.is_ok() {
+            println!("\n error occurred dumping signatures");
+        }
     }
-    // possibly sketch the last incomplete block
-
     //
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" number of sequences loaded {} ", nbseq);
@@ -165,3 +209,19 @@ fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequen
     }
     return veqseq;
 }  // end of readblockseq
+
+
+// CAVEAT should go to serde/bson
+fn dump_signatures(signatures : &Vec<Vec<usize>>, out : &mut dyn Write) -> io::Result<()> {
+    for i in 0..signatures.len() {
+        let ptr_usize = signatures[i].as_ptr();
+        let vec_u8 = unsafe {
+            let ptr_u8 = std::mem::transmute::<*const usize, *mut u8>(ptr_usize);
+            Vec::from_raw_parts(ptr_u8, signatures[i].len() * std::mem::size_of::<usize>(), 
+                                        signatures[i].capacity() * std::mem::size_of::<usize>())
+            };
+        out.write(vec_u8.as_slice())?;
+    }  // end of for i
+    //
+    return Ok(());
+} // end of dump_signatures

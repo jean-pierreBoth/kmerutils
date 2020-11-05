@@ -1,7 +1,7 @@
-//! This module provides signature computation and jaccard probability index using the probminhash crate.
-//! The jaccard probability index compute a Jaccard index between a given sequence and each sequence in a Vector of sequence.
-//! The kmers of a given size are generated for each sequence, and a jaccard index, taking into account the multiplicity 
-//! of different kmers in the sequence is computed.
+//! This module provides signature computation and Jaccard probability index using the probminhash crate.  
+//! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers.  
+//! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
+//! and a jaccard index between sequences is computed.
 //! 
 //! It is also possible to ask for the common Kmers found in the signature of 2 sequences
 //! 
@@ -80,7 +80,7 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 
 
 /// compute jaccard probability index between a sequence and a vector of sequences for Kmer16b32bit
-/// and returns a vector of Jaccard probability index.
+/// and returns a vector of Jaccard probability index.  
 /// This function is threaded (with Rayon) so it is best used with a vector of sequence of sufficient size
 pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec<Sequence>, sketch_size: usize, fhash : F) -> Vec<f64> 
     where F : Fn(&Kmer16b32bit) -> u32 + Sync + Send{
@@ -141,8 +141,8 @@ pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec
 } // end of sketch_seqrange_probminhash3a_kmer16b32bit
 
 
-/// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size.
-/// The size of signature of each sequence is sketch_size.
+/// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size.  
+/// The size of signature of each sequence is sketch_size.  
 /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
 /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
 /// 
@@ -187,9 +187,10 @@ pub fn sketch_probminhash3a_kmer32bit<F>(vseq : &Vec<Sequence>, sketch_size: usi
 
 
 
-/// Compute jaccard probability index between a sequence and a vecor of sequences sequences for Kmer16b32bit
-/// and returns a vector of Jaccard probability index
-/// the fhash function is a hash function 
+/// Compute jaccard probability index between a sequence and a vector of sequences for Kmer16b32bit.    
+/// It returns a vector of Jaccard probability index.
+/// the fhash function is a hash function.  
+/// The function is threaded with the Rayon crate.
 pub fn jaccard_index_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Sequence>, sketch_size: usize, 
                     kmer_size : u8, fhash : F) -> Vec<f64> 
                     where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
