@@ -1,10 +1,9 @@
-//! This module describes encoding of bases in 4 or 2 bits(our preferred representation)
+//! This module describes encoding of bases in 4 or 2 bits. 
+//! Alphabet2b is used for compressing see [`kmer::CompressedKmerT`]
 //! It provides compressing/decompressing utilities and iterator over a compressed sequence
 //! of base
 
 
-#[allow(dead_code)]
-const DEBUG : usize = 1;
 
 
 /// check if a base is ACGT
@@ -60,10 +59,10 @@ pub trait BaseCompress {
 
 
 /// this structure compress to 2 bits the 4 bases ACGT
-/// A maps to 0b00
-/// C maps to 0b01
-/// G maps to 0b10
-/// T maps to 0b11
+/// - A maps to 0b00
+/// - C maps to 0b01
+/// - G maps to 0b10
+/// - T maps to 0b11
 /// note : the lexicographic order is preserved and bases are conjugated
 
 pub struct Alphabet2b {
@@ -178,11 +177,11 @@ impl BaseCompress for Alphabet2b {
 //  Alphabet4b
 
 
-/// this structure compress to 4 bits the 4 bases ACGT
-/// A maps to 0b0001 = 1 = 0x01
-/// C maps to 0b0010 = 2 = 0x02
-/// G maps to 0b0100 = 4 = 0x04
-/// T maps to 0b1000 = 8 = 0x08
+/// this structure compress to 4 bits the 4 bases ACGT  
+/// A maps to 0b0001 = 1 = 0x01  
+/// C maps to 0b0010 = 2 = 0x02  
+/// G maps to 0b0100 = 4 = 0x04  
+/// T maps to 0b1000 = 8 = 0x08  
 
 // note : the lexicographic order is preserved and bases are NOT conjugated
 //         we can convert from Alphabet4b to Alphabet2b by counting (calling)  trailing_zeros
@@ -259,12 +258,12 @@ impl BaseCompress for Alphabet4b {
     /// return base complement
     fn complement(&self, c:u8) -> u8 {
         match c {
-            0b0000 => 0b1111,   // A
-            0b0010 => 0b0100,   // C
-            0b0100 => 0b0010,   // G
-            0b1000 => 0b0000,   // T
-            0b1111 => 0b1111,   // N
-            _    => panic!("pattern not a code in alpahabet_2b"),
+            0b0001 => 0b1000,   // A -> T
+            0b0010 => 0b0100,   // C -> G
+            0b0100 => 0b0010,   // G -> C
+            0b1000 => 0b0001,   // T -> A
+            0b1111 => 0b1111,   // N -> N
+            _        => panic!("pattern not a code in alpahabet_2b"),
         }
     } // end of complement
 
