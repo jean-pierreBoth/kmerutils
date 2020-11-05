@@ -28,11 +28,20 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 * command to use:
 
-## Hashing
+## Hashing and Sketching of data
 
-* Minhash
+Similarity between sequences can be estimated by counting common Kmers (i.e by estimating a Jaccard index) between sequences.
 
-A generic Minhash implementation based on BinaryHeap and HashMap
+* Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm.  
+
+* A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
+Probminhash and superminhash are provided by the crate probminhash and are interfaced with kmer generation in module **jaccardweight.rs**.
+(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash)).
+
+* The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
+dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *jaccarweight*.
+
+Some others standard tools such :
 
 * Nthash
 
@@ -40,18 +49,9 @@ This is a recursive hashing described in: **"ntHash: recursive nucleotide hashin
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
 
-* Probminhash and Superminhash
+* Minhash
 
-Similarity between sequences can be estimated by counting common Kmers (i.e by estimating a Jaccard index) between sequences.
-Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm.  
-A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
-Probminhash and superminhash are provided by the crate probminhash and are interfaced with kmer generation in module **jaccardweight.rs**.
-(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash)).
-
-### Sketching of data
-
-The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
-dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index.
+A generic Minhash implementation based on BinaryHeap and HashMap
 
 ## Some statistics on sequences
 
