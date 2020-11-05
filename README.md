@@ -1,26 +1,32 @@
 # Some Kmer counting utilities
 
-This package provides basic tools :
+This package provides the following tools :
 
 * kmer counting tools
   
-* some statistics dumps :
-  
-  1. base distributions
-  2. read length distributions
-  3. number of bases between to occurences of A/T (or C/G) bases (return times).
-
 * A quality server.
-  This binary executable loads qualities from a Fastq file and runs as a server, and answer
-  basic requests as returning a sequence of given number , or a block of a sequence or simply the base at a given pos  in a sequence given its rank. This enables storing qualities on a different machine.
+  The binary executable *qualityloader* loads qualities from a Fastq file and runs as a server, answering
+  basic requests as returning a quality sequence of given seuqnce number , or a block of a sequence or simply the base at a given pos  in a sequence given its rank. This enables storing qualities on a different machine.
+
+* Sketching of sequences with up to date sensitive hashing related to the **Probability Jaccard index** see the *jaccardweight* module.  
   
+* some basic statistics dumps  such as base distributions, read length distributions and number of bases between two occurences of A/T (or C/G) bases (return times).
+
 The package has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
 
-## Kmer Compression
+## Kmer Compression and Counting
 
-The bases can be encoded on 2-bit or 4-bit alphabet. The Kmer can be compressed on these two alphabet (at present time only 2-bit compression is implemented).  
-Kmer can be stored in 16-bit, 32-bit or 64-bit words thus providing compressed sequence up to 32 bases.
+The bases are encoded on 2 bits.  
+Kmer can be stored 32-bit or 64-bit words thus providing compressed representation up to 32 bases with the 2-bit alphabet.  
+Kmer and compressed Kmer are represented respectively by trait *KmerT* and *CompressedKmerT*.
+A kmer is identified with its reverse complement in the counting methods.  
+
+Kmer counting is multi-threaded and filters unique kmer in a cuckoo filter to spare memory.
+Unique kmers are dumped in a separate file with the coordinates (sequence and position in sequence).
+Multiple kmers, stored in a Bloom filter, are dumped in another file with their multiplicity. See module *kmercount*
+
+* command to use:
 
 ## Hashing
 
@@ -35,19 +41,17 @@ This is a recursive hashing described in: **"ntHash: recursive nucleotide hashin
 It is implemented on all our compressed kmer types.
 
 * Probminhash and Superminhash
- 
+
 Similarity between sequences can be estimated by counting common Kmers (i.e by estimating a Jaccard index) between sequences.
-Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm. A probability Jaccard index taking into account Kmer multiplicity is possible with the Probminhash family algorithm. 
-Probminhash and superminhash are provided by the crate probminhash  
-(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash))
-  
-## Counting Kmer
+Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm.  
+A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
+Probminhash and superminhash are provided by the crate probminhash and are interfaced with kmer generation in module **jaccardweight.rs**.
+(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash)).
 
-Kmer counting is multi-threaded and filters unique kmer in a cuckoo filter to spare memory.
-Unique kmers are dumped in a separate file with the coordinates (sequence and position in sequence).
-Multiple kmer are dumped in another file with their multiplicity.
+### Sketching of data
 
-* command to use:
+The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
+dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index.
 
 ## Some statistics on sequences
 
@@ -80,13 +84,11 @@ This file can be reloaded from Julia package Genomics (Cf ReturnTimesLRFile).
 
 Qualities are re-mapped to values between in [0..7] so that they need only 3 bits of storage and are
 stored in a wavelet matrix.
-The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6].
+The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6]. the quality part of data are stored in a:
 
-## Quality Server
+### Quality Server
 
 The server is launched on the server machine by the command:  
  **qualityloader -f filename [ -p portnum] [ --wavelet]**.
 
 The server listens by default to port 4766, the option "--wavelet" asks for wavelet compression.
-
-## Julia interface
