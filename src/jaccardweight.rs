@@ -146,32 +146,32 @@ pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec
 /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
 /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
 /// 
-pub fn sketch_probminhash3a_kmer32bit<F>(vseq : &Vec<Sequence>, sketch_size: usize, kmer_size : u8, fhash : F) -> Vec<Vec<usize> >
+pub fn sketch_probminhash3a_kmer32bit<F>(vseq : &Vec<Sequence>, sketch_size: usize, kmer_size : u8, fhash : F) -> Vec<Vec<u32> >
     where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
     //
-    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<usize>) {
-        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
+        let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
         let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
             match kmergen.next() {
                 Some(kmer) => {
                     let hashval = fhash(&kmer);
-                    *wb.entry(hashval as usize).or_insert(0.) += 1.;
+                    *wb.entry(hashval as u32).or_insert(0.) += 1.;
                 },
                 None => break,
             }
         }  // end loop 
-        let mut pminhashb = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
+        let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(sketch_size, 0);
         pminhashb.hash_weigthed_idxmap(&wb);
         let sigb = pminhashb.get_signature();
         // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
         return (i,sigb.clone());
     };
     //
-    let sig_with_rank : Vec::<(usize,Vec<usize>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
+    let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
     // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-    let mut jaccard_vec = Vec::<Vec<usize>>::with_capacity(vseq.len());
+    let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
     for _ in 0..vseq.len() {
         jaccard_vec.push(Vec::new());
     }

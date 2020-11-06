@@ -43,6 +43,8 @@ pub mod jaccardweight;
 pub mod anchor;
 pub mod redisbase;
 
+pub mod sketchio;
+
 pub mod prelude;
 
 

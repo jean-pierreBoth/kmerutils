@@ -25,8 +25,9 @@ use kmerutils::jaccardweight::*;
 use needletail::FastxReader;
 use std::io;
 use ::std::io::{Write};
-use ::std::fs;
-use ::std::fs::OpenOptions;
+
+use kmerutils::sketchio;
+
 
 // install a logger facility
 fn init_log() -> u64 {
@@ -36,7 +37,6 @@ fn init_log() -> u64 {
 }
 
 
-const MAGIC_SIG_DUMP : u32 = 0xceabeadd;
 
 /// format of file dump
 ///  - magic 
@@ -145,19 +145,7 @@ fn main() {
     //
     // create file to dump signature
     //
-    let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
-    let dumpfile;
-    if dumpfile_res.is_ok() {
-        dumpfile = dumpfile_res.unwrap();
-    } else {
-        println!("cannot open {}", dumpfname);
-        std::process::exit(1);
-    }
-    let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
-    sigbuf.write(& MAGIC_SIG_DUMP.to_be_bytes()).unwrap();
-    sigbuf.write(& sketch_size.to_be_bytes()).unwrap();
-    sigbuf.write(& kmer_size.to_be_bytes()).unwrap();
-    sigbuf.write(& 4u32.to_be_bytes()).unwrap();
+    let mut sigbuf = sketchio::init_signature_dump(dumpfname, kmer_size, sketch_size);
     //
     loop {
         let sequenceblock = readblockseq(& mut reader, blocksize);
@@ -168,7 +156,7 @@ fn main() {
         // do the computation
         let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         // dump the signature
-        let resd = dump_signatures(&signatures, &mut sigbuf);
+        let resd = sketchio::dump_signatures_block(&signatures, &mut sigbuf);
         if !resd.is_ok() {
             println!("\n error occurred dumping signatures");
         }
@@ -210,18 +198,3 @@ fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequen
     return veqseq;
 }  // end of readblockseq
 
-
-// CAVEAT should go to serde/bson
-fn dump_signatures(signatures : &Vec<Vec<usize>>, out : &mut dyn Write) -> io::Result<()> {
-    for i in 0..signatures.len() {
-        let ptr_usize = signatures[i].as_ptr();
-        let vec_u8 = unsafe {
-            let ptr_u8 = std::mem::transmute::<*const usize, *mut u8>(ptr_usize);
-            Vec::from_raw_parts(ptr_u8, signatures[i].len() * std::mem::size_of::<usize>(), 
-                                        signatures[i].capacity() * std::mem::size_of::<usize>())
-            };
-        out.write(vec_u8.as_slice())?;
-    }  // end of for i
-    //
-    return Ok(());
-} // end of dump_signatures

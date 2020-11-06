@@ -36,22 +36,18 @@ Similarity between sequences can be estimated by counting common Kmers (i.e by e
 
 * A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
 Probminhash and superminhash are provided by the crate probminhash and are interfaced with kmer generation in module **jaccardweight.rs**.
-(Cf [probminhash](https://github.com/jeanpierre-Both/probminhash)).
+(Cf [probminhash](https://github.com/jean-pierreBoth/probminhash)).
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
 dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *jaccarweight*.
 
 Some others standard tools such :
 
-* Nthash
-
-This is a recursive hashing described in: **"ntHash: recursive nucleotide hashing"**  
+* Nthash : This is a recursive hashing described in: **"ntHash: recursive nucleotide hashing"**  
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
 
-* Minhash
-
-A generic Minhash implementation based on BinaryHeap and HashMap
+* Minhash : A generic Minhash implementation based on BinaryHeap and HashMap
 
 ## Some statistics on sequences
 
