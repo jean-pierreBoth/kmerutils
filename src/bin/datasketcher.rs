@@ -17,14 +17,13 @@ use clap::{App, Arg};
 use time::*;
 use ::std::process;
 use std::path::Path;
+use std::io::prelude::*;
 
 use kmerutils::sequence::*;
 use kmerutils::kmergenerator::*;
 use kmerutils::jaccardweight::*;
 
 use needletail::FastxReader;
-use std::io;
-use ::std::io::{Write};
 
 use kmerutils::sketchio;
 
@@ -48,6 +47,7 @@ fn init_log() -> u64 {
 fn main() {
 
     init_log();
+    debug!("entering data sketcher, checking log trace");
 
     let matches = Box::new(App::new("datasketcher")       
                     .arg(Arg::with_name("file")
@@ -133,35 +133,37 @@ fn main() {
     }
     let start_t = Instant::now();
     let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
-    let blocksize = 1000;
+    let blocksize = 10000;
     let mut nbseq = 0;
     //
-
     let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
         let canonical =  kmer.reverse_complement().min(*kmer);
         let hashval = probminhash::invhash::int32_hash(canonical.0);
         hashval
     };
-    //
     // create file to dump signature
-    //
-    let mut sigbuf = sketchio::init_signature_dump(dumpfname, kmer_size, sketch_size);
-    //
+    let mut sigbuf = sketchio::create_signature_dump(dumpfname, kmer_size, sketch_size);
+    // now we work
     loop {
         let sequenceblock = readblockseq(& mut reader, blocksize);
         if sequenceblock.len() == 0 {
             break;
         }
         nbseq += sequenceblock.len();
+        if nbseq % 1000 == 0 {
+            println!(" nbseq loaded : {} ", nbseq);
+        }
         // do the computation
         let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
+        trace!("got nb signatures vector {} ", signatures.len());
         // dump the signature
-        let resd = sketchio::dump_signatures_block(&signatures, &mut sigbuf);
+        let resd = sketchio::dump_signatures_block_u32(&signatures, &mut sigbuf);
         if !resd.is_ok() {
             println!("\n error occurred dumping signatures");
         }
     }
     //
+    sigbuf.flush().unwrap();
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" number of sequences loaded {} ", nbseq);
     println!(" elapsed time (s) in sketching data file {} ", elapsed_t);
@@ -171,6 +173,7 @@ fn main() {
 // read a blcok of nbseq sequences
 fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequence> {
     //
+    trace!("entering in readblockseq");
     let mut veqseq = Vec::<Sequence>::with_capacity(nbseq);
     let mut nb_bad_sequence = 0;
     //
@@ -178,7 +181,7 @@ fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequen
         // read by block of blocksize sequence to benefit from theading of sketching
         let seqrec = record.expect("invalid record");
         let nb_bad = count_non_acgt(&seqrec.seq());
-        if nb_bad == 0 {
+        if nb_bad > 0 {
             nb_bad_sequence += 1;
             continue;
         }
@@ -195,6 +198,9 @@ fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequen
     if nb_bad_sequence > 0 && log_enabled!(Info) {
         info!(" number of non acgt sequences {} ", nb_bad_sequence);
     }
+    println!("returning from readblockseq , nb seq : {} ", veqseq.len());
+    trace!("returning from readblockseq , nb seq : {} ", veqseq.len());
+    //
     return veqseq;
 }  // end of readblockseq
 
