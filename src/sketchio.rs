@@ -5,6 +5,8 @@
 
 use std::io;
 use std::io::{Write,Read};
+use std::io::{ErrorKind};
+
 use std::fs;
 use std::fs::OpenOptions;
 
@@ -120,11 +122,28 @@ impl SigSketchFileReader {
         Ok(SigSketchFileReader{fname,sketch_size: sketch_size as usize, kmer_size: kmer_size as u8, signature_buf})
     } // end of new
 
-    /// emulates iterator API. Return next object's signature if any, None otherwise.
+    /// emulates iterator API. Return next object's signature (a Vec<u32> ) if any, None otherwise.
+    /// 
     pub fn next(&mut self) -> Option<Vec<u32> > {
+        let mut buf = Vec::<u8>::with_capacity(self.sketch_size * std::mem::size_of::<u32>());
 
-        None
-    }
+        let io_res = self.signature_buf.read_exact(buf.as_mut_slice());
+        //
+        if io_res.is_err() {
+            // we check that we got EOF or rust ErrorKind::UnexpectedEof
+            match io_res.err().unwrap().kind() {
+                ErrorKind::UnexpectedEof => return None,
+                        _            =>  { 
+                                        println!("an unexpected error occurred reading signature buffer");
+                                        std::process::exit(1);
+                                    }
+            }
+        }
+        else {
+            let sig = Vec::<u32>::with_capacity(self.sketch_size);
+            return Some(sig);        
+        }
+    } // end of next
      
 } // end of impl SigSketchFile
 
