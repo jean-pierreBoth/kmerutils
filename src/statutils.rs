@@ -34,12 +34,12 @@ use crate::sequence::*;
 // rust use row order as opposed to fortran which is row column
 
 /// We keep in ReadBaseDistribution main statistics :
-/// - distribution of read distributions in acgt_distribution
-/// - percentage part of each base in acgt_distribution
-///
-///  For each interger percentage and each base we store the number of reads
-///  in acgt_distribution[percent , base].
-///  So  acgt_distribution[percent, cbase] = n  there are n reads where cbase  fills  percent% of the reads.
+///  * readsizehisto  
+///    an histogram of read length distribution
+///   
+///  * acgt_distribution  
+///  For each  percentage and each base we store the fraction of reads in acgt_distribution.  
+///  So  acgt_distribution[percent, cbase] = f  there is a fraction f of reads where cbase fills percent% of the reads.
 ///  base columns are in order a,c,g,t 
 /// 
 
@@ -51,18 +51,22 @@ pub struct ReadBaseDistribution {
     pub histo_out : usize,
     pub non_acgt : usize,
     /// array of dimensions 101,4.  101 beccause percentage can be in 0..100 included!
-    pub acgt_distribution : Array2<usize>,
+    pub acgt_distribution : Array2<f64>,
 }
 
 
 
 impl ReadBaseDistribution {
+    /// readmaxsize is the maximum length represented in the histogram  
+    /// prec : is the precision for histogram representation1,2 or 3
     pub fn new(readmaxsize : usize, prec : usize, d: ndarray::Ix2) -> ReadBaseDistribution {
         // TODO check that prec < log10(readmaxsize)
         // record histogram length from 1 to readmaxsize with slot of size readmaxsize/10**prec
         // lowest value arg in init must be >= 1
+        assert!(prec >= 1, "precision for histogram construction should range [1..3]");
+        assert!(prec <= 3, "precision for histogram construction should range [1..3]");
         let histo = Histogram::configure().max_value(readmaxsize as u64).precision(prec as u32).build().unwrap();
-        let array : Array2<usize> = Array2::zeros(d);
+        let array : Array2<f64> = Array2::zeros(d);
         ReadBaseDistribution{readsizehisto : histo, upper_histo : readmaxsize, histo_out : 0,
                              non_acgt : 0 as usize , acgt_distribution : array}
     }
@@ -82,9 +86,8 @@ impl ReadBaseDistribution {
             Ok(mut file) => {
                 //
                 let (nbrow,_) = self.acgt_distribution.dim();
-                debug_assert!(nbrow==1);
                 for i in 0..nbrow {
-                    write!(file, "\n {} {}  {}  {} ", self.acgt_distribution[[i,0]] , self.acgt_distribution[[i,1]] ,
+                    write!(file, "{} {}  {}  {} \n", self.acgt_distribution[[i,0]] , self.acgt_distribution[[i,1]] ,
                            self.acgt_distribution[[i,2]] , self.acgt_distribution[[i,3]])?;  // ? get directly to io::Error !
                 }
                 file.flush()?;
@@ -141,7 +144,8 @@ impl ReadBaseDistribution {
 
 
 
-
+/// computes base distribution statistics(in one thread) and dump result in file of name "bases.histo-1thread"
+/// maxreadlen is maximum read length in histogram of read length distribution.
 pub fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     //
     println!(" in get_base_count");
@@ -187,8 +191,8 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
         nb_bad = nb_bad + seq_array[i].base_count(&mut histo);
         for j in 0..4 {
             // compute percentage of each base in sequence
-            let percent : usize = (histo[j] as f64 / decompressed.len() as f64).round() as usize;
-            (*base_distribution).acgt_distribution[ [percent ,j ] ] += 1;
+            let percent : usize = ((100 * histo[j]) as f64 / decompressed.len() as f64).round() as usize;
+            (*base_distribution).acgt_distribution[ [percent ,j ] ] += 1.;
         }     
     }
     (*base_distribution).non_acgt = nb_bad as usize;
@@ -209,9 +213,8 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
 
 /// takes a slice on sequences and sendback base distribution on a channel
 /// maxreadlen is the maximum size we record in histogram. It must be adapted to read length distribution
-/// to get a significant historgram
-
-    
+/// to get a significant historgram.  
+/// Result is dumped in a file named : "bases.histo"
 pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec : usize) -> Option<Box<ReadBaseDistribution>> {
     //
     let nbthreads : usize = 2;
@@ -247,6 +250,7 @@ pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec
         //   documentation suggest something like that should be possible
         base_distribution.acgt_distribution += &(ref_distrib.acgt_distribution);
     } // end of for on distrib_collector
+    base_distribution.acgt_distribution *= 1./(seq_array.len() as f64);
     //
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
