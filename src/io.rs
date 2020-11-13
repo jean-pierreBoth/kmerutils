@@ -43,9 +43,10 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
         // now we check for return times options
         let mut rt_file_name = parsed_args.filename.clone();
         rt_file_name.push_str(".ret_times.bin");
-        if let Some(pos) = rt_file_name.rfind('/') {
-            rt_file_name = rt_file_name.split_off(pos+1);
-        }
+        let f_path = Path::new(&rt_file_name);
+        // get base name convert it to &str 
+        let basename = f_path.file_name().unwrap().to_str().unwrap();
+        rt_file_name = basename.into();    // and back to String
         println!("return times in file : {} ", rt_file_name);
         let ret_times_arg:ReturnTimesArgs = parsed_args.ret_times_args_opt.expect("no return times option").clone();
         let w_size: u8 = ret_times_arg.window_size;

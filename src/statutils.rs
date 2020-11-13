@@ -1,6 +1,6 @@
 //! This module contains computation of some statistics on base distribution, return times
 //! between A/T pairs and C/G pairs.
-//! It gathers some heuristics on how to pairs blocks of read before going to sketching
+// It gathers some heuristics on how to pairs blocks of read before going to sketching
 
 
 use ::histogram::*;
@@ -34,12 +34,12 @@ use crate::sequence::*;
 // rust use row order as opposed to fortran which is row column
 
 /// We keep in ReadBaseDistribution main statistics :
-///  * readsizehisto  
+///  - readsizehisto  
 ///    an histogram of read length distribution
 ///   
-///  * acgt_distribution  
+///  - acgt_distribution  
 ///  For each  percentage and each base we store the fraction of reads in acgt_distribution.  
-///  So  acgt_distribution[percent, cbase] = f  there is a fraction f of reads where cbase fills percent% of the reads.
+///  So  acgt_distribution[percent, cbase] = f means there is a fraction f of reads where cbase occurs at level percent%.   
 ///  base columns are in order a,c,g,t 
 /// 
 
@@ -63,8 +63,7 @@ impl ReadBaseDistribution {
         // TODO check that prec < log10(readmaxsize)
         // record histogram length from 1 to readmaxsize with slot of size readmaxsize/10**prec
         // lowest value arg in init must be >= 1
-        assert!(prec >= 1, "precision for histogram construction should range [1..3]");
-        assert!(prec <= 3, "precision for histogram construction should range [1..3]");
+        assert!(prec >= 1, "precision for histogram construction should range >= 1");
         let histo = Histogram::configure().max_value(readmaxsize as u64).precision(prec as u32).build().unwrap();
         let array : Array2<f64> = Array2::zeros(d);
         ReadBaseDistribution{readsizehisto : histo, upper_histo : readmaxsize, histo_out : 0,
@@ -103,24 +102,25 @@ impl ReadBaseDistribution {
     /// dump nbslot values giving percentage of read in [ upper_histo * (i / nbslot) , upper_histo * (i+1)/nbslot]
     /// for i = 0..nbslot
     
-    pub fn ascii_dump_readlen_distribution(&self, name : &String, nbslot : usize) -> result::Result<(), io::Error> {
+    pub fn ascii_dump_readlen_distribution(&self, name : &str, nbslot : usize) -> result::Result<(), io::Error> {
         //
-        let mut repartition_fn : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
+        let mut readsize : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
         //
         for i in 0..(nbslot+1) {
-            repartition_fn[i] =  self.readsizehisto.percentile((self.upper_histo * i) as f64).unwrap();
+            readsize[i] =  self.readsizehisto.percentile(100. * (i as f64/ nbslot as f64) as f64).unwrap();
         }
+        let nb_entries = self.readsizehisto.entries();
         let mut density : Vec<f64> = (0..nbslot).map(|_| 0f64).collect();
-        for i in 0..nbslot {
-            density[i] = (repartition_fn[i+1] - repartition_fn[i]) as f64 * nbslot as f64;
+        for i in 0..(readsize.len()-1) as usize {
+            density[i] = (readsize[i+1] - readsize[i]) as f64 * nbslot as f64;
         }
         //
         let fileres = OpenOptions::new().write(true).create(true).truncate(true).open(name);
         match fileres {
             Ok(mut file) => {
                 //
-                for i in 0..density.len() {
-                    write!(file, "\n {} ", density[i])?;  // ? get directly to io::Error !
+                for i in 0..readsize.len() {
+                    write!(file, "{} \n", readsize[i])?;  // ? get directly to io::Error !
                 }
                 file.flush()?;
                 return Ok(());
@@ -146,7 +146,8 @@ impl ReadBaseDistribution {
 
 /// computes base distribution statistics(in one thread) and dump result in file of name "bases.histo-1thread"
 /// maxreadlen is maximum read length in histogram of read length distribution.
-pub fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
+#[allow(dead_code)]
+fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     //
     println!(" in get_base_count");
     let start_t = time::Instant::now();
@@ -155,7 +156,8 @@ pub fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     let v_ref = &seq_array;
     let low = 0;
     let up = v_ref.len();
-    let base_distribution = get_base_count_by_slice(v_ref.get(low..up).unwrap(), maxreadlen, prec).unwrap();       
+    let mut base_distribution = get_base_count_by_slice(v_ref.get(low..up).unwrap(), maxreadlen, prec).unwrap();       
+    (*base_distribution).acgt_distribution *= 1./(seq_array.len() as f64);
     //
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
@@ -175,7 +177,6 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
     if cfg!(feature = "verbose_1") {
         println!(" in get_base_count_by_slice len : {} ", seq_array.len());
     }
-    println!(" in get_base_count");
     let start_t = time::Instant::now();
     // allocate a structure to store percentages, we want to cover an interval [0..100] so sz = 101
     let sz : usize = 101;

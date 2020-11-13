@@ -27,6 +27,7 @@ use std::process;
 use kmerutils::io::*;
 use kmerutils::kmercount::*;
 use kmerutils::parsearg::*;
+use kmerutils::statutils::*;
 use kmerutils::alphabet::get_ac_from_tg;    
 
 fn main() {
@@ -172,7 +173,16 @@ fn main() {
         }
     }
     //
-    println!("got nb read {} : ", seqvec.len());
+    println!("got nb read : {}  ", seqvec.len());
+    //
+    let maxreadlen = 1000000;
+    let prec = (maxreadlen as f64).log10() as usize;
+    let base_distribution_res= get_base_count_par(&seqvec, maxreadlen, prec);
+    match base_distribution_res {
+        Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution(&"readlen.histo",500);
+                                    },
+        _                       => std::process::exit(1),
+    }
     //
     match parse_args.kmer_args.kmer_task {
         KmerProcessing::Counting => {
@@ -225,7 +235,5 @@ fn main() {
     
 //    generate_all_kmer32(&seqvec);
     
-//    parse_with_fastq_bitenc(fname);
-//    parse_with_fastq(fname);
 }
     
