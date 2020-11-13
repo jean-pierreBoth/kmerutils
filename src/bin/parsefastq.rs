@@ -179,7 +179,7 @@ fn main() {
     let prec = (maxreadlen as f64).log10() as usize;
     let base_distribution_res= get_base_count_par(&seqvec, maxreadlen, prec);
     match base_distribution_res {
-        Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution(&"readlen.histo",500);
+        Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution(&"readlen.histo");
                                     },
         _                       => std::process::exit(1),
     }

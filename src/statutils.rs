@@ -102,25 +102,43 @@ impl ReadBaseDistribution {
     /// dump nbslot values giving percentage of read in [ upper_histo * (i / nbslot) , upper_histo * (i+1)/nbslot]
     /// for i = 0..nbslot
     
-    pub fn ascii_dump_readlen_distribution(&self, name : &str, nbslot : usize) -> result::Result<(), io::Error> {
+    pub fn ascii_dump_readlen_distribution(&self, name : &str) -> result::Result<(), io::Error> {
+        //
+        let nb_entries = self.readsizehisto.entries() as usize;
+        let maxlen = self.readsizehisto.maximum().unwrap() as usize;
+        println!("ascii_dump_readlen_distribution nb_entries {}  maxlen {}", nb_entries, maxlen);
+        let nbslot = nb_entries / 100;
         //
         let mut readsize : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
-        //
         for i in 0..(nbslot+1) {
             readsize[i] =  self.readsizehisto.percentile(100. * (i as f64/ nbslot as f64) as f64).unwrap();
         }
-        let nb_entries = self.readsizehisto.entries();
-        let mut density : Vec<f64> = (0..nbslot).map(|_| 0f64).collect();
-        for i in 0..(readsize.len()-1) as usize {
-            density[i] = (readsize[i+1] - readsize[i]) as f64 * nbslot as f64;
+        let nb_points = 1000usize;
+        let mut nb_read_vec = Vec::<usize>::with_capacity(nb_points);
+        let mut abscisse = Vec::<usize>::with_capacity(nb_points);
+        //
+        let mut first_i = 0;
+        let mut current_i = 0;
+        for j in 0..nb_points {
+            // find first i such that readsize[i] >= maxlen * (j/nbslot) 
+            let threshold = (maxlen * j)/nb_points;
+            while readsize[current_i]  < (threshold as u64)  && current_i < nbslot {
+                current_i +=1;
+            }
+            if current_i < nbslot && current_i > first_i {
+                let nb_in_slot = ((current_i - first_i) * nb_entries as usize) / nbslot; 
+                nb_read_vec.push(nb_in_slot);
+                abscisse.push(readsize[current_i] as usize);
+            }
+            first_i = current_i;
         }
         //
         let fileres = OpenOptions::new().write(true).create(true).truncate(true).open(name);
         match fileres {
             Ok(mut file) => {
                 //
-                for i in 0..readsize.len() {
-                    write!(file, "{} \n", readsize[i])?;  // ? get directly to io::Error !
+                for i in 0..nb_read_vec.len() {
+                    write!(file, "{}  {} \n",abscisse[i] , nb_read_vec[i])?;  // ? get directly to io::Error !
                 }
                 file.flush()?;
                 return Ok(());
