@@ -2,15 +2,15 @@
 
 This package provides the following tools :
 
-* kmer counting tools
-  
+* kmer counting tools.
+
+* Sketching of sequences with up to date sensitive hashing related to the **Probability Jaccard index** see the *jaccardweight* module.  
+
 * A quality server.
   The binary executable *qualityloader* loads qualities from a Fastq file and runs as a server, answering
   basic requests as returning a quality sequence of given seuqnce number , or a block of a sequence or simply the base at a given pos  in a sequence given its rank. This enables storing qualities on a different machine.
 
-* Sketching of sequences with up to date sensitive hashing related to the **Probability Jaccard index** see the *jaccardweight* module.  
-  
-* some basic statistics dumps  such as base distributions, read length distributions and number of bases between two occurences of A/T (or C/G) bases (return times).
+* some basic statistics dumps  such as base distributions, read length distributions.
 
 The package has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
@@ -50,32 +50,16 @@ It is implemented on all our compressed kmer types.
 
 * Minhash : A generic Minhash implementation based on BinaryHeap and HashMap
 
-## Some statistics on sequences
+## Some basic statistics on sequences
 
-### Read length distributions
-  
-### Base distribution
+1. Read length distributions.  
+    A file giving the number of reads in function of length.  
 
-We dump in a file the following information:
-
-1. number of non acgt (first line of file)
-2. a matrix (100, 4) giving for row i and column j in (1,2,3,4)the number of reads
-where a base (a,c,g,t) corresponding to column j in this order occurs at percentage i.
+2. Base distributions.  
+    a matrix (100, 4) giving for row i and column j in (1,2,3,4)the number of reads
+    where a base (a,c,g,t) corresponding to column j in this order occurs at percentage i.
 
 This file can be reloaded by Julia package Genomics (cf BaseDistribution.jl)
-
-### Return times
-
-We estimate return times between occurrences of A/T bases or C/G bases. These statistics are reverse complement invariant.
-The statistic is computed by default by dividing sequence into small (less than 255 bases length, and by default of length 190) blocks. So we cannot estimate return times between A/T (or C/G) greater than 255 but should be sufficient.
-
-command to run : **./target/release/parsefastq -b 2 -f fastqfile ret -b'A'**
-
-Output file name is $fastqfile.ret_times.bin.
-
-File format: Format is documented in statutils.rs see **function dump_binary** related to struct ReturnTimesLR.
-
-This file can be reloaded from Julia package Genomics (Cf ReturnTimesLRFile).
 
 ## Quality
 

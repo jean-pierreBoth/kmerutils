@@ -8,7 +8,6 @@ use self::time::*;
 
 use std::path::Path;
 
-use crate::statutils::*;
 use crate::sequence::*;
 use crate::parsearg::*;
 
@@ -38,25 +37,7 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
     let mut nb_bad_bases = 0;
     let mut nb_bad_read = 0;
 
-    let mut return_times_opt: Option<ReturnTimesWriter> = None;
-    if parsed_args.ret_times_args_opt.is_some() {
-        // now we check for return times options
-        let mut rt_file_name = parsed_args.filename.clone();
-        rt_file_name.push_str(".ret_times.bin");
-        let f_path = Path::new(&rt_file_name);
-        // get base name convert it to &str 
-        let basename = f_path.file_name().unwrap().to_str().unwrap();
-        rt_file_name = basename.into();    // and back to String
-        println!("return times in file : {} ", rt_file_name);
-        let ret_times_arg:ReturnTimesArgs = parsed_args.ret_times_args_opt.expect("no return times option").clone();
-        let w_size: u8 = ret_times_arg.window_size;
-        if w_size == 0 {
-            println!(" window size for return times stats must be between 1 and 255");
-            panic!();
-        }
-        let searched_base = ret_times_arg.searched_base;
-        return_times_opt = Some(ReturnTimesWriter::new(rt_file_name, searched_base, w_size).unwrap());
-    }
+    
     
     let start_t = Instant::now();
     let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
@@ -66,15 +47,6 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
         let nb_bad = count_non_acgt(&seqrec.seq());
         nb_bad_bases = nb_bad_bases + nb_bad;
         if nb_bad == 0 {
-            match return_times_opt {
-                // we must capture a mutable reference in the match!!
-                Some(ref mut ret) => {
-                    if let Err(_) = ret.analyze(seq_array.len(), &seqrec.seq()) {
-                        println!("error analyzing sequence");
-                    }
-                },
-                None => {},
-            }
             let newseq = Sequence::new(&seqrec.seq(), nb_bits);
             seq_array.push(newseq);
         }
