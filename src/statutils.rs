@@ -35,7 +35,8 @@ use crate::sequence::*;
 ///  - acgt_distribution  
 ///  For each  percentage and each base we store the fraction of reads in acgt_distribution.  
 ///  So  acgt_distribution[percent, cbase] = f means there is a fraction f of reads where cbase occurs at level percent%.   
-///  base columns are in order a,c,g,t 
+///  base columns are in order a,c,g,t. For a given column we have the fraction of reads in which the base occurs at each
+///  percentage. 
 /// 
 
 pub struct ReadBaseDistribution {
@@ -45,7 +46,8 @@ pub struct ReadBaseDistribution {
     /// count number of values greater than upper , histo trackable value
     pub histo_out : usize,
     pub non_acgt : usize,
-    /// array of dimensions 101,4.  101 beccause percentage can be in 0..100 included!
+    /// array of dimensions 101,4.  101 lines for percentage can be in 0..100 included!  
+    /// columns are A C G T in thid order
     pub acgt_distribution : Array2<f64>,
 }
 
@@ -228,7 +230,7 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
 
 /// takes a slice on sequences and sendback base distribution on a channel
 /// maxreadlen is the maximum size we record in histogram. It must be adapted to read length distribution
-/// to get a significant historgram.  
+/// to get a significant historgram.    
 /// Result is dumped in a file named : "bases.histo"
 pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec : usize) -> Option<Box<ReadBaseDistribution>> {
     //

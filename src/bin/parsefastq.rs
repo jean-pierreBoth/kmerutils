@@ -1,8 +1,10 @@
 //! fastq parser , a kind of driver for subcommands.
 //! contains subcommands to compute stats/ or counting kmers. 
 //! usage parsefastq -f datafile --bits m (or -b m)  [kmer --count n | -b n] [--csize l] [-t j]
-//! - -b  m : m gives the number of bits per base 2,4 or 8 (8 means no compression)
-//! - -t  j : j gives the number of threads to use
+//! -   --bits (or -b)   m : m gives the number of bits per base 2,4 or 8 (8 means no compression)  
+//! -   --csize (or -c)  l : size of bloom filter   
+//! -   --thread (or -t) j : j gives the number of threads to use  
+//! -   --unique (or -u)   : option to get a dump of unique kmers (default is nodump)  
 
 
 

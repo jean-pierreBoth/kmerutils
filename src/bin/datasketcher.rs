@@ -67,7 +67,7 @@ fn main() {
                         .help("expecting a kmer size"))
                     .arg(Arg::with_name("dumpfile")
                         .long("dumpfile")
-                        .short("df")
+                        .short("d")
                         .takes_value(true)
                         .help("expecting name of dumpfile for signature"))
                 ) 
@@ -115,7 +115,7 @@ fn main() {
     }
     else {
         println!("--dumpfile is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size --dumfile (-df) fname");
+        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size --dumfile (-d) fname");
         process::exit(1);
     }     
     //
