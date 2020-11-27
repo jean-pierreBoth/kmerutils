@@ -13,7 +13,7 @@ use log::Level::{Debug,Trace, Info};
 #[allow(unused_imports)]
 use env_logger::{Builder};
 
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
 use time::*;
 use ::std::process;
 use std::path::Path;
@@ -27,6 +27,8 @@ use needletail::FastxReader;
 
 use kmerutils::sketchio;
 
+use hnsw_rs::prelude::*;
+// use hnsw_rs::dist;
 
 // install a logger facility
 fn init_log() -> u64 {
@@ -34,6 +36,7 @@ fn init_log() -> u64 {
     println!("\n ************** initializing logger *****************\n");    
     return 1;
 }
+
 
 
 
@@ -70,13 +73,24 @@ fn main() {
                         .short("d")
                         .takes_value(true)
                         .help("expecting name of dumpfile for signature"))
+                    .subcommand(SubCommand::with_name("ann")
+                        .about("ann parameters")
+                        .arg(Arg::with_name("nbng")
+                                .long("nb")
+                                .short("n")
+                                .takes_value(true)
+                                .help("expecting number of neighbours"))
+                    )
                 ) 
                 .get_matches();
 
-    let fname;
+    let fname;       // fasta filename
     let kmer_size;
     let sketch_size;
-    let dumpfname;
+    let dumpfname;   // for dump of sketches
+    //
+    let mut do_ann = false;
+    let nbng;        // for number of neighbours
     // check for all necessary args
     if matches.is_present("file") {
         fname = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
@@ -117,7 +131,16 @@ fn main() {
         println!("--dumpfile is mandatory");
         println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size --dumfile (-d) fname");
         process::exit(1);
-    }     
+    }
+    // ann asked for
+    let mut hnsw_opt : Option<Hnsw<u32, DistHamming> > = None;
+    if matches.is_present("ann") {
+        do_ann = true;
+        nbng = matches.value_of("nbng").ok_or("bad value").unwrap().parse::<u8>().unwrap();
+        // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
+        // except for a multiplicative factor i.e the length of slices!!
+        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, DistHamming{}));
+    }   
     //
     let path = Path::new(&fname);
     let f_info_res = path.metadata();
@@ -161,6 +184,12 @@ fn main() {
         if !resd.is_ok() {
             println!("\n error occurred dumping signatures");
         }
+        // if ann is asked for do it now by block
+        if do_ann {
+            // insert in hnsw
+     
+
+        }
     }
     //
     sigbuf.flush().unwrap();
@@ -170,7 +199,7 @@ fn main() {
 }
 
 
-// read a blcok of nbseq sequences
+// read a block of nbseq sequences
 fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequence> {
     //
     trace!("entering in readblockseq");
