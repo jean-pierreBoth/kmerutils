@@ -28,7 +28,7 @@ use needletail::FastxReader;
 use kmerutils::sketchio;
 
 use hnsw_rs::prelude::*;
-// use hnsw_rs::dist;
+use hnsw_rs::api::AnnT;
 
 // install a logger facility
 fn init_log() -> u64 {
@@ -90,7 +90,7 @@ fn main() {
     let dumpfname;   // for dump of sketches
     //
     let mut do_ann = false;
-    let nbng;        // for number of neighbours
+    let mut nbng = 0;        // for number of neighbours
     // check for all necessary args
     if matches.is_present("file") {
         fname = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
@@ -133,14 +133,43 @@ fn main() {
         process::exit(1);
     }
     // ann asked for
-    let mut hnsw_opt : Option<Hnsw<u32, DistHamming> > = None;
-    if matches.is_present("ann") {
-        do_ann = true;
-        nbng = matches.value_of("nbng").ok_or("bad value").unwrap().parse::<u8>().unwrap();
-        // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
+    match matches.subcommand() {
+        ("ann", Some(ann_match)) => {
+            println!("got ann command");
+            do_ann = true;
+            if ann_match.is_present("nbng") {
+                println!("got nbng arg");
+                let nbng_decoded = ann_match.value_of("nbng").unwrap().parse::<usize>().unwrap();
+                nbng = nbng_decoded as u8;
+                println!("got nbng {}", nbng);
+            }      
+        }
+
+        ("", None)               => println!("no subcommand at all"),
+        _                        => unreachable!(),
+    }
+    //
+    //
+    let mut hnsw_opt : Option<Hnsw<u32, DistFn<u32> > > = None;
+    //
+    if do_ann {
+       // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
         // except for a multiplicative factor i.e the length of slices!!
-        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, DistHamming{}));
-    }   
+        let mydist_closure = | va : &[u32] , vb: &[u32] |  -> f32  {
+            let mut nbdiff = 0;
+            for i in 0..va.len() {
+                if va[i] != vb[i] {
+                    nbdiff += 1;
+                }
+            }
+            1. - (nbdiff as f32)/va.len() as f32
+        };
+        let my_dist = DistFn::<u32>::new(Box::new(mydist_closure));
+        println!("initializing hnsw");
+        hnsw_opt = Some(Hnsw::<u32, DistFn<u32>>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, my_dist));
+    //   hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, DistHamming{}));
+    }  // end if we must do ann
+
     //
     let path = Path::new(&fname);
     let f_info_res = path.metadata();
@@ -172,10 +201,6 @@ fn main() {
         if sequenceblock.len() == 0 {
             break;
         }
-        nbseq += sequenceblock.len();
-        if nbseq % 1000 == 0 {
-            println!(" nbseq loaded : {} ", nbseq);
-        }
         // do the computation
         let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         trace!("got nb signatures vector {} ", signatures.len());
@@ -186,16 +211,35 @@ fn main() {
         }
         // if ann is asked for do it now by block
         if do_ann {
-            // insert in hnsw
-     
-
+            // insert in hnsw. Must take references and associate an id.
+            let mut data_for_hnsw = Vec::<(&Vec<u32>, usize)>::with_capacity(signatures.len());
+            for i in 0..signatures.len() {
+                data_for_hnsw.push((&signatures[i], nbseq+i));
+            }
+            hnsw_opt.as_mut().unwrap().parallel_insert(&data_for_hnsw);
+        }
+        nbseq += sequenceblock.len();
+        if nbseq % 1000 == 0 {
+            println!(" nbseq loaded : {} ", nbseq);
         }
     }
     //
     sigbuf.flush().unwrap();
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" number of sequences loaded {} ", nbseq);
-    println!(" elapsed time (s) in sketching data file {} ", elapsed_t);
+    println!(" elapsed time (s) in sketching [inserting in hnsw] data file {} ", elapsed_t);
+
+    if do_ann {
+        // dumping hnsw
+        println!(" dumping hnsw");
+        let res_dump = hnsw_opt.as_mut().unwrap().file_dump(&String::from("signature"));
+        if res_dump.is_ok() {
+            println!(" hnsw dump suceeded");
+        }
+        else {
+            println!(" hnsw dump failed");
+        }
+    }
 }
 
 
