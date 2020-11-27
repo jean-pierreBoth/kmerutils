@@ -150,12 +150,13 @@ fn main() {
     }
     //
     //
-    let mut hnsw_opt : Option<Hnsw<u32, DistFn<u32> > > = None;
+    let mut hnsw_opt : Option<Hnsw<u32, DistHamming> > = None;
     //
     if do_ann {
-       // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
+        // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
         // except for a multiplicative factor i.e the length of slices!!
-        let mydist_closure = | va : &[u32] , vb: &[u32] |  -> f32  {
+        // it is also possible to use a closure defining it 
+        /* let mydist_closure = | va : &[u32] , vb: &[u32] |  -> f32  {
             let mut nbdiff = 0;
             for i in 0..va.len() {
                 if va[i] != vb[i] {
@@ -164,10 +165,10 @@ fn main() {
             }
             1. - (nbdiff as f32)/va.len() as f32
         };
-        let my_dist = DistFn::<u32>::new(Box::new(mydist_closure));
+        let my_dist = DistFn::<u32>::new(Box::new(mydist_closure)); */
         println!("initializing hnsw");
-        hnsw_opt = Some(Hnsw::<u32, DistFn<u32>>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, my_dist));
-    //   hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(nbng as usize, sketch_size, 16, 2 * nbng as usize, DistHamming{}));
+        let max_nb_conn = 2 * nbng as usize;
+        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(max_nb_conn , 700000, 16, 400, DistHamming{}));
     }  // end if we must do ann
 
     //
