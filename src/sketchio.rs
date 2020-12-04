@@ -37,7 +37,7 @@ pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Wri
 /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
 /// -  sketch_size  : length of vecteur dumped as u32
 /// -  kmer_size    : as u32
-pub fn create_signature_dump(dumpfname:String, kmer_size : u8, sketch_size: usize) -> io::BufWriter<fs::File> {
+pub fn create_signature_dump(dumpfname:&String, kmer_size : u8, sketch_size: usize) -> io::BufWriter<fs::File> {
     let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
     let dumpfile;
     if dumpfile_res.is_ok() {

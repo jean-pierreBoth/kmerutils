@@ -1,9 +1,13 @@
 //! a tool to sketch sequences of a data file
 //! The algorithm used for sketching are probminhash3a and probminhash2
-//! usage datasketcher -m "method" -o outputfilename -s sketch_size  -k kmer_size  -d dumpname
+//! usage datasketcher -f fastqfile -s sketch_size  -k kmer_size  -d dumpname
 //! - -s  sketch_size gives the size of signature to use for each sequence.
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
 //! - -k kmer_size gives the size of kmer to use 
+//! 
+//! - ann to get hnsw embedding
+//!     - nb (-n) for number of neighbours desired for future use
+//!     - 
 //!
 
 #[allow(unused_imports)]
@@ -167,8 +171,11 @@ fn main() {
         };
         let my_dist = DistFn::<u32>::new(Box::new(mydist_closure)); */
         println!("initializing hnsw");
-        let max_nb_conn = 2 * nbng as usize;
-        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(max_nb_conn , 700000, 16, 400, DistHamming{}));
+        let max_nb_conn = 48.min(3 * nbng as usize);
+        let ef_search = 400;
+        log::info!("setting max nb conn to : {:?}", max_nb_conn);
+        log::info!("setting ef_search to : {:?}", ef_search);
+        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(max_nb_conn , 700000, 16, ef_search, DistHamming{}));
     }  // end if we must do ann
 
     //
@@ -195,7 +202,7 @@ fn main() {
         hashval
     };
     // create file to dump signature
-    let mut sigbuf = sketchio::create_signature_dump(dumpfname, kmer_size, sketch_size);
+    let mut sigbuf = sketchio::create_signature_dump(&dumpfname, kmer_size, sketch_size);
     // now we work
     loop {
         let sequenceblock = readblockseq(& mut reader, blocksize);
@@ -203,6 +210,7 @@ fn main() {
             break;
         }
         // do the computation
+        log::info!("sketching with probminhash3a algorithm");
         let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         trace!("got nb signatures vector {} ", signatures.len());
         // dump the signature
@@ -231,9 +239,13 @@ fn main() {
     println!(" elapsed time (s) in sketching [inserting in hnsw] data file {} ", elapsed_t);
 
     if do_ann {
+        // dump layer information for user on stdout
+        hnsw_opt.as_ref().unwrap().dump_layer_info();
         // dumping hnsw
         println!(" dumping hnsw");
-        let res_dump = hnsw_opt.as_mut().unwrap().file_dump(&String::from("signature"));
+        let mut hnswname = dumpfname.clone();
+        hnswname.push_str("-ann");
+        let res_dump = hnsw_opt.as_mut().unwrap().file_dump(&hnswname);
         if res_dump.is_ok() {
             println!(" hnsw dump suceeded");
         }
