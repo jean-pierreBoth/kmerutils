@@ -25,11 +25,10 @@ use std::io::prelude::*;
 
 use kmerutils::sequence::*;
 use kmerutils::kmergenerator::*;
-use kmerutils::jaccardweight::*;
+use kmerutils::seqsketchjaccard;
 
 use needletail::FastxReader;
 
-use kmerutils::sketchio;
 
 use hnsw_rs::prelude::*;
 use hnsw_rs::api::AnnT;
@@ -77,6 +76,10 @@ fn main() {
                         .short("d")
                         .takes_value(true)
                         .help("expecting name of dumpfile for signature"))
+                    .arg(Arg::with_name("block")
+                        .long("block_size")
+                        .short("b")
+                        .help("-b for blocksize if sketching by block"))
                     .subcommand(SubCommand::with_name("ann")
                         .about("ann parameters")
                         .arg(Arg::with_name("nbng")
@@ -94,6 +97,8 @@ fn main() {
     let dumpfname;   // for dump of sketches
     //
     let mut do_ann = false;
+    let mut block_size : usize = 0;
+    let mut sketch_block = false;
     let mut nbng = 0;        // for number of neighbours
     // check for all necessary args
     if matches.is_present("file") {
@@ -115,6 +120,11 @@ fn main() {
         println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
         process::exit(1);
     } 
+    // block size
+    if matches.is_present("block_size") {
+        sketch_block = true;
+        block_size = matches.value_of("block_size").ok_or("bad value").unwrap().parse::<usize>().unwrap();
+    }
     // kmer options
     if matches.is_present("kmer_size") {
         kmer_size = matches.value_of("kmer_size").ok_or("bad value").unwrap().parse::<u8>().unwrap();
@@ -193,7 +203,7 @@ fn main() {
     }
     let start_t = Instant::now();
     let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
-    let blocksize = 10000;
+    let sequence_pack = 10000;
     let mut nbseq = 0;
     //
     let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
@@ -202,31 +212,38 @@ fn main() {
         hashval
     };
     // create file to dump signature
-    let mut sigbuf = sketchio::create_signature_dump(&dumpfname, kmer_size, sketch_size);
+    let mut sigbuf = seqsketchjaccard::create_signature_dump(&dumpfname, kmer_size, sketch_size);
     // now we work
     loop {
-        let sequenceblock = readblockseq(& mut reader, blocksize);
+        let sequenceblock = readblockseq(& mut reader, sequence_pack);
         if sequenceblock.len() == 0 {
             break;
         }
         // do the computation
-        log::info!("sketching with probminhash3a algorithm");
-        let signatures = sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
-        trace!("got nb signatures vector {} ", signatures.len());
-        // dump the signature
-        let resd = sketchio::dump_signatures_block_u32(&signatures, &mut sigbuf);
-        if !resd.is_ok() {
-            println!("\n error occurred dumping signatures");
+        if !sketch_block {
+            log::info!("sketching entire sequences with probminhash3a algorithm");
+            let signatures = seqsketchjaccard::sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
+            trace!("got nb signatures vector {} ", signatures.len());
+            // dump the signature
+            let resd = seqsketchjaccard::dump_signatures_block_u32(&signatures, &mut sigbuf);
+            if !resd.is_ok() {
+                println!("\n error occurred dumping signatures");
+            }
+            if do_ann {
+                // insert in hnsw. Must take references and associate an id.
+                let mut data_for_hnsw = Vec::<(&Vec<u32>, usize)>::with_capacity(signatures.len());
+                for i in 0..signatures.len() {
+                    data_for_hnsw.push((&signatures[i], nbseq+i));
+                }
+                hnsw_opt.as_mut().unwrap().parallel_insert(&data_for_hnsw);
+            }
+        }
+        else {
+            // sketching by blocks 
+            log::info!("sketching sequences by blocks of size {:?}", block_size);
+            // we have sequences from [nbseq..nbseq+sequenceblock.len()] (end excluded recall it is different from Julia)
         }
         // if ann is asked for do it now by block
-        if do_ann {
-            // insert in hnsw. Must take references and associate an id.
-            let mut data_for_hnsw = Vec::<(&Vec<u32>, usize)>::with_capacity(signatures.len());
-            for i in 0..signatures.len() {
-                data_for_hnsw.push((&signatures[i], nbseq+i));
-            }
-            hnsw_opt.as_mut().unwrap().parallel_insert(&data_for_hnsw);
-        }
         nbseq += sequenceblock.len();
         if nbseq % 1000 == 0 {
             println!(" nbseq loaded : {} ", nbseq);

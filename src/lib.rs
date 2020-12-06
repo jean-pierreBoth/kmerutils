@@ -36,14 +36,14 @@ pub mod seqminhash;
 pub mod kmer;
 pub mod kmergenerator;
 pub mod kmercount;
-pub mod jaccardweight;
-
+pub mod seqsketchjaccard;
+pub mod seqblocksketch;
 // contig generation
 
 pub mod anchor;
 pub mod redisbase;
 
-pub mod sketchio;
+//pub mod sketchio;
 
 pub mod prelude;
 
