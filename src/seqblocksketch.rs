@@ -37,15 +37,54 @@ use hnsw_rs::prelude::*;
 
 const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
+
+
+/// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
+pub struct BlockSketched {
+    numseq: u32,
+    numblock : u32,
+    sketch: Vec<u32>
+}
+
+
+impl BlockSketched {
+    /// allocator
+    pub fn new(numseq: u32, numblock:u32, sketch_size : u32) -> BlockSketched {
+        let sketch = Vec::<u32>::with_capacity(sketch_size as usize);
+        BlockSketched{numseq, numblock, sketch}
+    }
+
+    pub fn get_skech_slice(&self) -> &[u32] {
+        &self.sketch
+    }
+    // dump 
+    fn dump(& self, out : &mut dyn Write) {
+        out.write(& self.numseq.to_le_bytes()).unwrap();
+        out.write(& self.numblock.to_le_bytes()).unwrap();
+        for i in 0..self.sketch.len() {
+            out.write(& self.sketch[i].to_le_bytes()).unwrap();
+        }
+    } // end of dump
+
+}  // end of impl block for BlockSketched
+
+// The whole list of BlockSketched must be dumped and need to be reloaded from Julia
+
+
+
+
+pub struct BlockSketchedSeq {
+    numseq : usize, 
+    sketch : Vec<BlockSketched>,
+}
+
+
 pub struct BlockSeqSketcher {
     block_size : usize,
     kmer_size : usize,
     sketch_size : usize
 }
 
-
-
-type BlockSketchedSeq = (usize, Vec<BlockSketched>);
 
 
 impl BlockSeqSketcher {
@@ -57,7 +96,7 @@ impl BlockSeqSketcher {
     fn blocksketch_sequence<F>(& self, numseq: usize, seq : &Sequence, fhash : &F)  -> BlockSketchedSeq 
         where F : Fn(&Kmer32bit) -> u32 + Sync + Send {
         //
-        let nb_blocks = if seq.size() % self.block_size == 0 { seq.size() / self.block_size} else  { 1 };
+        let nb_blocks = if seq.size() % self.block_size == 0 { seq.size() / self.block_size} else  { 1 + seq.size() / self.block_size};
         // estimate number of block to preallocated result
         let mut sketch = Vec::<BlockSketched>::with_capacity(nb_blocks);
         //
@@ -95,7 +134,7 @@ impl BlockSeqSketcher {
             sketch.push(current_block);
         } // end of for numblock
         //
-        return (numseq,sketch);
+        return BlockSketchedSeq{numseq,sketch};
 }  // end of sketch_sequence_in_blocks
 
 
@@ -112,11 +151,11 @@ impl BlockSeqSketcher {
     fn dump_blocks(&self, out : &mut dyn Write, seqblocks : &Vec<BlockSketchedSeq>) {
         for i in 0..seqblocks.len() {
             // dump numseq
-            out.write(&seqblocks[i].0.to_le_bytes()).unwrap();
-            let nbblock = seqblocks[i].1.len();
+            out.write(&seqblocks[i].numseq.to_le_bytes()).unwrap();
+            let nbblock = seqblocks[i].sketch.len();
             // dump blocks
             for j in 0..nbblock {
-                (seqblocks[i].1)[j].dump(out);
+                (seqblocks[i].sketch)[j].dump(out);
             }
         }
     }  // end of dump_blocks
@@ -125,39 +164,6 @@ impl BlockSeqSketcher {
 } // end implementation block for BlockSeqSketcher
 
 
-
-
-
-/// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
-pub struct BlockSketched {
-    numseq: u32,
-    numblock : u32,
-    sketch: Vec<u32>
-}
-
-
-impl BlockSketched {
-    /// allocator
-    pub fn new(numseq: u32, numblock:u32, sketch_size : u32) -> BlockSketched {
-        let sketch = Vec::<u32>::with_capacity(sketch_size as usize);
-        BlockSketched{numseq, numblock, sketch}
-    }
-
-    pub fn get_skech_slice(&self) -> &[u32] {
-        &self.sketch
-    }
-    // dump 
-    fn dump(& self, out : &mut dyn Write) {
-        out.write(& self.numseq.to_le_bytes()).unwrap();
-        out.write(& self.numblock.to_le_bytes()).unwrap();
-        for i in 0..self.sketch.len() {
-            out.write(& self.sketch[i].to_le_bytes()).unwrap();
-        }
-    } // end of dump
-
-}  // end of impl block for BlockSketched
-
-// The whole list of BlockSketched must be dumped and need to be reloaded from Julia
 
 
 #[allow(dead_code)]
@@ -276,9 +282,9 @@ pub struct DistBlockSketched {
 
 
 
-impl  Distance<BlockSketched> for  DistBlockSketched {
+impl  Distance<&BlockSketched> for  DistBlockSketched {
 
-    fn eval(&self, va: &[BlockSketched], vb:&[BlockSketched]) -> f32 {
+    fn eval(&self, va: &[&BlockSketched], vb:&[&BlockSketched]) -> f32 {
         //
         assert!(va.len() == 1 && vb.len() == 1);
         // set maximal distance inside a sequence as we want to pair reads
@@ -296,7 +302,7 @@ impl  Distance<BlockSketched> for  DistBlockSketched {
             }
         }
         //
-        return nb_diff as f32/ va.len() as f32;
+        return nb_diff as f32/sklen as f32;
     }  // end of eval
 
 } // end implementation Distance for DistBlockSketched
@@ -318,6 +324,7 @@ use super::*;
 
 #[test]
     fn test_block_sketch() {
+        log_init_test();
         // define a closure for our hash function
         let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
             let canonical =  kmer.reverse_complement().min(*kmer);
@@ -327,22 +334,32 @@ use super::*;
         //
         let seqstra = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCCGTAGGCCTAATGAGATGGGCTGGGTACAGAG");
         let seqa = Sequence::new(seqstra.as_bytes(),2);
-        // seqstrb is seqstr with 2 small block inside that were modified
-        let seqstrb = String::from("TCAAAGCGTCGTATAGCCGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
+        // seqstrb is seqstr with 2 small block of T's inside that were modified
+        let seqstrb = String::from("TCAAAGGGAAATTTTTTTCATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCCGTAGGCCTAATGATTTTTTTGATGGGCTGGGTACAGAG");
         let seqb = Sequence::new(seqstrb.as_bytes(),2);
 
         let block_size = 10;
-        let kmer_size = 4;
+        let kmer_size = 3;
         let sketch_size = 6;
 
         let sketcher = BlockSeqSketcher::new(block_size, kmer_size, sketch_size);
         let sketcha = sketcher.blocksketch_sequence(1, &seqa, &kmer_revcomp_hash_fn);
         let sketchb = sketcher.blocksketch_sequence(2, &seqb, &kmer_revcomp_hash_fn);
+        // check number of blocks sketch obtained
+        println!("sketcha has number o blocks = {:?}",  sketcha.sketch.len());
+        println!("sketchb has number o blocks = {:?}",  sketchb.sketch.len());
         // check of distance computations
         let mydist = DistBlockSketched{};
-
-        assert_eq!(mydist.eval(&[sketcha.1[0]], &[sketchb.1[0]]), 1.);
-
+        let r = (&sketcha.sketch[0]).clone();
+        assert_eq!(mydist.eval(&[&sketcha.sketch[0]], &[&sketcha.sketch[0]]), 1.);
+        //
+        let dist_1 = mydist.eval(&[&sketcha.sketch[0]], &[&sketchb.sketch[0]]);
+        println!("dist_1 = {:?}", dist_1);
+        log::info!("dist_1 = {:?}", dist_1);
+        //
+        let dist_2 = mydist.eval(&[&sketcha.sketch[1]], &[&sketchb.sketch[1]]);
+        println!("dist_2 = {:?}", dist_2);
+        log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
 
 }  // end of module test
