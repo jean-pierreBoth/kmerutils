@@ -267,35 +267,31 @@ impl SigBlockSketchFileReader {
 // ==================================================================================
 
 
-pub struct DistBlockSketched<'a> {
-    block1 : &'a BlockSketched,
-    block2 : &'a BlockSketched
+pub struct DistBlockSketched {
 }
 
-impl <'a> DistBlockSketched<'a> {
-    pub fn new(block1: &'a BlockSketched, block2: &'a BlockSketched) -> DistBlockSketched<'a> {
-        DistBlockSketched{block1, block2}
-    }
-}   // end of impl DistBlockSketched
 
 // define a distance between BlockSketched
 // it is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
 
 
 
-impl <'a> Distance<u32> for  DistBlockSketched<'a> {
+impl  Distance<BlockSketched> for  DistBlockSketched {
 
-    fn eval(&self, va: &[u32], vb:&[u32]) -> f32 {
+    fn eval(&self, va: &[BlockSketched], vb:&[BlockSketched]) -> f32 {
+        //
+        assert!(va.len() == 1 && vb.len() == 1);
         // set maximal distance inside a sequence as we want to pair reads
-        if self.block1.numseq == self.block2.numseq {
+        if va[0].numseq == vb[0].numseq {
             return 1.;
         }
         //
-        assert_eq!(va.len(), vb.len());
+        assert_eq!(va[0].sketch.len(), vb[0].sketch.len());
         //
+        let sklen = va[0].sketch.len();
         let mut nb_diff = 0u32;
-        for i in 0..va.len() {
-            if va[i] != va[i] {
+        for i in 0..sklen {
+            if va[0].sketch[i] != vb[0].sketch[i] {
                 nb_diff += 1;
             }
         }
@@ -331,7 +327,7 @@ use super::*;
         //
         let seqstra = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCCGTAGGCCTAATGAGATGGGCTGGGTACAGAG");
         let seqa = Sequence::new(seqstra.as_bytes(),2);
-        //
+        // seqstrb is seqstr with 2 small block inside that were modified
         let seqstrb = String::from("TCAAAGCGTCGTATAGCCGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
         let seqb = Sequence::new(seqstrb.as_bytes(),2);
 
@@ -342,6 +338,11 @@ use super::*;
         let sketcher = BlockSeqSketcher::new(block_size, kmer_size, sketch_size);
         let sketcha = sketcher.blocksketch_sequence(1, &seqa, &kmer_revcomp_hash_fn);
         let sketchb = sketcher.blocksketch_sequence(2, &seqb, &kmer_revcomp_hash_fn);
+        // check of distance computations
+        let mydist = DistBlockSketched{};
+
+        assert_eq!(mydist.eval(&[sketcha.1[0]], &[sketchb.1[0]]), 1.);
+
     } // end of test_block_sketch
 
 }  // end of module test
