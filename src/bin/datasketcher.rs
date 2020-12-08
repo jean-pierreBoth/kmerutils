@@ -26,6 +26,7 @@ use std::io::prelude::*;
 use kmerutils::sequence::*;
 use kmerutils::kmergenerator::*;
 use kmerutils::seqsketchjaccard;
+use kmerutils::seqblocksketch;
 
 use needletail::FastxReader;
 
@@ -211,18 +212,31 @@ fn main() {
         let hashval = probminhash::invhash::int32_hash(canonical.0);
         hashval
     };
+    //
     // create file to dump signature
-    let mut sigbuf = seqsketchjaccard::create_signature_dump(&dumpfname, kmer_size, sketch_size);
-    // now we work
+    //
+    let mut sigbuf;
+    if !sketch_block {
+        let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
+        sigbuf = sketcher.create_signature_dump(&dumpfname);
+    }
+    else {
+        let sketcher = seqblocksketch::BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
+        sigbuf = sketcher.create_signature_dump(&dumpfname);
+    }
+    //
+    // now we work : read, sketch by block or not, dump, and possibly embed in hnsw 
+    //
     loop {
-        let sequenceblock = readblockseq(& mut reader, sequence_pack);
-        if sequenceblock.len() == 0 {
+        let sequencegroup = readblockseq(& mut reader, sequence_pack);
+        if sequencegroup.len() == 0 {
             break;
         }
         // do the computation
         if !sketch_block {
             log::info!("sketching entire sequences with probminhash3a algorithm");
-            let signatures = seqsketchjaccard::sketch_probminhash3a_kmer32bit(&sequenceblock, sketch_size, kmer_size, kmer_revcomp_hash_fn);
+            let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
+            let signatures = sketcher.sketch_probminhash3a_kmer32bit(&sequencegroup, kmer_revcomp_hash_fn);
             trace!("got nb signatures vector {} ", signatures.len());
             // dump the signature
             let resd = seqsketchjaccard::dump_signatures_block_u32(&signatures, &mut sigbuf);
@@ -241,10 +255,23 @@ fn main() {
         else {
             // sketching by blocks 
             log::info!("sketching sequences by blocks of size {:?}", block_size);
-            // we have sequences from [nbseq..nbseq+sequenceblock.len()] (end excluded recall it is different from Julia)
+            // we have sequences from [nbseq..nbseq+sequencegroup.len()] (end excluded recall it is different from Julia)
+            let blocksketcher = seqblocksketch::BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
+            // transform type from Vec<Sequence> to [(u32, &Sequence)]
+            let mut tosketch = Vec::<(u32, &Sequence)>::with_capacity(sequencegroup.len());
+            for i in 0..sequencegroup.len() {
+                tosketch.push(( (nbseq+i) as u32, &sequencegroup[i]));
+            }
+            let signatures = blocksketcher.blocksketch_sequences(&tosketch, &kmer_revcomp_hash_fn);
+            trace!("got nb signatures blocks {} ", signatures.len());
+            // dump the signature
+            blocksketcher.dump_blocks(&mut sigbuf, &signatures);
+            if do_ann {
+                // must do parallel insertion
+            }            
         }
-        // if ann is asked for do it now by block
-        nbseq += sequenceblock.len();
+        // if ann is asked for, do it now by block
+        nbseq += sequencegroup.len();
         if nbseq % 1000 == 0 {
             println!(" nbseq loaded : {} ", nbseq);
         }
