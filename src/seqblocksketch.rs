@@ -18,7 +18,7 @@ use indexmap::{IndexMap};
 use fnv::{FnvBuildHasher};
 
 use std::io;
-use std::io::{Write,Read};
+use std::io::{Write,Read, ErrorKind};
 
 use std::fs;
 use std::fs::OpenOptions;
@@ -40,6 +40,7 @@ const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
 
 /// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
+#[derive(Clone)]
 pub struct BlockSketched {
     numseq: u32,
     numblock : u32,
@@ -80,6 +81,7 @@ pub struct BlockSketchedSeq {
 
 
 pub struct BlockSeqSketcher {
+    sig_size : u8,
     block_size : usize,
     kmer_size : usize,
     sketch_size : usize
@@ -89,11 +91,11 @@ pub struct BlockSeqSketcher {
 
 impl BlockSeqSketcher {
     //
-    fn new(block_size : usize, kmer_size: usize, sketch_size:usize) -> BlockSeqSketcher {
-        BlockSeqSketcher{block_size, kmer_size, sketch_size}
+    pub fn new(block_size : usize, kmer_size: usize, sketch_size:usize) -> BlockSeqSketcher {
+        BlockSeqSketcher{sig_size: 4 as u8, block_size, kmer_size, sketch_size}
     }
     /// skecth a sequence and returns a Vector of BlockSketched
-    fn blocksketch_sequence<F>(& self, numseq: usize, seq : &Sequence, fhash : &F)  -> BlockSketchedSeq 
+    pub fn blocksketch_sequence<F>(& self, numseq: usize, seq : &Sequence, fhash : &F)  -> BlockSketchedSeq 
         where F : Fn(&Kmer32bit) -> u32 + Sync + Send {
         //
         let nb_blocks = if seq.size() % self.block_size == 0 { seq.size() / self.block_size} else  { 1 + seq.size() / self.block_size};
@@ -139,7 +141,7 @@ impl BlockSeqSketcher {
 
 
     /// sketch in blocks a pack of sequences. Use Rayon
-    fn blocksketch_sequences<F>(& self, pack_seq : &[(u32,&Sequence)], fhash : &F)  -> Vec<BlockSketchedSeq> 
+    pub fn blocksketch_sequences<F>(& self, pack_seq : &[(u32,&Sequence)], fhash : &F)  -> Vec<BlockSketchedSeq> 
         where  F : Fn(&Kmer32bit) -> u32 + Sync + Send {
         //        
         // we sketch in sequence in parallel
@@ -148,7 +150,7 @@ impl BlockSeqSketcher {
     }
 
     /// dump a whole pack of sketches relative to a set of sequences split in blocks and sketched
-    fn dump_blocks(&self, out : &mut dyn Write, seqblocks : &Vec<BlockSketchedSeq>) {
+    pub fn dump_blocks(&self, out : &mut dyn Write, seqblocks : &Vec<BlockSketchedSeq>) {
         for i in 0..seqblocks.len() {
             // dump numseq
             out.write(&seqblocks[i].numseq.to_le_bytes()).unwrap();
@@ -160,6 +162,35 @@ impl BlockSeqSketcher {
         }
     }  // end of dump_blocks
 
+
+    /// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
+    /// 
+    /// Format of file is :
+    /// -  MAGIC_SIG_DUMP as u32
+    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
+    /// -  sketch_size  : length of vecteur dumped as u32
+    /// -  kmer_size    : as u32
+    /// 
+    pub fn create_signature_dump(&self, dumpfname:&String) -> io::BufWriter<fs::File> {
+        let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
+        let dumpfile;
+        if dumpfile_res.is_ok() {
+            dumpfile = dumpfile_res.unwrap();
+        } else {
+            println!("cannot open {}", dumpfname);
+            std::process::exit(1);
+        }
+        let sketch_size_u32 = self.sketch_size as u32;
+        let kmer_size_u32 = self.kmer_size as u32;
+        let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
+        sigbuf.write(& MAGIC_BLOCKSIG_DUMP.to_le_bytes()).unwrap();
+        sigbuf.write(& self.sig_size.to_le_bytes()).unwrap();
+        sigbuf.write(& sketch_size_u32.to_le_bytes()).unwrap();
+        sigbuf.write(& kmer_size_u32.to_le_bytes()).unwrap();
+        sigbuf.write(& self.block_size.to_le_bytes()).unwrap();
+        //
+        return sigbuf;
+    }  // end of create_signature_dump
 
 } // end implementation block for BlockSeqSketcher
 
@@ -248,7 +279,7 @@ impl SigBlockSketchFileReader {
         let kmer_size = u32::from_le_bytes(buf_u32);
         trace!("read kmer_size {}", kmer_size);
         //
-        // read blcok size
+        // read block size
         //
         io_res = signature_buf.read_exact(&mut buf_u32);
         if io_res.is_err() {
@@ -261,6 +292,49 @@ impl SigBlockSketchFileReader {
         Ok(SigBlockSketchFileReader{fname: fname.clone() , sig_size: sig_size as u8 , sketch_size: sketch_size as usize, 
                 kmer_size: kmer_size as u8, block_size, signature_buf})
     } // end of new
+
+    /// return kmer_size used sketch dump
+    #[allow(dead_code)]
+    pub fn get_kmer_size(&self) -> u8 {
+        self.kmer_size
+    }
+
+    /// returns number of base signature per object
+    #[allow(dead_code)]
+    pub fn get_signature_length(&self) -> usize {
+        self.sketch_size
+    }
+
+    /// returns size in bytes of base sketch : 4 or 8
+    #[allow(dead_code)]
+    pub fn get_signature_size(&self) -> usize {
+        self.sig_size as usize
+    }
+    /// emulates iterator API.
+    /// Return next object's signature (a Vec<u32> ) if any, None otherwise.
+    #[allow(dead_code)]
+    pub fn next(&mut self) -> Option<Vec<u32> > {
+        let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
+        let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
+
+        let io_res = self.signature_buf.read_exact(buf.as_mut_slice());
+        //
+        if io_res.is_err() {
+            // we check that we got EOF or rust ErrorKind::UnexpectedEof
+            match io_res.err().unwrap().kind() {
+                ErrorKind::UnexpectedEof => return None,
+                        _            =>  { 
+                                        println!("an unexpected error occurred reading signature buffer");
+                                        std::process::exit(1);
+                                    }
+            }
+        }
+        else {
+            let sig = Vec::<u32>::with_capacity(self.sketch_size);
+            return Some(sig);        
+        }
+    } // end of next
+
 
 } // end impl block for SigBlockSketchFileReader
 
@@ -279,12 +353,13 @@ pub struct DistBlockSketched {
 
 // define a distance between BlockSketched
 // it is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
+// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1.
+// This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
 
 
+impl  Distance<BlockSketched> for  DistBlockSketched {
 
-impl  Distance<&BlockSketched> for  DistBlockSketched {
-
-    fn eval(&self, va: &[&BlockSketched], vb:&[&BlockSketched]) -> f32 {
+    fn eval(&self, va: &[BlockSketched], vb:&[BlockSketched]) -> f32 {
         //
         assert!(va.len() == 1 && vb.len() == 1);
         // set maximal distance inside a sequence as we want to pair reads
@@ -350,14 +425,13 @@ use super::*;
         println!("sketchb has number o blocks = {:?}",  sketchb.sketch.len());
         // check of distance computations
         let mydist = DistBlockSketched{};
-        let r = (&sketcha.sketch[0]).clone();
-        assert_eq!(mydist.eval(&[&sketcha.sketch[0]], &[&sketcha.sketch[0]]), 1.);
+        assert_eq!(mydist.eval(&[sketcha.sketch[0].clone()], &[sketcha.sketch[0].clone()]), 1.);
         //
-        let dist_1 = mydist.eval(&[&sketcha.sketch[0]], &[&sketchb.sketch[0]]);
+        let dist_1 = mydist.eval(&[sketcha.sketch[0].clone()], &[sketchb.sketch[0].clone()]);
         println!("dist_1 = {:?}", dist_1);
         log::info!("dist_1 = {:?}", dist_1);
         //
-        let dist_2 = mydist.eval(&[&sketcha.sketch[1]], &[&sketchb.sketch[1]]);
+        let dist_2 = mydist.eval(&[sketcha.sketch[1].clone()], &[sketchb.sketch[1].clone()]);
         println!("dist_2 = {:?}", dist_2);
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch

@@ -90,6 +90,141 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 
 
 
+pub struct SeqSketcher {
+    kmer_size : usize,
+    sketch_size : usize
+}  // end of SeqSketcher
+
+
+impl SeqSketcher {
+    /// 
+    pub fn new(kmer_size: usize, sketch_size : usize) -> Self {
+        SeqSketcher{kmer_size, sketch_size}
+    }
+
+
+    /// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size. 
+    /// The sketch is done with probminhash3a algorithm.   
+    /// The size of signature of each sequence is sketch_size.  
+    /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
+    /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
+    /// 
+    pub fn sketch_probminhash3a_kmer32bit<F>(&self, vseq : &Vec<Sequence>, fhash : F) -> Vec<Vec<u32> >
+        where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
+        //
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop 
+            let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
+            pminhashb.hash_weigthed_idxmap(&wb);
+            let sigb = pminhashb.get_signature();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    }  // end of sketchprobminhash3a_kmer32bit
+
+
+    /// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size. 
+    /// The sketch is done with probminhash3a algorithm.   
+    /// The size of signature of each sequence is sketch_size.  
+    /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
+    /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
+    /// 
+    pub fn sketch_probminhash3_kmer32bit<F>(&self, vseq : &Vec<Sequence>, fhash : F) -> Vec<Vec<u32> >
+        where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
+        //
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop 
+            let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
+            pminhashb.hash_weigthed_idxmap(&wb);
+            let sigb = pminhashb.get_signature();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    }  // end of sketchprobminhash3_kmer32bit
+
+
+    /// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
+    /// 
+    /// Format of file is :
+    /// -  MAGIC_SIG_DUMP as u32
+    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
+    /// -  sketch_size  : length of vecteur dumped as u32
+    /// -  kmer_size    : as u32
+    /// 
+    pub fn create_signature_dump(&self, dumpfname:&String) -> io::BufWriter<fs::File> {
+        let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
+        let dumpfile;
+        if dumpfile_res.is_ok() {
+            dumpfile = dumpfile_res.unwrap();
+        } else {
+            println!("cannot open {}", dumpfname);
+            std::process::exit(1);
+        }
+        let sig_size : u32 = 4;
+        let sketch_size_u32 = self.sketch_size as u32;
+        let kmer_size_u32 = self.kmer_size as u32;
+        let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
+        sigbuf.write(& MAGIC_SIG_DUMP.to_le_bytes()).unwrap();
+        sigbuf.write(& sig_size.to_le_bytes()).unwrap();
+        sigbuf.write(& sketch_size_u32.to_le_bytes()).unwrap();
+        sigbuf.write(& kmer_size_u32.to_le_bytes()).unwrap();
+        //
+        return sigbuf;
+    }  // end of create_signature_dump
+
+
+
+}  // end of impl SeqSketcher
+
+
 
 
 /// compute jaccard probability index between a sequence and a vector of sequences for Kmer16b32bit
@@ -153,95 +288,6 @@ pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec
     //
 } // end of sketch_seqrange_probminhash3a_kmer16b32bit
 
-
-/// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size. 
-/// The sketch is done with probminhash3a algorithm.   
-/// The size of signature of each sequence is sketch_size.  
-/// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
-/// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
-/// 
-pub fn sketch_probminhash3a_kmer32bit<F>(vseq : &Vec<Sequence>, sketch_size: usize, kmer_size : u8, fhash : F) -> Vec<Vec<u32> >
-    where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
-    //
-    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
-        let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
-        kmergen.set_range(0, seqb.size()).unwrap();
-        loop {
-            match kmergen.next() {
-                Some(kmer) => {
-                    let hashval = fhash(&kmer);
-                    *wb.entry(hashval as u32).or_insert(0.) += 1.;
-                },
-                None => break,
-            }
-        }  // end loop 
-        let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(sketch_size, 0);
-        pminhashb.hash_weigthed_idxmap(&wb);
-        let sigb = pminhashb.get_signature();
-        // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-        return (i,sigb.clone());
-    };
-    //
-    let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
-    // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-    let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
-    for _ in 0..vseq.len() {
-        jaccard_vec.push(Vec::new());
-    }
-    // CAVEAT , boxing would avoid the clone?
-    for i in 0..sig_with_rank.len() {
-        let slot = sig_with_rank[i].0;
-        jaccard_vec[slot] = sig_with_rank[i].1.clone();
-    }
-    jaccard_vec
-}  // end of sketchprobminhash3a_kmer32bit
-
-
-
-
-/// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size. 
-/// The sketch is done with probminhash3a algorithm.   
-/// The size of signature of each sequence is sketch_size.  
-/// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
-/// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
-/// 
-pub fn sketch_probminhash3_kmer32bit<F>(vseq : &Vec<Sequence>, sketch_size: usize, kmer_size : u8, fhash : F) -> Vec<Vec<u32> >
-    where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
-    //
-    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
-        let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
-        kmergen.set_range(0, seqb.size()).unwrap();
-        loop {
-            match kmergen.next() {
-                Some(kmer) => {
-                    let hashval = fhash(&kmer);
-                    *wb.entry(hashval as u32).or_insert(0.) += 1.;
-                },
-                None => break,
-            }
-        }  // end loop 
-        let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(sketch_size, 0);
-        pminhashb.hash_weigthed_idxmap(&wb);
-        let sigb = pminhashb.get_signature();
-        // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-        return (i,sigb.clone());
-    };
-    //
-    let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
-    // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-    let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
-    for _ in 0..vseq.len() {
-        jaccard_vec.push(Vec::new());
-    }
-    // CAVEAT , boxing would avoid the clone?
-    for i in 0..sig_with_rank.len() {
-        let slot = sig_with_rank[i].0;
-        jaccard_vec[slot] = sig_with_rank[i].1.clone();
-    }
-    jaccard_vec
-}  // end of sketchprobminhash3_kmer32bit
 
 
 
@@ -401,35 +447,6 @@ pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Wri
 } // end of dump_signatures
 
 
-/// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
-/// 
-/// Format of file is :
-/// -  MAGIC_SIG_DUMP as u32
-/// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
-/// -  sketch_size  : length of vecteur dumped as u32
-/// -  kmer_size    : as u32
-pub fn create_signature_dump(dumpfname:&String, kmer_size : u8, sketch_size: usize) -> io::BufWriter<fs::File> {
-    let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
-    let dumpfile;
-    if dumpfile_res.is_ok() {
-        dumpfile = dumpfile_res.unwrap();
-    } else {
-        println!("cannot open {}", dumpfname);
-        std::process::exit(1);
-    }
-    let sig_size : u32 = 4;
-    let sketch_size_u32 = sketch_size as u32;
-    let kmer_size_u32 = kmer_size as u32;
-    let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
-    sigbuf.write(& MAGIC_SIG_DUMP.to_le_bytes()).unwrap();
-    sigbuf.write(& sig_size.to_le_bytes()).unwrap();
-    sigbuf.write(& sketch_size_u32.to_le_bytes()).unwrap();
-    sigbuf.write(& kmer_size_u32.to_le_bytes()).unwrap();
-    //
-    return sigbuf;
-}
-
-
 
 
 #[allow(dead_code)]
@@ -553,7 +570,7 @@ impl SigSketchFileReader {
         }
     } // end of next
      
-} // end of impl SigSketchFile
+} // end of impl SigSketchFileReader
 
 
 // ====================================================================================================
