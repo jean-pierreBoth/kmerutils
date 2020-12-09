@@ -26,7 +26,7 @@ use std::io::prelude::*;
 use kmerutils::sequence::*;
 use kmerutils::kmergenerator::*;
 use kmerutils::seqsketchjaccard;
-use kmerutils::seqblocksketch;
+use kmerutils::seqblocksketch::{BlockSeqSketcher, BlockSketched, DistBlockSketched};
 
 use needletail::FastxReader;
 
@@ -165,7 +165,8 @@ fn main() {
     }
     //
     //
-    let mut hnsw_opt : Option<Hnsw<u32, DistHamming> > = None;
+    let mut hnsw_opt_seq : Option<Hnsw<u32, DistHamming> > = None;
+    let mut hnsw_opt_seqblock : Option<Hnsw<BlockSketched, DistBlockSketched> > = None;
     //
     if do_ann {
         // The fact is that  1. - probminhasher::compute_probminhash_jaccard(va, vb) as f32 is Hamming!
@@ -186,7 +187,12 @@ fn main() {
         let ef_search = 400;
         log::info!("setting max nb conn to : {:?}", max_nb_conn);
         log::info!("setting ef_search to : {:?}", ef_search);
-        hnsw_opt = Some(Hnsw::<u32, DistHamming>::new(max_nb_conn , 700000, 16, ef_search, DistHamming{}));
+        if !sketch_block {
+            hnsw_opt_seq = Some(Hnsw::<u32, DistHamming>::new(max_nb_conn , 700000, 16, ef_search, DistHamming{}));
+        } 
+        else {
+            hnsw_opt_seqblock = Some(Hnsw::<BlockSketched, DistBlockSketched>::new(max_nb_conn , 700000, 16, ef_search, DistBlockSketched{}));
+        }
     }  // end if we must do ann
 
     //
@@ -221,7 +227,7 @@ fn main() {
         sigbuf = sketcher.create_signature_dump(&dumpfname);
     }
     else {
-        let sketcher = seqblocksketch::BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
+        let sketcher = BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
         sigbuf = sketcher.create_signature_dump(&dumpfname);
     }
     //
@@ -249,14 +255,14 @@ fn main() {
                 for i in 0..signatures.len() {
                     data_for_hnsw.push((&signatures[i], nbseq+i));
                 }
-                hnsw_opt.as_mut().unwrap().parallel_insert(&data_for_hnsw);
+                hnsw_opt_seq.as_mut().unwrap().parallel_insert(&data_for_hnsw);
             }
         }
         else {
             // sketching by blocks 
             log::info!("sketching sequences by blocks of size {:?}", block_size);
             // we have sequences from [nbseq..nbseq+sequencegroup.len()] (end excluded recall it is different from Julia)
-            let blocksketcher = seqblocksketch::BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
+            let blocksketcher = BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
             // transform type from Vec<Sequence> to [(u32, &Sequence)]
             let mut tosketch = Vec::<(u32, &Sequence)>::with_capacity(sequencegroup.len());
             for i in 0..sequencegroup.len() {
@@ -268,7 +274,19 @@ fn main() {
             blocksketcher.dump_blocks(&mut sigbuf, &signatures);
             if do_ann {
                 // must do parallel insertion
-            }            
+                let nb_blocks_by_seq = 10; // ??
+                // how many blocks have we ?
+                let mut block_rank : usize = 0;
+                // recall : the internal vector is of size 1.
+                let mut data_for_hnsw = Vec::<(&Vec<BlockSketched>, usize)>::with_capacity(nb_blocks_by_seq * signatures.len());
+                for i in 0..signatures.len() {
+                    for j in 0..signatures[i].sketch.len() {
+                        data_for_hnsw.push((&signatures[i].sketch[j], block_rank));
+                        block_rank += 1;
+                    }
+                }
+                hnsw_opt_seqblock.as_mut().unwrap().parallel_insert(&data_for_hnsw);
+            }  // end of if do_ann          
         }
         // if ann is asked for, do it now by block
         nbseq += sequencegroup.len();
@@ -283,24 +301,33 @@ fn main() {
     println!(" elapsed time (s) in sketching [inserting in hnsw] data file {} ", elapsed_t);
 
     if do_ann {
-        // dump layer information for user on stdout
-        hnsw_opt.as_ref().unwrap().dump_layer_info();
-        // dumping hnsw
-        println!(" dumping hnsw");
-        let mut hnswname = dumpfname.clone();
-        hnswname.push_str("-ann");
-        let res_dump = hnsw_opt.as_mut().unwrap().file_dump(&hnswname);
+        let res_dump;
+        if !sketch_block {
+            // dump layer information for user on stdout
+            hnsw_opt_seq.as_ref().unwrap().dump_layer_info();
+            // dumping hnsw
+            println!(" dumping hnsw");
+            let mut hnswname = dumpfname.clone();
+            hnswname.push_str("-ann");
+            res_dump = hnsw_opt_seq.as_mut().unwrap().file_dump(&hnswname);
+       } else {
+            // ann and sketch by block
+            hnsw_opt_seqblock.as_ref().unwrap().dump_layer_info();
+            let mut hnswname = dumpfname.clone();
+            hnswname.push_str("-ann");
+            res_dump = hnsw_opt_seqblock.as_mut().unwrap().file_dump(&hnswname);
+        }
         if res_dump.is_ok() {
             println!(" hnsw dump suceeded");
         }
         else {
             println!(" hnsw dump failed");
         }
-    }
-}
+    }  // end if do_ann
+} // end main
 
 
-// read a block of nbseq sequences
+// read a block of nbseq sequences from a fastx record
 fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequence> {
     //
     trace!("entering in readblockseq");

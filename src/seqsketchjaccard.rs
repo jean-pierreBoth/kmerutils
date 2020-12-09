@@ -449,7 +449,6 @@ pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Wri
 
 
 
-#[allow(dead_code)]
 /// structure to reload a file consisting of sketch
 struct SigSketchFileReader {
     fname:String,
@@ -467,7 +466,6 @@ struct SigSketchFileReader {
 
 impl SigSketchFileReader {
     /// initialize the fields fname, sketch_size, kmer_size and allocates signature_buf but signatures will be read by next.
-    #[allow(dead_code)]
     pub fn new(fname:&String) -> Result<SigSketchFileReader, String> {
         let dumpfile_res = OpenOptions::new().read(true).open(&fname);
         let dumpfile;
@@ -530,24 +528,20 @@ impl SigSketchFileReader {
     } // end of new
 
     /// return kmer_size used sketch dump
-    #[allow(dead_code)]
     pub fn get_kmer_size(&self) -> u8 {
         self.kmer_size
     }
 
     /// returns number of base signature per object
-    #[allow(dead_code)]
     pub fn get_signature_length(&self) -> usize {
         self.sketch_size
     }
 
     /// returns size in bytes of base sketch : 4 or 8
-    #[allow(dead_code)]
     pub fn get_signature_size(&self) -> usize {
         self.sig_size as usize
     }
     /// emulates iterator API. Return next object's signature (a Vec<u32> ) if any, None otherwise.
-    #[allow(dead_code)]
     pub fn next(&mut self) -> Option<Vec<u32> > {
         let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
         let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
@@ -584,7 +578,6 @@ mod tests {
     use super::*;
 
 
-#[allow(dead_code)]
     fn log_init_test() {
         let mut builder = env_logger::Builder::from_default_env();
         //    builder.filter_level(LevelFilter::Trace);

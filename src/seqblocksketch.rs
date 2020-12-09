@@ -6,7 +6,6 @@
 #![allow(dead_code)]
 
 
-#[allow(unused_imports)]
 
 use log::*;
 
@@ -25,6 +24,8 @@ use std::fs::OpenOptions;
 
 use crate::nohasher::*;
 
+use typename::TypeName;
+
 use crate::kmergenerator::*;
 
 use rayon::prelude::*;
@@ -40,7 +41,8 @@ const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
 
 /// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
-#[derive(Clone)]
+/// The type do not implement Copy. So we must take care of using references to avoid cloning
+#[derive(Clone, TypeName)]
 pub struct BlockSketched {
     numseq: u32,
     numblock : u32,
@@ -73,11 +75,12 @@ impl BlockSketched {
 
 
 
-
+/// skectch[i] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
 pub struct BlockSketchedSeq {
     numseq : usize, 
-    sketch : Vec<BlockSketched>,
+    pub sketch : Vec<Vec<BlockSketched>>,
 }
+
 
 
 pub struct BlockSeqSketcher {
@@ -100,7 +103,7 @@ impl BlockSeqSketcher {
         //
         let nb_blocks = if seq.size() % self.block_size == 0 { seq.size() / self.block_size} else  { 1 + seq.size() / self.block_size};
         // estimate number of block to preallocated result
-        let mut sketch = Vec::<BlockSketched>::with_capacity(nb_blocks);
+        let mut sketch = Vec::<Vec<BlockSketched>>::with_capacity(nb_blocks);
         //
         // get a kmer generator generate all kmers include in range arg. dependance upon kmer_size 
         // 
@@ -132,7 +135,7 @@ impl BlockSeqSketcher {
             }  // end loop
             pminhasha.hash_weigthed_idxmap(&wa);
             let siga = pminhasha.get_signature();
-            let current_block = BlockSketched{ numseq:numseq as u32, numblock: numblock as u32, sketch:siga.clone()};
+            let current_block = vec![BlockSketched{ numseq:numseq as u32, numblock: numblock as u32, sketch:siga.clone()}];
             sketch.push(current_block);
         } // end of for numblock
         //
@@ -157,7 +160,8 @@ impl BlockSeqSketcher {
             let nbblock = seqblocks[i].sketch.len();
             // dump blocks
             for j in 0..nbblock {
-                (seqblocks[i].sketch)[j].dump(out);
+                let block = &(seqblocks[i].sketch)[j][0];
+                block.dump(out);
             }
         }
     }  // end of dump_blocks
@@ -346,7 +350,7 @@ impl SigBlockSketchFileReader {
 //  Distance between Blocks
 // ==================================================================================
 
-
+#[derive(TypeName, Default)]
 pub struct DistBlockSketched {
 }
 
@@ -387,6 +391,7 @@ impl  Distance<BlockSketched> for  DistBlockSketched {
 
 mod test {
 
+#[allow(unused_imports)]
 use super::*;
 
 #[allow(dead_code)]
@@ -425,13 +430,13 @@ use super::*;
         println!("sketchb has number o blocks = {:?}",  sketchb.sketch.len());
         // check of distance computations
         let mydist = DistBlockSketched{};
-        assert_eq!(mydist.eval(&[sketcha.sketch[0].clone()], &[sketcha.sketch[0].clone()]), 1.);
+        assert_eq!(mydist.eval(&sketcha.sketch[0], &sketcha.sketch[0]), 1.);
         //
-        let dist_1 = mydist.eval(&[sketcha.sketch[0].clone()], &[sketchb.sketch[0].clone()]);
+        let dist_1 = mydist.eval(&sketcha.sketch[0], &sketchb.sketch[0]);
         println!("dist_1 = {:?}", dist_1);
         log::info!("dist_1 = {:?}", dist_1);
         //
-        let dist_2 = mydist.eval(&[sketcha.sketch[1].clone()], &[sketchb.sketch[1].clone()]);
+        let dist_2 = mydist.eval(&sketcha.sketch[1], &sketchb.sketch[1]);
         println!("dist_2 = {:?}", dist_2);
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
