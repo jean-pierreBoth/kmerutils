@@ -14,6 +14,9 @@ use log::*;
 #[allow(unused_imports)]
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
 use indexmap::{IndexMap};
+#[allow(unused_imports)]
+use std::collections::HashMap;
+
 use fnv::{FnvBuildHasher};
 
 use std::io;
@@ -75,7 +78,9 @@ impl BlockSketched {
 
 
 
-/// skectch[i] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
+/// For each i, skectch[i] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
+/// As BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec<BlockSketched>
+/// to send it do Distance
 pub struct BlockSketchedSeq {
     numseq : usize, 
     pub sketch : Vec<Vec<BlockSketched>>,
@@ -83,6 +88,7 @@ pub struct BlockSketchedSeq {
 
 
 
+/// This structure gathers parameters used to sketch sequences in blocks
 pub struct BlockSeqSketcher {
     sig_size : u8,
     block_size : usize,
@@ -93,7 +99,7 @@ pub struct BlockSeqSketcher {
 
 
 impl BlockSeqSketcher {
-    //
+    /// defines blcok_size, kmer_size, and sketch_size (i.e number of u32 or u64 used in sketching each block)
     pub fn new(block_size : usize, kmer_size: usize, sketch_size:usize) -> BlockSeqSketcher {
         BlockSeqSketcher{sig_size: 4 as u8, block_size, kmer_size, sketch_size}
     }
@@ -109,10 +115,10 @@ impl BlockSeqSketcher {
         // 
         let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seq);
         kmergen.set_range(0, seq.size()).unwrap();
+        let mut wa : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(self.block_size, FnvBuildHasher::default());
         // loop on blocks and compute signature of each block
         for numblock in 0..nb_blocks {
             let mut pminhasha = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
-            let mut wa : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(self.block_size, FnvBuildHasher::default());
             let mut kmer_pos = 0;
             loop {
                 match kmergen.next() {
@@ -137,6 +143,7 @@ impl BlockSeqSketcher {
             let siga = pminhasha.get_signature();
             let current_block = vec![BlockSketched{ numseq:numseq as u32, numblock: numblock as u32, sketch:siga.clone()}];
             sketch.push(current_block);
+            wa.clear();
         } // end of for numblock
         //
         return BlockSketchedSeq{numseq,sketch};

@@ -4,6 +4,7 @@
 //! - -s  sketch_size gives the size of signature to use for each sequence.
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
 //! - -k kmer_size gives the size of kmer to use 
+//! - -b block_size (--block) to do a sketch of sequence by blocks of size block_size
 //! 
 //! - ann to get hnsw embedding
 //!     - nb (-n) for number of neighbours desired for future use
@@ -77,9 +78,10 @@ fn main() {
                         .short("d")
                         .takes_value(true)
                         .help("expecting name of dumpfile for signature"))
-                    .arg(Arg::with_name("block")
+                    .arg(Arg::with_name("block_size")
                         .long("block_size")
                         .short("b")
+                        .takes_value(true)
                         .help("-b for blocksize if sketching by block"))
                     .subcommand(SubCommand::with_name("ann")
                         .about("ann parameters")
@@ -118,13 +120,14 @@ fn main() {
     }
     else {
         println!("--sketch is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
+        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size  --block (-b) b_size");
         process::exit(1);
     } 
     // block size
     if matches.is_present("block_size") {
         sketch_block = true;
         block_size = matches.value_of("block_size").ok_or("bad value").unwrap().parse::<usize>().unwrap();
+        println!("got block_size , {}", block_size);
     }
     // kmer options
     if matches.is_present("kmer_size") {
@@ -184,7 +187,7 @@ fn main() {
         let my_dist = DistFn::<u32>::new(Box::new(mydist_closure)); */
         println!("initializing hnsw");
         let max_nb_conn = 48.min(3 * nbng as usize);
-        let ef_search = 400;
+        let ef_search = 200;
         log::info!("setting max nb conn to : {:?}", max_nb_conn);
         log::info!("setting ef_search to : {:?}", ef_search);
         if !sketch_block {
@@ -210,8 +213,16 @@ fn main() {
     }
     let start_t = Instant::now();
     let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
-    let sequence_pack = 10000;
-    let mut nbseq = 0;
+    let sequence_pack = if sketch_block { 5000 } else { 10000};
+    // dumping info
+    log::info!("sketching sequences by pack size {:?}", sequence_pack);
+    if sketch_block {
+        log::info!("sketching sequences by blocks of size {:?}", block_size);
+    }
+    else {
+        log::info!("sketching sequences in one block each");
+    }
+
     //
     let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
         let canonical =  kmer.reverse_complement().min(*kmer);
@@ -233,6 +244,7 @@ fn main() {
     //
     // now we work : read, sketch by block or not, dump, and possibly embed in hnsw 
     //
+    let mut nbseq = 0;
     loop {
         let sequencegroup = readblockseq(& mut reader, sequence_pack);
         if sequencegroup.len() == 0 {
@@ -260,7 +272,6 @@ fn main() {
         }
         else {
             // sketching by blocks 
-            log::info!("sketching sequences by blocks of size {:?}", block_size);
             // we have sequences from [nbseq..nbseq+sequencegroup.len()] (end excluded recall it is different from Julia)
             let blocksketcher = BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
             // transform type from Vec<Sequence> to [(u32, &Sequence)]
@@ -269,7 +280,7 @@ fn main() {
                 tosketch.push(( (nbseq+i) as u32, &sequencegroup[i]));
             }
             let signatures = blocksketcher.blocksketch_sequences(&tosketch, &kmer_revcomp_hash_fn);
-            trace!("got nb signatures blocks {} ", signatures.len());
+            log::trace!("got nb signatures blocks {} ", signatures.len());
             // dump the signature
             blocksketcher.dump_blocks(&mut sigbuf, &signatures);
             if do_ann {
@@ -285,6 +296,7 @@ fn main() {
                         block_rank += 1;
                     }
                 }
+                log::debug!("sending (nb seq , nb blocks) in hnsw {:?} , {:?}", signatures.len() , block_rank);
                 hnsw_opt_seqblock.as_mut().unwrap().parallel_insert(&data_for_hnsw);
             }  // end of if do_ann          
         }
@@ -293,7 +305,7 @@ fn main() {
         if nbseq % 1000 == 0 {
             println!(" nbseq loaded : {} ", nbseq);
         }
-    }
+    }  // end whole loop
     //
     sigbuf.flush().unwrap();
     let elapsed_t = start_t.elapsed().whole_seconds();
@@ -306,15 +318,16 @@ fn main() {
             // dump layer information for user on stdout
             hnsw_opt_seq.as_ref().unwrap().dump_layer_info();
             // dumping hnsw
-            println!(" dumping hnsw");
             let mut hnswname = dumpfname.clone();
             hnswname.push_str("-ann");
+            println!(" dumping sketch hnsw in {:?} files", hnswname);
             res_dump = hnsw_opt_seq.as_mut().unwrap().file_dump(&hnswname);
        } else {
             // ann and sketch by block
             hnsw_opt_seqblock.as_ref().unwrap().dump_layer_info();
             let mut hnswname = dumpfname.clone();
             hnswname.push_str("-ann");
+            println!(" dumping block sketch hnsw in {:?} files", hnswname);
             res_dump = hnsw_opt_seqblock.as_mut().unwrap().file_dump(&hnswname);
         }
         if res_dump.is_ok() {
@@ -355,7 +368,6 @@ fn readblockseq(reader : &mut Box<dyn FastxReader>, nbseq : usize) -> Vec<Sequen
     if nb_bad_sequence > 0 && log_enabled!(Info) {
         info!(" number of non acgt sequences {} ", nb_bad_sequence);
     }
-    println!("returning from readblockseq , nb seq : {} ", veqseq.len());
     trace!("returning from readblockseq , nb seq : {} ", veqseq.len());
     //
     return veqseq;
