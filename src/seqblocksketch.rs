@@ -368,6 +368,8 @@ pub struct DistBlockSketched {
 // This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
 
 
+
+
 impl  Distance<BlockSketched> for  DistBlockSketched {
 
     fn eval(&self, va: &[BlockSketched], vb:&[BlockSketched]) -> f32 {
@@ -378,20 +380,87 @@ impl  Distance<BlockSketched> for  DistBlockSketched {
             return 1.;
         }
         //
-        assert_eq!(va[0].sketch.len(), vb[0].sketch.len());
+        let nb_diff = distance_jaccard_serial(&va[0].sketch, &vb[0].sketch);
+//        let nb_diff = distance_jaccard_u32_16_simd(&va[0].sketch, &vb[0].sketch);
         //
-        let sklen = va[0].sketch.len();
-        let mut nb_diff = 0u32;
-        for i in 0..sklen {
-            if va[0].sketch[i] != vb[0].sketch[i] {
-                nb_diff += 1;
-            }
-        }
-        //
-        return nb_diff as f32/sklen as f32;
+        return nb_diff as f32/va[0].sketch.len() as f32;
     }  // end of eval
 
+
+
 } // end implementation Distance for DistBlockSketched
+
+#[inline]
+fn distance_jaccard_serial(va:&[u32], vb: &[u32]) -> u32 {
+    assert_eq!(va.len(), vb.len());
+    let dist = va.iter().zip(vb.iter()).filter(|t| t.0 != t.1).count();
+    return dist as u32;
+} // end of distance_jaccard_serial
+
+
+#[cfg(packed_simd_2)]
+use packed_simd_2::*;
+
+#[cfg(packed_simd_2)]
+fn distance_jaccard_u32_8_simd(va:&[u32], vb: &[u32]) -> u32 {
+    let mut dist = 0_u32;
+    //
+    assert_eq!(va.len(), vb.len());
+    let nb_lanes = u32x8::lanes();
+    assert_eq!(nb_lanes, 8);
+    //
+    let mut dist_simd = u32x8::splat(0);
+    let v_1 = u32x8::splat(1);
+    let nb_simd = va.len()/ nb_lanes;
+    let simd_length = nb_simd * nb_lanes;
+    //
+    let mut i = 0;
+    while i < simd_length {
+        let a = u32x8::from_slice_unaligned(&va[i..]);
+        let b = u32x8::from_slice_unaligned(&vb[i..]);
+        let delta = u32x8::from_cast(a.ne(b)).min(v_1);
+        dist_simd = dist_simd + delta;
+        i += nb_lanes;
+    }
+    // internal sum of lanes
+    dist = dist + dist_simd.wrapping_sum();
+    // residual
+    for i in simd_length..va.len() {
+        dist = dist + if va[i] != vb[i] { 1 } else {0};
+    }
+    return dist;
+}  // end of distance_jaccard_u32_simd
+
+#[cfg(packed_simd_2)]
+
+fn distance_jaccard_u32_16_simd(va:&[u32], vb: &[u32]) -> u32 {
+    let mut dist = 0_u32;
+    //
+    assert_eq!(va.len(), vb.len());
+    let nb_lanes = u32x16::lanes();
+    assert_eq!(nb_lanes, 16);
+    //
+    let mut dist_simd = u32x16::splat(0);
+    let v_1 = u32x16::splat(1);
+    let nb_simd = va.len()/ nb_lanes;
+    let simd_length = nb_simd * nb_lanes;
+    //
+    let mut i = 0;
+    while i < simd_length {
+        let a = u32x16::from_slice_unaligned(&va[i..]);
+        let b = u32x16::from_slice_unaligned(&vb[i..]);
+        let delta = u32x16::from_cast(a.ne(b)).min(v_1);
+        dist_simd = dist_simd + delta;
+        i += nb_lanes;
+    }
+    // internal sum of lanes
+    dist = dist + dist_simd.wrapping_sum();
+    // residual
+    for i in simd_length..va.len() {
+        dist = dist + if va[i] != vb[i] { 1 } else {0};
+    }
+    return dist;
+}  // end of distance_jaccard_u32_simd
 
 
 //==============================================================================
@@ -400,6 +469,8 @@ mod test {
 
 #[allow(unused_imports)]
 use super::*;
+#[allow(unused_imports)]
+use rand::distributions::{Distribution, Uniform};
 
 #[allow(dead_code)]
     fn log_init_test() {
@@ -447,5 +518,33 @@ use super::*;
         println!("dist_2 = {:?}", dist_2);
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
+
+
+    #[cfg(parked_simd_2)]
+    #[test]
+    fn test_simd_jaccard_u32() {
+
+        let size_test = 500;
+        let imax = 5;
+        let mut rng = rand::thread_rng();
+        for i in 4..size_test {
+            let between = Uniform::<u32>::from(0..imax);
+            let va : Vec<u32> = (0..i).into_iter().map( |_| between.sample(&mut rng)).collect();
+            let vb : Vec<u32> = (0..i).into_iter().map( |_| between.sample(&mut rng)).collect();
+            // simd call
+            let simd_dist = distance_jaccard_u32_8_simd(&va, &vb);
+            // exact dist
+            let easy_dist : u32 = va.iter().zip(vb.iter()).map( |(a,b)| if a!=b { 1} else {0}).sum();
+            println!("simd exact = {:?} {:?}", simd_dist, easy_dist);
+            if easy_dist != simd_dist {
+                println!(" test i = {:?} jsimd = {:?} , jexact = {:?}", i, simd_dist, easy_dist);
+                println!("va = {:?}" , va);
+                println!("vb = {:?}" , vb);
+                std::process::exit(1);
+            }
+            assert_eq!(easy_dist, simd_dist, "i = {:?}", i);
+        }
+
+    }  // end of test test_simd_jaccard_i32
 
 }  // end of module test
