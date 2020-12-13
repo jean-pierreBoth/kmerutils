@@ -3,7 +3,6 @@
 //! This module is adaptef to long reads with variable length.
 //! 
 
-#![allow(dead_code)]
 
 
 
@@ -160,6 +159,7 @@ impl BlockSeqSketcher {
     }
 
     /// dump a whole pack of sketches relative to a set of sequences split in blocks and sketched
+    /// we dump a magic as a u32, num of sequence as u32 and the dump of each block by BlockSketched::dump()
     pub fn dump_blocks(&self, out : &mut dyn Write, seqblocks : &Vec<BlockSketchedSeq>) {
         for i in 0..seqblocks.len() {
             // dump numseq
@@ -181,6 +181,7 @@ impl BlockSeqSketcher {
     /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
     /// -  sketch_size  : length of vecteur dumped as u32
     /// -  kmer_size    : as u32
+    /// -  block_size   : as u32
     /// 
     pub fn create_signature_dump(&self, dumpfname:&String) -> io::BufWriter<fs::File> {
         let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
@@ -208,11 +209,10 @@ impl BlockSeqSketcher {
 
 
 
-#[allow(dead_code)]
 /// structure to reload a file consisting of sketch blocks
 /// each read should load a whole BlockSketchedSeq
-struct SigBlockSketchFileReader {
-    fname:String,
+pub struct SigBlockSketchFileReader {
+    _fname:String,
     /// signature size in bytes. 4 for u32, 8 for u64
     sig_size : u8,
     /// the number of sketch by object hashed
@@ -230,7 +230,6 @@ struct SigBlockSketchFileReader {
 
 impl SigBlockSketchFileReader {
     /// initialize the fields fname, sketch_size, kmer_size and allocates signature_buf but signatures will be read by next.
-    #[allow(dead_code)]
     pub fn new(fname:&String) -> Result<SigBlockSketchFileReader, String> {
         let dumpfile_res = OpenOptions::new().read(true).open(&fname);
         let dumpfile;
@@ -300,30 +299,32 @@ impl SigBlockSketchFileReader {
         let block_size = u32::from_le_bytes(buf_u32);
         trace!("read block_size {}", block_size);
         //
-        Ok(SigBlockSketchFileReader{fname: fname.clone() , sig_size: sig_size as u8 , sketch_size: sketch_size as usize, 
+        Ok(SigBlockSketchFileReader{_fname: fname.clone() , sig_size: sig_size as u8 , sketch_size: sketch_size as usize, 
                 kmer_size: kmer_size as u8, block_size, signature_buf})
     } // end of new
 
     /// return kmer_size used sketch dump
-    #[allow(dead_code)]
     pub fn get_kmer_size(&self) -> u8 {
         self.kmer_size
     }
 
     /// returns number of base signature per object
-    #[allow(dead_code)]
     pub fn get_signature_length(&self) -> usize {
         self.sketch_size
     }
 
     /// returns size in bytes of base sketch : 4 or 8
-    #[allow(dead_code)]
     pub fn get_signature_size(&self) -> usize {
         self.sig_size as usize
     }
+
+    /// returns the size in splitting sequences before sketching
+    pub fn get_block_size(&self) -> usize {
+        self.block_size as usize
+
+    }
     /// emulates iterator API.
     /// Return next object's signature (a Vec<u32> ) if any, None otherwise.
-    #[allow(dead_code)]
     pub fn next(&mut self) -> Option<Vec<u32> > {
         let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
         let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
@@ -357,15 +358,16 @@ impl SigBlockSketchFileReader {
 //  Distance between Blocks
 // ==================================================================================
 
+/// Define a distance between BlockSketched.
+/// 
+/// It is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
+/// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1 as required by Hnsw interface
+// This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
 #[derive(TypeName, Default)]
 pub struct DistBlockSketched {
 }
 
 
-// define a distance between BlockSketched
-// it is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
-// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1.
-// This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
 
 
 

@@ -191,7 +191,7 @@ mod tests {
         let seq = Sequence::new(&slu8,2);
         let range1 :  Range<usize> = Range{start:1, end:65};
         let kmer_size : usize = 16;
-        let sketch_size: usize = 20;
+        let sketch_size: usize = 50;
         trace!(" sketching 1");
         // we get kmer from [1,16] to  [49,64] i.e 48 kmer
         let sk1 = sketch_seqrange_superminhash(&seq, &range1, kmer_size, sketch_size);
@@ -205,7 +205,7 @@ mod tests {
         //
         println!("distance super minhash (contain, dist, common, total): {}  ", resdist);
         //
-        assert!( resdist >= 0.19);
+        assert!( resdist >= 0.15);
     } // end of  test_superminhash_overlapping_ranges
 
 

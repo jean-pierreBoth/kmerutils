@@ -1,6 +1,6 @@
 # Some Kmer counting utilities
 
-This package provides the following tools :
+This package (currently in development) provides the following tools :
 
 * kmer counting tools.
 
@@ -26,7 +26,6 @@ Kmer counting is multi-threaded and filters unique kmer in a cuckoo filter to sp
 Unique kmers are dumped in a separate file with the coordinates (sequence and position in sequence).
 Multiple kmers, stored in a Bloom filter, are dumped in another file with their multiplicity. See module *kmercount*
 
-* command to use:
 
 ## Hashing and Sketching of data
 
@@ -39,8 +38,11 @@ Probminhash and superminhash are provided by the crate probminhash and are inter
 (Cf [probminhash](https://github.com/jean-pierreBoth/probminhash)).
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
-dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *jaccarweight*.  
+dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *jaccarweight* or *seqblocksketch*.  
 For example it takes 141s on a 4-i7 (2.7Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
+
+* The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
+  See executable *datasketcher*in this crate and the crate *hnsw_rs*
 
 Some others standard tools such :
 
@@ -56,7 +58,7 @@ It is implemented on all our compressed kmer types.
     A file giving the number of reads in function of length.  
 
 2. Base distributions.  
-    a matrix (100, 4) giving for row i and column j in (1,2,3,4)the number of reads
+    a matrix (100, 4) giving for row i and column j in (1,2,3,4) the number of reads
     where a base (a,c,g,t) corresponding to column j in this order occurs at percentage i.
 
 This file can be reloaded by Julia package Genomics (cf BaseDistribution.jl)
@@ -65,7 +67,8 @@ This file can be reloaded by Julia package Genomics (cf BaseDistribution.jl)
 
 Qualities are re-mapped to values between in [0..7] so that they need only 3 bits of storage and are
 stored in a wavelet matrix.
-The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6]. the quality part of data are stored in a:
+The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6].  
+The quality part of data are stored in a process serving quality requests described below:
 
 ### Quality Server
 

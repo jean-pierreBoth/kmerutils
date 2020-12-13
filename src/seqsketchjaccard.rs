@@ -10,7 +10,7 @@
 //! 
 //! 
 
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 
 
@@ -450,8 +450,8 @@ pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Wri
 
 
 /// structure to reload a file consisting of sketch
-struct SigSketchFileReader {
-    fname:String,
+pub struct SigSketchFileReader {
+    _fname:String,
     /// signature size in bytes. 4 for u32, 8 for u64
     sig_size : u8,
     /// the number of sketch by object hashed
@@ -473,7 +473,7 @@ impl SigSketchFileReader {
             dumpfile = dumpfile_res.unwrap();
         } else {
             println!("cannot open {}", fname);
-            std::process::exit(1);
+            return Err(String::from("SigSketchFileReader : could not open dumpfile"))
         }
         let mut signature_buf : io::BufReader<fs::File> = io::BufReader::with_capacity(1_000_000_000, dumpfile);
         let mut buf_u32 = [0u8;4];
@@ -524,7 +524,7 @@ impl SigSketchFileReader {
         trace!("read kmer_size {}", kmer_size);
         //
 
-        Ok(SigSketchFileReader{fname: fname.clone() , sig_size: sig_size as u8 , sketch_size: sketch_size as usize, kmer_size: kmer_size as u8, signature_buf})
+        Ok(SigSketchFileReader{_fname: fname.clone() , sig_size: sig_size as u8 , sketch_size: sketch_size as usize, kmer_size: kmer_size as u8, signature_buf})
     } // end of new
 
     /// return kmer_size used sketch dump
@@ -771,7 +771,11 @@ fn test_reload_sketch_file() {
     log_init_test();
     //
     let fname = String::from("/home.1/jpboth/Rust/kmerutils/Runs/umpsigk8s200");
+    
     let sketch_reader_res = SigSketchFileReader::new(&fname);
+    if !sketch_reader_res.is_ok() {
+        return;
+    }
     // check result with a as_ref to avoid consuming value
     let sketch_reader_res_ref = sketch_reader_res.as_ref();
     if let Some(msg) = sketch_reader_res_ref.err()  {

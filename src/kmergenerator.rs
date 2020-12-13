@@ -770,10 +770,14 @@ mod tests {
         let mut i = 0;
         for x in weighted_kmer {
             let ukmer = (x.0).get_uncompressed_kmer();
-            assert!(i <= 8 && x.1 == 2);
-            assert!( i >9 && x.1 == 1);
-            i = i+1;
             println!("kmer {:?}  {} ,   weight {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1);
+            if i <= 9 {
+                assert!(x.1 == 2);
+            }
+            if i > 9 {
+                assert!(x.1 == 1);
+            }
+            i = i+1;
         }
     } // end of test_generate_weighted_kmer64bit
 

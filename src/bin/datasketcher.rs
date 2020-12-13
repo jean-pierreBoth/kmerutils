@@ -5,10 +5,10 @@
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
 //! - -k kmer_size gives the size of kmer to use 
 //! - -b block_size (--block) to do a sketch of sequence by blocks of size block_size
-//! 
 //! - ann to get hnsw embedding
 //!     - nb (-n) for number of neighbours desired for future use
-//!     - 
+//!    
+//! The format of signature dump file is documented in modules seqblocksketch and seqsketchjaccard 
 //!
 
 #[allow(unused_imports)]
