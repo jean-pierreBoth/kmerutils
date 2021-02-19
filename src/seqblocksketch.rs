@@ -159,14 +159,18 @@ impl BlockSeqSketcher {
     }
 
     /// dump a whole pack of sketches relative to a set of sequences split in blocks and sketched
-    /// we dump a magic as a u32, num of sequence as u32 and the dump of each block by BlockSketched::dump()
+    /// we dump a magic as a u32, num of sequence as u32, nbblocks of a sequnece as u32
+    /// and the dump of each block by BlockSketched::dump()
     pub fn dump_blocks(&self, out : &mut dyn Write, seqblocks : &Vec<BlockSketchedSeq>) {
         for i in 0..seqblocks.len() {
             // dump numseq
-            out.write(&seqblocks[i].numseq.to_le_bytes()).unwrap();
-            let nbblock = seqblocks[i].sketch.len();
+            let seqnum = seqblocks[i].numseq as u32;
+            out.write(&seqnum.to_le_bytes()).unwrap();
+            let nbblock_u32 = seqblocks[i].sketch.len() as u32;
+            // dump number of blocks for sequence of current BlockSketchedSeq
+            out.write(&nbblock_u32.to_le_bytes()).unwrap();
             // dump blocks
-            for j in 0..nbblock {
+            for j in 0..seqblocks[i].sketch.len() {
                 let block = &(seqblocks[i].sketch)[j][0];
                 block.dump(out);
             }
@@ -321,30 +325,60 @@ impl SigBlockSketchFileReader {
     /// returns the size in splitting sequences before sketching
     pub fn get_block_size(&self) -> usize {
         self.block_size as usize
-
     }
     /// emulates iterator API.
-    /// Return next object's signature (a Vec<u32> ) if any, None otherwise.
-    pub fn next(&mut self) -> Option<Vec<u32> > {
-        let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
-        let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
-
-        let io_res = self.signature_buf.read_exact(buf.as_mut_slice());
-        //
+    /// Return next sequence blocks signature (a Vec<u32> for each block) if any, None otherwise.
+    pub fn next(&mut self) -> Option<Vec<Vec<u32> > > {
+        // must read sequence num and number of blocks which were dumped as u32 in little endian
+        let numseq : u32;
+        let nbblock : u32;
+        let mut buf_u32 = [0u8;4];
+        let io_res = self.signature_buf.read_exact(&mut buf_u32);
         if io_res.is_err() {
-            // we check that we got EOF or rust ErrorKind::UnexpectedEof
+            println!("cannot read sequence num");
             match io_res.err().unwrap().kind() {
                 ErrorKind::UnexpectedEof => return None,
-                        _            =>  { 
-                                        println!("an unexpected error occurred reading signature buffer");
-                                        std::process::exit(1);
-                                    }
+                _                        => { 
+                                                println!("an unexpected error occurred reading signature buffer");
+                                                std::process::exit(1);
+                                            }
             }
         }
         else {
-            let sig = Vec::<u32>::with_capacity(self.sketch_size);
-            return Some(sig);        
+            numseq = u32::from_le_bytes(buf_u32);
         }
+        //
+        let io_res = self.signature_buf.read_exact(&mut buf_u32);
+        if io_res.is_err() {
+            println!("cannot read number of blocks for sequence {} ", numseq);
+            std::process::exit(1);
+        }
+        else {
+            nbblock = u32::from_le_bytes(buf_u32);
+        }
+        // now we have everything
+        let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
+        let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
+        let mut sig = Vec::<Vec<u32>>::with_capacity(nbblock as usize);
+        for _ in 0..nbblock as usize {
+            let io_res = self.signature_buf.read_exact(buf.as_mut_slice());
+            //
+            if io_res.is_err() {
+                        println!("an unexpected error occurred reading signature buffer");
+                        std::process::exit(1);
+            }
+            else {
+                let mut sigblock = Vec::<u32>::with_capacity(self.sketch_size);
+                for j in 0..self.sketch_size {
+                    // split buf in chunks of 4 bytes
+                    // CAVEAT the nightly as_chunks experimental API would do this properly
+                    buf_u32.copy_from_slice(&buf[j*4..4*(j+1)]);
+                    sigblock.push(u32::from_le_bytes(buf_u32));
+                }
+                sig.push(sigblock);
+            }
+        }
+        return Some(sig);        
     } // end of next
 
 
@@ -388,9 +422,9 @@ impl  Distance<BlockSketched> for  DistBlockSketched {
         return nb_diff as f32/va[0].sketch.len() as f32;
     }  // end of eval
 
-
-
 } // end implementation Distance for DistBlockSketched
+
+
 
 #[inline]
 fn distance_jaccard_serial(va:&[u32], vb: &[u32]) -> u32 {
@@ -402,6 +436,7 @@ fn distance_jaccard_serial(va:&[u32], vb: &[u32]) -> u32 {
 
 #[cfg(packed_simd_2)]
 use packed_simd_2::*;
+
 
 #[cfg(packed_simd_2)]
 fn distance_jaccard_u32_8_simd(va:&[u32], vb: &[u32]) -> u32 {
@@ -433,8 +468,10 @@ fn distance_jaccard_u32_8_simd(va:&[u32], vb: &[u32]) -> u32 {
     return dist;
 }  // end of distance_jaccard_u32_simd
 
-#[cfg(packed_simd_2)]
 
+
+
+#[cfg(packed_simd_2)]
 fn distance_jaccard_u32_16_simd(va:&[u32], vb: &[u32]) -> u32 {
     let mut dist = 0_u32;
     //
