@@ -106,7 +106,9 @@ impl BlockSeqSketcher {
     pub fn blocksketch_sequence<F>(& self, numseq: usize, seq : &Sequence, fhash : &F)  -> BlockSketchedSeq 
         where F : Fn(&Kmer32bit) -> u32 + Sync + Send {
         //
+        assert!(seq.size() > 0);
         let nb_blocks = if seq.size() % self.block_size == 0 { seq.size() / self.block_size} else  { 1 + seq.size() / self.block_size};
+        assert!(nb_blocks > 0);
         // estimate number of block to preallocated result
         let mut sketch = Vec::<Vec<BlockSketched>>::with_capacity(nb_blocks);
         //
@@ -167,6 +169,7 @@ impl BlockSeqSketcher {
             let seqnum = seqblocks[i].numseq as u32;
             out.write(&seqnum.to_le_bytes()).unwrap();
             let nbblock_u32 = seqblocks[i].sketch.len() as u32;
+            assert!(nbblock_u32 > 0);
             // dump number of blocks for sequence of current BlockSketchedSeq
             out.write(&nbblock_u32.to_le_bytes()).unwrap();
             // dump blocks
@@ -198,12 +201,14 @@ impl BlockSeqSketcher {
         }
         let sketch_size_u32 = self.sketch_size as u32;
         let kmer_size_u32 = self.kmer_size as u32;
+        let blocksize_u32 = self.block_size as u32;
         let mut sigbuf : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, dumpfile);
+        // dump 17 bytes
         sigbuf.write(& MAGIC_BLOCKSIG_DUMP.to_le_bytes()).unwrap();
         sigbuf.write(& self.sig_size.to_le_bytes()).unwrap();
         sigbuf.write(& sketch_size_u32.to_le_bytes()).unwrap();
         sigbuf.write(& kmer_size_u32.to_le_bytes()).unwrap();
-        sigbuf.write(& self.block_size.to_le_bytes()).unwrap();
+        sigbuf.write(& blocksize_u32.to_le_bytes()).unwrap();
         //
         return sigbuf;
     }  // end of create_signature_dump
