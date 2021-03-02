@@ -13,7 +13,8 @@ use std::path::Path;
 
 // our modules
 extern crate kmerutils;
-use kmerutils::kmercount::*;
+
+use kmerutils::base::kmercount::*;
 
 lazy_static! {
     #[allow(dead_code)]

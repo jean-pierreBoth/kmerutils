@@ -9,7 +9,7 @@ use fnv::FnvBuildHasher;
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 
-pub use crate::kmer::*;
+pub use super::kmer::*;
 
 // This structure must take care of encoding conversions
 // as all Kmer must be 2 bits encoded

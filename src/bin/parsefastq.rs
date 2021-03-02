@@ -27,10 +27,9 @@ use std::process;
 
 // our modules
 use kmerutils::io::*;
-use kmerutils::kmercount::*;
+use kmerutils::base::{kmercount::*, alphabet::get_ac_from_tg};
 use kmerutils::parsearg::*;
 use kmerutils::statutils::*;
-use kmerutils::alphabet::get_ac_from_tg;    
 
 fn main() {
     

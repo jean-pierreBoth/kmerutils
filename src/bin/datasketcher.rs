@@ -24,8 +24,8 @@ use ::std::process;
 use std::path::Path;
 use std::io::prelude::*;
 
-use kmerutils::sequence::*;
-use kmerutils::kmergenerator::*;
+
+use kmerutils::base::{sequence::*, kmergenerator::*};
 use kmerutils::seqsketchjaccard;
 use kmerutils::seqblocksketch::{BlockSeqSketcher, BlockSketched, DistBlockSketched};
 

@@ -22,7 +22,7 @@ use std::io;
 
 // our includes
 
-use crate::sequence::*;
+use crate::base::sequence::*;
 
 
 // should be allocated via ndarray::Dim([sz as usize, 4]) so a sz by 4 matrix

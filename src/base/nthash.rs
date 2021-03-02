@@ -84,8 +84,8 @@ pub fn from_one_hash_val_to_mult_hash(ksize: u64, hashed: &mut [u64]) {
     //
     for i in 1..hashed.len() {
         // ^ comes after * but it is better showing it
-        tmp_h = hashed[0] * (i as u64 ^ (ksize * crate::nthash::MULTISEED)) as u64;
-        tmp_h ^= tmp_h >> crate::nthash::MULTISHIFT;
+        tmp_h = hashed[0] * (i as u64 ^ (ksize * MULTISEED)) as u64;
+        tmp_h ^= tmp_h >> MULTISHIFT;
         hashed[i] = tmp_h;
     }  
 }

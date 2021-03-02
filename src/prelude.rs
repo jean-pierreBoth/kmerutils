@@ -5,4 +5,4 @@
 
 
 pub use crate::parsearg::*;
-pub use crate::kmer::*;
+pub use crate::base::kmer::*;

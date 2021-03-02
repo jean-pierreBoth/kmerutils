@@ -27,7 +27,7 @@ use std::fs::OpenOptions;
 use crate::nohasher::*;
 
 
-use crate::kmergenerator::*;
+use crate::base::kmergenerator::*;
 
 use rayon::prelude::*;
 

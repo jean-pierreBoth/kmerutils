@@ -36,7 +36,7 @@ use log::trace;
 
 use probminhash::invhash::*;
 
-pub use crate::kmer::*;
+pub use crate::base::kmer::*;
 
 
 /// Special Trait for hashed kmer with inversible hash.
@@ -279,8 +279,7 @@ mod tests {
     use crate::nohasher::NoHashHasher;
     
 
-    use crate::kmergenerator::*;
-    use crate::sequence::*;
+    use crate::base::kmergenerator::*;
     use env_logger;
 
     // initialize once log system for tests.

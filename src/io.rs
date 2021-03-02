@@ -8,7 +8,7 @@ use self::time::*;
 
 use std::path::Path;
 
-use crate::sequence::*;
+use crate::base::{sequence::*};
 use crate::parsearg::*;
 
 

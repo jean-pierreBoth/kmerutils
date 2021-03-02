@@ -7,8 +7,10 @@ extern crate lazy_static;
 
 
 // basic stuff
-pub mod alphabet;
-pub mod sequence;
+pub mod base;
+
+
+
 pub mod statutils;
 pub mod io;
 pub mod quality;
@@ -25,17 +27,13 @@ pub mod qserverclient;
 pub mod minhash;
 pub mod nohasher;
 pub mod mininvhashkmer;
-#[macro_use]
-pub mod nthash;
 
 
 pub mod seqminhash;
 
 // kmer stuff
 
-pub mod kmer;
-pub mod kmergenerator;
-pub mod kmercount;
+
 pub mod seqsketchjaccard;
 pub mod seqblocksketch;
 // contig generation

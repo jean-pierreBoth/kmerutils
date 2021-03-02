@@ -4,9 +4,7 @@
 
 use std::ops::Range;
 use std::hash::{BuildHasherDefault};
-use crate::sequence::*;
-use crate::kmer::*;
-use crate::kmergenerator::*;
+use crate::base::{kmer::*, kmergenerator::*};
 
 use crate::minhash::*;
 use probminhash::invhash;

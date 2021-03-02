@@ -16,11 +16,13 @@ use redis::{Commands};
 use std::str;
 use std::cmp;
 
-pub use crate::redisbase::*;
-use crate::kmer::*;
-use crate::mininvhashkmer::*;
-use crate::kmergenerator::*;
 use fnv::FnvHasher;
+
+pub use crate::redisbase::*;
+
+use crate::base::{sequence::*, kmer::*, kmergenerator::*};
+
+use crate::mininvhashkmer::*;
 
 
 /// General parameters of anchor generation

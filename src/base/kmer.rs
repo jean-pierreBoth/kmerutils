@@ -18,12 +18,12 @@ use std::str::FromStr;
 #[allow(unused)]
 use log::{debug,trace};
 
-use crate::nthash::*;
+
 
 // our includes
 
 
-pub use crate::sequence::*;
+pub use super::{nthash::*, sequence::*};
 
 /// A Kmer is defined with 2 traits, one for standard operations and
 /// one for taking into account that our Kmers are 2 bits encoded
