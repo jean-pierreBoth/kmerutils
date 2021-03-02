@@ -8,7 +8,7 @@
 
 use log::*;
 
-
+use serde::{Serialize, Deserialize};
 
 #[allow(unused_imports)]
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
@@ -26,7 +26,6 @@ use std::fs::OpenOptions;
 
 use crate::nohasher::*;
 
-use typename::TypeName;
 
 use crate::kmergenerator::*;
 
@@ -44,7 +43,7 @@ const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
 /// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
 /// The type do not implement Copy. So we must take care of using references to avoid cloning
-#[derive(Clone, TypeName)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct BlockSketched {
     numseq: u32,
     numblock : u32,
@@ -402,7 +401,7 @@ impl SigBlockSketchFileReader {
 /// It is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
 /// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1 as required by Hnsw interface
 // This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
-#[derive(TypeName, Default)]
+#[derive(Default)]
 pub struct DistBlockSketched {
 }
 
@@ -456,13 +455,11 @@ fn distance_jaccard_u32_8_simd(va:&[u32], vb: &[u32]) -> u32 {
     let nb_simd = va.len()/ nb_lanes;
     let simd_length = nb_simd * nb_lanes;
     //
-    let mut i = 0;
-    while i < simd_length {
+    for i in (0..va.len()).step_by(nb_lanes) {
         let a = u32x8::from_slice_unaligned(&va[i..]);
         let b = u32x8::from_slice_unaligned(&vb[i..]);
         let delta = u32x8::from_cast(a.ne(b)).min(v_1);
         dist_simd = dist_simd + delta;
-        i += nb_lanes;
     }
     // internal sum of lanes
     dist = dist + dist_simd.wrapping_sum();
@@ -489,13 +486,11 @@ fn distance_jaccard_u32_16_simd(va:&[u32], vb: &[u32]) -> u32 {
     let nb_simd = va.len()/ nb_lanes;
     let simd_length = nb_simd * nb_lanes;
     //
-    let mut i = 0;
-    while i < simd_length {
+    for i in (0..va.len()).step_by(nb_lanes) {
         let a = u32x16::from_slice_unaligned(&va[i..]);
         let b = u32x16::from_slice_unaligned(&vb[i..]);
         let delta = u32x16::from_cast(a.ne(b)).min(v_1);
         dist_simd = dist_simd + delta;
-        i += nb_lanes;
     }
     // internal sum of lanes
     dist = dist + dist_simd.wrapping_sum();
@@ -509,7 +504,8 @@ fn distance_jaccard_u32_16_simd(va:&[u32], vb: &[u32]) -> u32 {
 
 //==============================================================================
 
-mod test {
+#[cfg(test)]
+mod tests {
 
 #[allow(unused_imports)]
 use super::*;
@@ -563,11 +559,10 @@ use rand::distributions::{Distribution, Uniform};
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
 
-
-    #[cfg(parked_simd_2)]
+    #[cfg(packed_simd_2)]
     #[test]
     fn test_simd_jaccard_u32() {
-
+        println!("test_simd_jaccard_u32");
         let size_test = 500;
         let imax = 5;
         let mut rng = rand::thread_rng();
@@ -587,6 +582,7 @@ use rand::distributions::{Distribution, Uniform};
                 std::process::exit(1);
             }
             assert_eq!(easy_dist, simd_dist, "i = {:?}", i);
+            assert_eq!(1,0);
         }
 
     }  // end of test test_simd_jaccard_i32
