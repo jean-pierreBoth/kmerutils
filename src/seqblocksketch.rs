@@ -76,7 +76,7 @@ impl BlockSketched {
 
 
 
-/// For each i, skectch[i] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
+/// For each i, skectch\[i\] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
 /// As BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec<BlockSketched>
 /// to send it do Distance
 pub struct BlockSketchedSeq {

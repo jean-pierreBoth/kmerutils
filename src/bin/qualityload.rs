@@ -34,8 +34,7 @@ use ::std::mem;
 
 
 // our modules
-use kmerutils::quality::*;
-use kmerutils::qserverclient::*;
+use kmerutils::quality::{quality::*, qserverclient::*};
 
 
 lazy_static! {

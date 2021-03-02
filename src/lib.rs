@@ -13,17 +13,13 @@ pub mod base;
 
 pub mod statutils;
 pub mod io;
-pub mod quality;
 pub mod parsearg;
 
 
-// quality client-sever stuff
-
-pub mod qualclient;
-pub mod qserverclient;
+// quality stuff
+pub mod quality;
 
 // hashing stuff
-
 pub mod minhash;
 pub mod nohasher;
 pub mod mininvhashkmer;

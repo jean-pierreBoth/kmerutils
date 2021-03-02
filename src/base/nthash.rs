@@ -74,8 +74,8 @@ pub const BASE_MAPPING_8B: [u64;112] = [
 
 
 
-/// This function takes as arg a kmer size, an initial hval of kmer in hashed[0]
-/// and computes more hash val in hashes[1..hashed_len]
+/// This function takes as arg a kmer size, an initial hval of kmer in hashed\[0\]
+/// and computes more hash val in hashes\[1..hashed_len\]
 /// it is part of nthash but could be used with inversible hash
 
 #[inline(always)]

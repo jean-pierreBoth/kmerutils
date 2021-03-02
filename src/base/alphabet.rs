@@ -1,5 +1,5 @@
 //! This module describes encoding of bases in 4 or 2 bits. 
-//! Alphabet2b is used for compressing see [`kmer::CompressedKmerT`]
+//! Alphabet2b is used for compressing see [`super::kmer::CompressedKmerT`]
 //! It provides compressing/decompressing utilities and iterator over a compressed sequence
 //! of base
 

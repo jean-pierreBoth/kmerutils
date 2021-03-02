@@ -23,8 +23,7 @@ use rand::{Rng,thread_rng};
 
 // our mod
 
-use crate::quality::*;
-use crate::qserverclient::*;
+use crate::quality::{quality::*, qserverclient::*};
 
 
 const DEBUG : u64 = 0;

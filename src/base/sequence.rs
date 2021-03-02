@@ -1,4 +1,5 @@
-
+//! Describes a sequence and its associated compression/decompression schemes, iteration
+//! and basic operations as reverse_complement.
 
 pub use super::alphabet::*;
 
@@ -15,7 +16,7 @@ pub use super::alphabet::*;
 pub struct Sequence {
     seq : Vec<u8>,
     /// first byte in description is nb_bits by base (2 or 4 or 8 depending on compression used, 8 means no compression) ,
-    /// second byte in description is number of bases in last byte if last byte is incomplete. So description[1] == 0
+    /// second byte in description is number of bases in last byte if last byte is incomplete. So description\[1\] == 0
     /// means all bytes are complete!!
     description : [u8;2],
 }

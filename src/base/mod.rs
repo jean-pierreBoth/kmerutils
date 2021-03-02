@@ -1,4 +1,4 @@
-//! Contains basic tools to describe sequences, generate and count Kmers
+//! Contains basic tools to describe sequences, kmers , generate and count Kmers
 
 
 // textual scope of macro (without macro_export in which case global crate visibility)
