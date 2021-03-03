@@ -1,4 +1,4 @@
-//! This module implementes original minhash algorithm and is highly inspired by the finch module.
+//! This module implements original minhash algorithm and is highly inspired by the finch module.
 //! The implementation is more generic as it was designed to hash various type of compressed Kmers or 
 //! in fact any type T that satisfies Hash+Clone+Copy
 //! Moreover it can just computes Jaccard estimate or keep track of objects hashed.
@@ -17,8 +17,6 @@
 
 
 
-#[allow(unused_imports)]
-use probminhash::invhash;
 
 #[allow(unused_imports)]
 use log::{debug, trace};
@@ -45,7 +43,7 @@ pub type ItemHash = u64;
 
 /// A HashedItem is a hashed item and possibly the associated object (of type T) if
 /// we want to keep track of objects contributiong to minhash signature.
-/// This can be useful in genomics. Note that using invertible hash if objects hashes 
+/// Note that using invertible hash if objects hashes 
 /// are stored in a u32 or a u64 (as in some Kmer representation) we can retrive objects
 /// from hashed value. (See module invhash)
 #[derive(Debug,Clone,Copy)]
@@ -205,7 +203,7 @@ impl <T:Hash + Clone + Copy + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
 
 
 
-/// compute different distances from sketch. What do we do of counts?
+/// compute different distances from sketch.
 pub fn minhash_distance<T:Hash+Clone+Copy>(sketch1: &Vec<HashCount<T> >, sketch2: &Vec<HashCount<T> >) ->  MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;
@@ -270,7 +268,6 @@ mod tests {
     #[allow(unused_imports)]
     use crate::nohasher::NoHashHasher;
 
-    #[allow(dead_code)]
     fn log_init() {
         let _ = env_logger::builder().is_test(true).try_init();
     }

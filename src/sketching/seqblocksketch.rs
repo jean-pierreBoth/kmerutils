@@ -1,6 +1,6 @@
-//! This file split a sequence in blocks and sketch each block.I t is then possible to compute 
-//! Jaccard Probability Distance between blocks.
-//! This module is adaptef to long reads with variable length.
+//! This file split a sequence in blocks and sketch each block. It is then possible to compute 
+//! Jaccard Probability Distance between blocks.  
+//! This module is adapted to long reads with variable length.
 //! 
 
 
@@ -41,7 +41,7 @@ const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
 
 
-/// a block will cover kmer beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks
+/// a block will kmers beginning in [i*blockSize : (i+1)*blocksize] so se have some kmers in common between adjacent blocks.  
 /// The type do not implement Copy. So we must take care of using references to avoid cloning
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockSketched {
@@ -77,8 +77,8 @@ impl BlockSketched {
 
 
 /// For each i, skectch\[i\] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
-/// As BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec<BlockSketched>
-/// to send it do Distance
+/// as BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec<BlockSketched>
+/// to send it to Distance
 pub struct BlockSketchedSeq {
     numseq : usize, 
     pub sketch : Vec<Vec<BlockSketched>>,
@@ -396,10 +396,10 @@ impl SigBlockSketchFileReader {
 //  Distance between Blocks
 // ==================================================================================
 
-/// Define a distance between BlockSketched.
+/// Defines a distance between BlockSketched with value in \[0-1\]
 /// 
-/// It is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.
-/// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1 as required by Hnsw interface
+/// Its value is 1. if the blocks comes from the same sequence and a jaccard distance computed by probminhash in the other case.  
+/// Point in hnsw_rs will have as data a slice [BlockSketched] of length 1 as required by Hnsw interface.
 // This way we emulate an eval function which could have been  eval(&Obj1, &Obj2) ...
 #[derive(Default)]
 pub struct DistBlockSketched {

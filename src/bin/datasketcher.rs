@@ -1,17 +1,18 @@
-//! a tool to sketch sequences of a data file
+//! a tool to sketch sequences of a data file.  
 //! The algorithm used for sketching are probminhash3a and probminhash2
-//! usage datasketcher -f fastqfile -s sketch_size  -k kmer_size  -d dumpname
+//! usage :  
+//!    datasketcher -f fastqfile -s sketch_size  -k kmer_size ... 
 //! - -s  sketch_size gives the size of signature to use for each sequence.
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
 //! - -k kmer_size gives the size of kmer to use 
 //! - -b block_size (--block) to do a sketch of sequence by blocks of size block_size
+//! - -d  dumpname
 //! - ann to get hnsw embedding
 //!     - nb (-n) for number of neighbours desired for future use
 //!    
 //! The format of signature dump file is documented in modules seqblocksketch and seqsketchjaccard 
 //!
 
-#[allow(unused_imports)]
 use log::*;
 #[allow(unused_imports)]
 use log::Level::{Debug,Trace, Info};
@@ -26,8 +27,8 @@ use std::io::prelude::*;
 
 
 use kmerutils::base::{sequence::*, kmergenerator::*};
-use kmerutils::seqsketchjaccard;
-use kmerutils::seqblocksketch::{BlockSeqSketcher, BlockSketched, DistBlockSketched};
+use kmerutils::sketching::*;
+use kmerutils::sketching::seqblocksketch::{BlockSeqSketcher, BlockSketched, DistBlockSketched};
 
 use needletail::FastxReader;
 

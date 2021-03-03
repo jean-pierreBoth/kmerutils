@@ -1,6 +1,5 @@
-//! This module computes sketches of (part of) sequences via superminhash or minhash
-//! of adjacent blocks in read sequences
-//! See also jaccardweight module
+//! This module computes sketches of sequences or some range in sequences via superminhash or minhash
+//!   
 
 use std::ops::Range;
 use std::hash::{BuildHasherDefault};

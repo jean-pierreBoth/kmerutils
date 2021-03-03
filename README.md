@@ -17,7 +17,7 @@ of bases and qualities.
 
 ## Kmer Compression and Counting
 
-The bases are encoded on 2 bits.  
+The bases are presently encoded on 2 bits.  
 Kmer can be stored 32-bit or 64-bit words thus providing compressed representation up to 32 bases with the 2-bit alphabet.  
 Kmer and compressed Kmer are represented respectively by trait *KmerT* and *CompressedKmerT*.
 A kmer is identified with its reverse complement in the counting methods.  
@@ -25,7 +25,6 @@ A kmer is identified with its reverse complement in the counting methods.
 Kmer counting is multi-threaded and filters unique kmer in a cuckoo filter to spare memory.
 Unique kmers are dumped in a separate file with the coordinates (sequence and position in sequence).
 Multiple kmers, stored in a Bloom filter, are dumped in another file with their multiplicity. See module *kmercount*
-
 
 ## Hashing and Sketching of data
 

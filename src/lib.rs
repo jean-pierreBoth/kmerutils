@@ -24,14 +24,12 @@ pub mod minhash;
 pub mod nohasher;
 pub mod mininvhashkmer;
 
-
-pub mod seqminhash;
+// sketching methods
+pub mod sketching;
 
 // kmer stuff
 
 
-pub mod seqsketchjaccard;
-pub mod seqblocksketch;
 // contig generation
 
 pub mod anchor;

@@ -220,7 +220,7 @@ impl <T:CompressedKmerT ,  H : Hasher+Default> MinInvHashCountKmer<T, H> {
 
 /// compute different distances from sketch.
 /// The arguments are supposed to come from get_sketchcount method that returns sorted (!!!) InvHashCountKmer
-/// What do we do of counts? See ProbMinHash
+// What do we do of counts? See ProbMinHash
 pub fn minhash_distance<T:CompressedKmerT>(sketch1: &Vec<InvHashCountKmer<T> >, sketch2: &Vec<InvHashCountKmer<T> >) ->  MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;
@@ -283,7 +283,6 @@ mod tests {
     use env_logger;
 
     // initialize once log system for tests.
-#[allow(dead_code)]
     fn init_log_test() {
         // we do not call unwrap as it is an error to init twice and possibly some one else initialized it
         let _ = env_logger::builder().is_test(true).try_init();

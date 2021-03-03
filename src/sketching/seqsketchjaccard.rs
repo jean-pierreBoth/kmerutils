@@ -1,6 +1,7 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
-//! It is adapted to short read sequences, for long read it is necessary to split sequences into blocks, see module seqblcoksketch.
+//! It is adapted to short read sequences.   
+//! For long read it is necessary to split sequences into blocks, see module seqbloocksketch.
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
 //! and a jaccard index between sequences is computed.
@@ -10,11 +11,9 @@
 //! 
 //! 
 
-//#![allow(dead_code)]
 
 
 
-#[allow(unused_imports)]
 use log::*;
 
 use std::io;
@@ -89,7 +88,7 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 }  // end of compute_probminhash_jaccard
 
 
-
+/// This structure describes the kmer size used in computing sketches and the number of sketch we want.
 pub struct SeqSketcher {
     kmer_size : usize,
     sketch_size : usize
