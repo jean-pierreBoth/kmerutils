@@ -3,9 +3,12 @@
 
 use std::ops::Range;
 use std::hash::{BuildHasherDefault};
-use crate::base::{kmer::*, kmergenerator::*};
 
-use crate::minhash::*;
+use crate::base::{kmer::*, kmergenerator::*};
+use crate::hashed::*;
+
+#[allow(unused_imports)]
+use crate::minhash::{MinHashCount, MinHashDist, minhash_distance};
 use probminhash::invhash;
 use probminhash::superminhasher::*;
 

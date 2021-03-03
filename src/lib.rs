@@ -6,7 +6,7 @@ extern crate lazy_static;
 
 
 
-// basic stuff
+// basic stuff bases definitions, kmer , kmer generation sequences,
 pub mod base;
 
 
@@ -20,14 +20,13 @@ pub mod parsearg;
 pub mod quality;
 
 // hashing stuff
+
+pub mod hashed;
 pub mod minhash;
 pub mod nohasher;
-pub mod mininvhashkmer;
 
 // sketching methods
 pub mod sketching;
-
-// kmer stuff
 
 
 // contig generation
@@ -35,7 +34,6 @@ pub mod sketching;
 pub mod anchor;
 pub mod redisbase;
 
-//pub mod sketchio;
 
 pub mod prelude;
 

@@ -17,12 +17,15 @@ use std::str;
 use std::cmp;
 
 use fnv::FnvHasher;
+use std::hash::{Hash};
 
 pub use crate::redisbase::*;
 
 use crate::base::{sequence::*, kmer::*, kmergenerator::*};
 
-use crate::mininvhashkmer::*;
+use crate::hashed::*;
+
+use crate::minhash::*;
 
 
 /// General parameters of anchor generation
@@ -86,13 +89,13 @@ pub struct SliceAnchor<T:CompressedKmerT> {
     // beginning of slice in read
     slicepos:u32,
     //
-    minhash:Vec<InvHashCountKmer<T>>
+    minhash:Vec<InvHashCount<T>>
 }
 
 
 // readnum, slicepos will be keys in DB.
 impl <T:CompressedKmerT> SliceAnchor<T> {
-    pub fn new(params : &Rc<AnchorsGeneratorParameters> , readnum:u32, slicepos:u32, minhash:Vec<InvHashCountKmer<T>>) -> Self {
+    pub fn new(params : &Rc<AnchorsGeneratorParameters> , readnum:u32, slicepos:u32, minhash:Vec<InvHashCount<T>>) -> Self {
         SliceAnchor {
             params:params.clone(),
             readnum:readnum,
@@ -182,14 +185,14 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
 
 // a function togenerate a SliceAnchor<T> from SliceAnchorKeyRedis sent to redis  and SliceAnchorValueRedis got from request.
 
-pub fn create_sliceanchor_from_redis_key_value<T:CompressedKmerT>(params : &Rc<AnchorsGeneratorParameters>,
+pub fn create_sliceanchor_from_redis_key_value<T:CompressedKmerT+Hash>(params : &Rc<AnchorsGeneratorParameters>,
                                                                   key: &SliceAnchorKeyRedis,
                                                                   value: &SliceAnchorValueRedis) -> SliceAnchor<T> {
     //  allocate minhash
-    let mut minhash:Vec<InvHashCountKmer<T>> = Vec::with_capacity(value.hk_count.len());
+    let mut minhash:Vec<InvHashCount<T>> = Vec::with_capacity(value.hk_count.len());
     for i in 0..value.hk_count.len() {
-        let invhash = InvHashedKmer::<T>::new(value.hk_count[i].0);
-        let v = InvHashCountKmer::new(invhash, value.hk_count[i].1);
+        let invhash = InvHashedItem::<T>::new(value.hk_count[i].0);
+        let v = InvHashCount::new(invhash, value.hk_count[i].1);
         minhash.push(v);
     }
     SliceAnchor::new(params, key.readnum, key.slicepos, minhash)
@@ -219,7 +222,7 @@ pub fn gen_anchor_mininvhash<T:CompressedKmerT>(params: &Rc<AnchorsGeneratorPara
         let kmers : Vec<T>  = kmer_generator.generate_kmer_pattern_in_range(seq, beg, end);
         let mut minhash_a : MinInvHashCountKmer<T, FnvHasher>= MinInvHashCountKmer::new(nbkmer);
         minhash_a.sketch_kmer_slice(&kmers);
-        // returns a Vec<InvHashCountKmer<T> > ... type inference let us forget what we talk about.
+        // returns a Vec<InvHashCount<T> > ... type inference let us forget what we talk about.
         let hashcount = minhash_a.get_sketchcount();
         return Some(SliceAnchor::<T>::new(&params, readnum as u32, slicepos as u32, hashcount));
     }
