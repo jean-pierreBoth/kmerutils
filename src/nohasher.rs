@@ -1,5 +1,6 @@
 //! This provides a struct implementing Hasher trait
-//! for u64 hashed values and doing nothing
+//! for u64 hashed values and doing nothing.  
+//! It was taken from the finch crate
 //! to use for example in counting structures when we
 //! manipulate already hashed values!
 

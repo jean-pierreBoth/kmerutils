@@ -1,4 +1,4 @@
-//! This module contains computation of some statistics on base distribution, and read length distribution.
+//! This module computes basic statistics on base distribution, and read length distribution.
 
 // It gathers some heuristics on how to pairs blocks of read before going to sketching
 

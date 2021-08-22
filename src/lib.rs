@@ -22,7 +22,6 @@ pub mod quality;
 // hashing stuff
 
 pub mod hashed;
-pub mod minhash;
 pub mod nohasher;
 
 // sketching methods

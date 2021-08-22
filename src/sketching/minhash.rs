@@ -1,6 +1,7 @@
 //! This module implements original minhash algorithm and is highly inspired by the finch module.
-//! The implementation is more generic as it was designed to hash various type of compressed Kmers or 
-//! in fact any type T that satisfies Hash+Clone+Copy
+//! The implementation is somewhat more generic as it was designed to hash various type of compressed Kmers or 
+//! in fact any type T that satisfies Hash+Clone+Copy.  
+//! It implements a variation in the case of Kmer hashed with inversible hash.  
 //! Moreover it can just computes Jaccard estimate or keep track of objects hashed.
 //! 
 

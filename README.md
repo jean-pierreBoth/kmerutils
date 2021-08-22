@@ -1,14 +1,14 @@
 # Some Kmer counting utilities
 
-This package (currently in development) provides the following tools :
+This package (**currently in development**) provides the following tools :
 
 * kmer counting tools.
 
-* Sketching of sequences with up to date sensitive hashing related to the **Probability Jaccard index** see the *jaccardweight* module.  
+* Sketching of sequences with up to date sensitive hashing see *module sketching*.  
 
 * A quality server.
   The binary executable *qualityloader* loads qualities from a Fastq file and runs as a server, answering
-  basic requests as returning a quality sequence of given seuqnce number , or a block of a sequence or simply the base at a given pos  in a sequence given its rank. This enables storing qualities on a different machine.
+  basic requests as returning a quality sequence of given sequence number , or a block of a sequence or simply the base at a given pos  in a sequence given its rank. This enables storing qualities on a different machine.
 
 * some basic statistics dumps  such as base distributions, read length distributions.
 
@@ -28,16 +28,16 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 ## Hashing and Sketching of data
 
-Similarity between sequences can be estimated by counting common Kmers (i.e by estimating a Jaccard index) between sequences.
+Similarity between sequences can be estimated by counting common Kmers between sequences with minhash, superminhash and the probability Jaccard Index.
 
-* Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Superminhash algorithm.  
+* Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Minhash or Superminhash algorithm.
 
 * A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
-Probminhash and superminhash are provided by the crate probminhash and are interfaced with kmer generation in module **jaccardweight.rs**.
+Probminhash (and Superminhash) are provided by the crate probminhash
 (Cf [probminhash](https://github.com/jean-pierreBoth/probminhash)).
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
-dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *jaccarweight* or *seqblocksketch*.  
+dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *seqsketchjaccard.rs* or *seqblocksketch*.  
 For example it takes 141s on a 4-i7 (2.7Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
 
 * The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
@@ -48,8 +48,6 @@ Some others standard tools such :
 * Nthash : This is a recursive hashing described in: **"ntHash: recursive nucleotide hashing"**  
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
-
-* Minhash : A generic Minhash implementation based on BinaryHeap and HashMap
 
 ## Some basic statistics on sequences
 

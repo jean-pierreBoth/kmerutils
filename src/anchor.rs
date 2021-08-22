@@ -24,8 +24,7 @@ pub use crate::redisbase::*;
 use crate::base::{sequence::*, kmer::*, kmergenerator::*};
 
 use crate::hashed::*;
-
-use crate::minhash::*;
+use crate::sketching::minhash::MinInvHashCountKmer;
 
 
 /// General parameters of anchor generation
