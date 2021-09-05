@@ -103,8 +103,16 @@ impl ReadBaseDistribution {
     pub fn ascii_dump_readlen_distribution(&self, name : &str) -> result::Result<(), io::Error> {
         //
         let nb_entries = self.readsizehisto.entries() as usize;
-        let maxlen = self.readsizehisto.maximum().unwrap() as usize;
-        println!("ascii_dump_readlen_distribution nb_entries {}  maxlen {}", nb_entries, maxlen);
+        let maxlen : usize;
+        match self.readsizehisto.maximum() {
+           Ok(maxlen_ok ) =>  { 
+                                maxlen = maxlen_ok as usize;
+                                println!("ascii_dump_readlen_distribution nb_entries {}  maxlen {}", nb_entries, maxlen);},
+           Err(str) => {    println!("error : {}", String::from(str)); 
+                            println!("Error : ascii_dump_readlen_distribution nb_entries {}", nb_entries);
+                            return Err(std::io::Error::new(std::io::ErrorKind::Other, "histogram error!"));
+                        }
+        };
         let nbslot = nb_entries / 100;
         //
         let mut readsize : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
