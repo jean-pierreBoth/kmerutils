@@ -113,6 +113,11 @@ impl ReadBaseDistribution {
                             return Err(std::io::Error::new(std::io::ErrorKind::Other, "histogram error!"));
                         }
         };
+        //
+        if nb_entries < 100 {
+            println!("Error : ascii_dump_readlen_distribution nb_entries too small : {}", nb_entries);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "histogram error!"));
+        }
         let nbslot = nb_entries / 100;
         //
         let mut readsize : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
@@ -158,6 +163,7 @@ impl ReadBaseDistribution {
 
     /// record read len in histogram keeping track of number of values outside histogram
     fn record_read_len(&mut self, sz : usize) -> () {
+        log::trace!("record_read_len sz : {}", sz);
         let res = self.readsizehisto.increment(sz as u64);
         if !res.is_ok() {
             self.histo_out += 1;
@@ -198,9 +204,8 @@ fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
 
 fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : usize) -> result::Result< Box<ReadBaseDistribution> , ()> {
     //
-    if cfg!(feature = "verbose_1") {
-        println!(" in get_base_count_by_slice len : {} ", seq_array.len());
-    }
+    log::trace!(" in get_base_count_by_slice len : {} ", seq_array.len());
+    //
     let start_t = time::Instant::now();
     // allocate a structure to store percentages, we want to cover an interval [0..100] so sz = 101
     let sz : usize = 101;
@@ -225,8 +230,8 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
     //
-    if cfg!(feature = "verbose_1") {
-        println!(" out  get_base_count_par_slice nb_bad : {} ", nb_bad);
+    if nb_bad > 0 {
+        log::trace!(" out  get_base_count_par_slice nb_bad : {} ", nb_bad);
     }
     //
     Ok(base_distribution)
@@ -242,20 +247,23 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
 /// Result is dumped in a file named : "bases.histo"
 pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec : usize) -> Option<Box<ReadBaseDistribution>> {
     //
+    log::info!(" in get_base_count_par");
     let nbthreads : usize = 2;
     let nb_cpus = num_cpus::get_physical();
-    println!(" in get_base_count_par,  number of cpus found : {} " , nb_cpus);
-    println!(" in get_base_count_par");
+    log::info!(" in get_base_count_par,  number of cpus found : {} " , nb_cpus);
     let start_t = time::Instant::now();
     //
-    // allocate nbthreads BaseDistribution. Do we need Cell or RefCell
-    
+    // allocate nbthreads BaseDistribution.
     let v_ref = &seq_array;   // Vec n implemente pas Copy mais Ref oui!
 
     let distrib_collector : Vec<result::Result< Box<ReadBaseDistribution> , () >  > = (0..nbthreads).into_par_iter().map(|i|  {
         let low = (v_ref.len() / nbthreads)  * i;
-        let up = (v_ref.len() / nbthreads)  * (i as usize + 1);
-        println!(" in get_base_count_par {} {} ", low , up);
+        let up = if i < nbthreads-1 {
+                (v_ref.len() / nbthreads)  * (i as usize + 1)}
+            else { 
+                v_ref.len()
+            };
+        log::trace!(" in get_base_count_par thread {} , low up {} {} ", i, low , up);
         let res: result::Result< Box<ReadBaseDistribution> , () > = get_base_count_by_slice(v_ref.get(low..up).unwrap(), maxreadlen , prec);
         res
     }).collect();
@@ -280,6 +288,7 @@ pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec
     let elapsed_t = start_t.elapsed().whole_seconds();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
     // dump
+    log::info!("nb read outside max size for histogram {}", base_distribution.histo_out);
     base_distribution.ascii_dump_acgt_distribution(&String::from("bases.histo")).unwrap();
     //
     return Some(base_distribution);

@@ -30,11 +30,22 @@ use kmerutils::base::{kmercount::*, alphabet::get_ac_from_tg};
 use kmerutils::parsearg::*;
 use kmerutils::statutils::*;
 
+
+// for logging (debug mostly, switched at compile time in cargo.toml)
+use env_logger::{Builder};
+
+// install a logger facility
+fn init_log() -> u64 {
+    Builder::from_default_env().init();
+    println!("\n ************** initializing logger *****************\n");    
+    return 1;
+}
+
+
 fn main() {
     
-    if cfg!(verbose_1 = "1") {
-        println!(" appel main : ");
-    }
+    let _ = init_log();
+
 
     let mut parse_args: ParseFastqArgs = Default::default();
     let mut ret_times_args:ReturnTimesArgs = Default::default();
@@ -174,8 +185,9 @@ fn main() {
     }
     //
     println!("got nb read : {}  ", seqvec.len());
-    //
+    // for long read data a maxreadlen = 1000000 should be OK.
     let maxreadlen = 1000000;
+    log::info!("setting max read length for size histogram to : {}", maxreadlen);
     let prec = (maxreadlen as f64).log10() as usize;
     let base_distribution_res= get_base_count_par(&seqvec, maxreadlen, prec);
     match base_distribution_res {

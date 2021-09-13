@@ -1,14 +1,15 @@
 //! a tool to sketch sequences of a data file.  
 //! The algorithm used for sketching are probminhash3a and probminhash2
+//! 
 //! usage :  
 //!    datasketcher -f fastqfile -s sketch_size  -k kmer_size ... 
-//! - -s  sketch_size gives the size of signature to use for each sequence.
+//! -   -s  sketch_size gives the size of signature to use for each sequence.
 //!     it depends upon the size of sequence to sketch and the precision needed for further jaccard distance estimation
-//! - -k kmer_size gives the size of kmer to use 
-//! - -b block_size (--block) to do a sketch of sequence by blocks of size block_size
-//! - -d  dumpname
-//! - ann to get hnsw embedding
-//!     - nb (-n) for number of neighbours desired for future use
+//! -   -k kmer_size gives the size of kmer to use 
+//! -   -b block_size (--block) to do a sketch of sequence by blocks of size block_size, else the whole sequence is sketched in one pass
+//! -   -d  dumpname
+//! -   ann to get hnsw embedding
+//!         - nb (-n) for number of neighbours desired for future use
 //!    
 //! The format of signature dump file is documented in modules seqblocksketch and seqsketchjaccard 
 //!
@@ -16,8 +17,6 @@
 use log::*;
 #[allow(unused_imports)]
 use log::Level::{Debug,Trace, Info};
-#[allow(unused_imports)]
-use env_logger::{Builder};
 
 use clap::{App, Arg, SubCommand};
 use time::*;
@@ -55,7 +54,7 @@ fn init_log() -> u64 {
 
 fn main() {
 
-    init_log();
+    let _ = init_log();
     debug!("entering data sketcher, checking log trace");
 
     let matches = Box::new(App::new("datasketcher")       
@@ -235,6 +234,7 @@ fn main() {
     //
     let mut sigbuf;
     if !sketch_block {
+        log::info!("allocating whole sequence SeqSketcher");
         let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
         sigbuf = sketcher.create_signature_dump(&dumpfname);
     }

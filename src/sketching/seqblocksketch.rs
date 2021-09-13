@@ -37,6 +37,7 @@ use probminhash::probminhasher::*;
 use hnsw_rs::prelude::*;
 
 
+/// signature for dump of probminhash with sequences split in blocks
 const MAGIC_BLOCKSIG_DUMP : u32 = 0xceabbadd;
 
 
@@ -183,7 +184,7 @@ impl BlockSeqSketcher {
     /// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
     /// 
     /// Format of file is :
-    /// -  MAGIC_SIG_DUMP as u32
+    /// -  MAGIC_BLOCKSIG_DUMP as u32
     /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
     /// -  sketch_size  : length of vecteur dumped as u32
     /// -  kmer_size    : as u32
@@ -512,12 +513,11 @@ use super::*;
 #[allow(unused_imports)]
 use rand::distributions::{Distribution, Uniform};
 
-#[allow(dead_code)]
-    fn log_init_test() {
-        let mut builder = env_logger::Builder::from_default_env();
-        //    builder.filter_level(LevelFilter::Trace);
-        let _ = builder.is_test(true).try_init();
-    }
+fn log_init_test() {
+    let mut builder = env_logger::Builder::from_default_env();
+    //    builder.filter_level(LevelFilter::Trace);
+    let _ = builder.is_test(true).try_init();
+}
 
 
 #[test]
@@ -544,8 +544,8 @@ use rand::distributions::{Distribution, Uniform};
         let sketcha = sketcher.blocksketch_sequence(1, &seqa, &kmer_revcomp_hash_fn);
         let sketchb = sketcher.blocksketch_sequence(2, &seqb, &kmer_revcomp_hash_fn);
         // check number of blocks sketch obtained
-        println!("sketcha has number o blocks = {:?}",  sketcha.sketch.len());
-        println!("sketchb has number o blocks = {:?}",  sketchb.sketch.len());
+        println!("sketcha has number of blocks = {:?}",  sketcha.sketch.len());
+        println!("sketchb has number of blocks = {:?}",  sketchb.sketch.len());
         // check of distance computations
         let mydist = DistBlockSketched{};
         assert_eq!(mydist.eval(&sketcha.sketch[0], &sketcha.sketch[0]), 1.);
@@ -558,6 +558,7 @@ use rand::distributions::{Distribution, Uniform};
         println!("dist_2 = {:?}", dist_2);
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
+
 
     #[cfg(packed_simd_2)]
     #[test]

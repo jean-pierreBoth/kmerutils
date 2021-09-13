@@ -434,7 +434,7 @@ const MAGIC_SIG_DUMP : u32 = 0xceabeadd;
 
 // CAVEAT should go to serde/bson
 
-// dumps in an open write buffer a vector os signatures
+// dumps in an open write buffer a vector of signatures
 pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Write) -> io::Result<()> {
     for i in 0..signatures.len() {
         for j in 0..signatures[i].len() {
