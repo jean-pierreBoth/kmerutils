@@ -154,14 +154,14 @@ impl  Sequence {
                 for i in 0..nb_full_bytes {
                     alfa4b.base_unpack(self.seq[i], small_slice_ref);
                     //
-                    &seqvec[pos..(pos+2)].copy_from_slice(small_slice_ref);
+                    seqvec[pos..(pos+2)].copy_from_slice(small_slice_ref);
                     pos = pos+2;
                 }
                 // unpack last byte if necessary
                 if self.nb_bases_in_last_byte() > 0 {
                     alfa4b.base_unpack(self.seq[self.seq.len()-1], small_slice_ref);
                     // exactly one base to push
-                    &seqvec[pos..pos+1].copy_from_slice(&small_slice_ref[0..1]);
+                    seqvec[pos..pos+1].copy_from_slice(&small_slice_ref[0..1]);
                 }
             },
             // case 2 bit by base
@@ -179,7 +179,7 @@ impl  Sequence {
                 for i in 0..nb_full_bytes {
                     alfa2b.base_unpack(self.seq[i], small_slice_ref);
                     //
-                    &seqvec[pos..(pos+4)].copy_from_slice(small_slice_ref);
+                    seqvec[pos..(pos+4)].copy_from_slice(small_slice_ref);
                     pos = pos+4;
                 }
                 // unpack last byte if necessary
@@ -187,7 +187,7 @@ impl  Sequence {
                     alfa2b.base_unpack(self.seq[self.seq.len()-1], small_slice_ref);
                     // we have 1 2 or 3 bases more to push
                     let nb_bases = self.nb_bases_in_last_byte() as usize;
-                    &seqvec[pos..pos+nb_bases].copy_from_slice(&small_slice_ref[0..nb_bases]);
+                    seqvec[pos..pos+nb_bases].copy_from_slice(&small_slice_ref[0..nb_bases]);
                 }
             },
             // case no compression.
