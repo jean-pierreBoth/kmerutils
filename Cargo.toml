@@ -97,7 +97,7 @@ hnsw_rs =  {version = "0.1.13"}
 
 lazy_static = { version = "1.4"}
 
-redis = { version = "0.17.0"}
+redis = { version = "0.21.0"}
 # decreasing order of log for debug build : (max_level_)trace debug info warn error off
 # decreasing order of log for release build (release_max_level_)  .. idem
 #log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"] }
