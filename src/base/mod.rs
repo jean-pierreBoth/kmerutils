@@ -6,6 +6,10 @@
 #[macro_use]
 pub mod nthash;
 
+pub use sequence::*;
+pub use kmer::*;
+pub use alphabet::*;
+
 pub mod alphabet;
 pub mod sequence;
 pub mod kmer;
