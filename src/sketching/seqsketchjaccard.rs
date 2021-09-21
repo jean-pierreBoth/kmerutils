@@ -13,7 +13,6 @@
 
 
 
-
 use log::*;
 
 use std::io;
@@ -108,7 +107,7 @@ impl SeqSketcher {
     /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
     /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
     /// 
-    pub fn sketch_probminhash3a_kmer32bit<F>(&self, vseq : &Vec<Sequence>, fhash : F) -> Vec<Vec<u32> >
+    pub fn sketch_probminhash3a_kmer32bit<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<u32> >
         where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
@@ -131,7 +130,7 @@ impl SeqSketcher {
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
         let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
@@ -152,7 +151,7 @@ impl SeqSketcher {
     /// fhash is any hash function, but usually it is identity, invhash on kmer or on min of kmer and reverse complement.
     /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min)
     /// 
-    pub fn sketch_probminhash3_kmer32bit<F>(&self, vseq : &Vec<Sequence>, fhash : F) -> Vec<Vec<u32> >
+    pub fn sketch_probminhash3_kmer32bit<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<u32> >
         where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
@@ -175,7 +174,7 @@ impl SeqSketcher {
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(&vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
         let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {

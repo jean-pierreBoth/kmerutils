@@ -38,7 +38,7 @@ Probminhash (and Superminhash) are provided by the crate probminhash
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
 dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *seqsketchjaccard.rs* or *seqblocksketch*.  
-For example it takes 141s on a 4-i7 (2.7Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
+For example it takes 51s on a 8 (hyperthreaded i7 @2.3Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
 
 * The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
   See executable *datasketcher*in this crate and the crate *hnsw_rs*
