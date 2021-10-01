@@ -19,7 +19,7 @@ use log::*;
 use log::Level::{Debug,Trace, Info};
 
 use clap::{App, Arg, SubCommand};
-use time::*;
+use std::time::*;
 use ::std::process;
 use std::path::Path;
 use std::io::prelude::*;
@@ -310,7 +310,7 @@ fn main() {
     }  // end whole loop
     //
     sigbuf.flush().unwrap();
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" number of sequences loaded {} ", nbseq);
     println!(" elapsed time (s) in sketching [inserting in hnsw] data file {} ", elapsed_t);
 

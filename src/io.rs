@@ -3,8 +3,7 @@
 // for needletail
 
 
-extern crate time;
-use self::time::*;
+use std::time::*;
 
 use std::path::Path;
 
@@ -67,7 +66,7 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
     seq_array.shrink_to_fit();
     println!(" shrinked ");
     //
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in parse_with_needletail {} ", elapsed_t);
     //
     println!(" nb rec loaded = {} ", seq_array.len());

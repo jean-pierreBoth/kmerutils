@@ -543,7 +543,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
 // function to be called from any where
 pub fn generate_all_kmer16b32bit(seqvec : &Vec<Sequence>) {
     println!(" in generating kmer ...");
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
 
     let mut nb_kmer : u64 = 0;
     
@@ -552,7 +552,7 @@ pub fn generate_all_kmer16b32bit(seqvec : &Vec<Sequence>) {
         nb_kmer += vkmer.len() as u64;
     }
     
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in kmer generation {} ", elapsed_t);
     println!(" nb kmer generated {}", nb_kmer);
 }
@@ -560,7 +560,7 @@ pub fn generate_all_kmer16b32bit(seqvec : &Vec<Sequence>) {
 
 pub fn generate_all_kmer32bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
     println!(" in generating kmer ...");
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
 
     let mut nb_kmer : u64 = 0;
     
@@ -569,7 +569,7 @@ pub fn generate_all_kmer32bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
         nb_kmer += vkmer.len() as u64;
     }
     
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in kmer generation {} ", elapsed_t);
     println!(" nb kmer generated {}", nb_kmer);
 }
@@ -577,7 +577,7 @@ pub fn generate_all_kmer32bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
 
 pub fn generate_all_kmer64bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
     println!(" in generating kmer ...");
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
 
     let mut nb_kmer : u64 = 0;
     
@@ -586,7 +586,7 @@ pub fn generate_all_kmer64bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
         nb_kmer += vkmer.len() as u64;
     }
     
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in kmer generation {} ", elapsed_t);
     println!(" nb kmer generated {}", nb_kmer);
 }

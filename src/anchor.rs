@@ -389,7 +389,7 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
         let nb_bits:u8 = 2;
         let nb_bases = self.slice_params.get_kmer_size();
         let mut num_read = 0;
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
         while let Some(record) = reader.next() {
             let seqrec = record.expect("invalid record");
@@ -410,7 +410,7 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
             }
         }
         //
-        let elapsed_t = start_t.elapsed().whole_seconds();
+        let elapsed_t = start_t.elapsed().as_secs();
         println!(" elapsed time (s) in anchor computation/dump {} ", elapsed_t);
         //
         let _res = self.redis_bgrewriteaof();

@@ -16,7 +16,7 @@ use ::std::marker::PhantomData;
 
 use crossbeam_utils::thread::*;
 
-use time::*;
+use std::time::*;
 use ::cuckoofilter::*;
 use ::bloom::*;
 
@@ -286,7 +286,7 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
            KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>
 {
     println!(" in counting kmer ...");
-    let start_t = Instant::now();
+    let start_t = SystemTime::now();
 
     let mut nb_kmer : u64 = 0;
     // rule of thumb could be seqvec.len() * 1000 for variable length read
@@ -310,7 +310,7 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
             println!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.cuckoo_f.len(), kmer_counter.nb_distinct, nb_kmer);
         }        
     }
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().unwrap().as_secs();
     println!(" elapsed time (s) in kmer32b counting {} ", elapsed_t);
     println!(" nb kmer generated {}", nb_kmer);
     //
@@ -468,7 +468,7 @@ impl<Kmer> KmerCounterPool<Kmer> {
     {
         //
         println!(" in KmerCounterPool::dump_kmer_counter, dump file : {} ", fname);
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         //
         let magic: u32  = COUNTER_MULTIPLE;
         // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
@@ -512,7 +512,7 @@ impl<Kmer> KmerCounterPool<Kmer> {
                 } // end test on new
             } // end of for on kmer
         } // end of for on seq
-        let elapsed_t = start_t.elapsed().whole_seconds();
+        let elapsed_t = start_t.elapsed().as_secs();
         println!("dump_kmer_counter, number of kmer dumped : {} number to dump {} ", nb_kmer_dumped, nb_kmer_to_dump);
         println!(" elapsed time (s) {} ", elapsed_t);
         //
@@ -638,7 +638,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
 {
     //
     println!(" threaded dump multiple kmer in file : {} ", fname);
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
     //
     let magic: u32  = COUNTER_MULTIPLE;
     // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
@@ -756,7 +756,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     } // end of closure in scope
     ).unwrap();  // end of scope
     //
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) {} ", elapsed_t);
     //
     Ok(1)
@@ -784,7 +784,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
     //
         
     let poolcounters :KmerCounterPool<Kmer> = crossbeam_utils::thread::scope(|scope| {
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
         for i in 0..nb_threads {
             let mut nbseq_i = 0;
@@ -826,7 +826,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             kmer_counters.push(Box::new(thread_counter));
             // transfer from thread_counter to kmer_counter
         }
-        let elapsed_t = start_t.elapsed().whole_seconds();
+        let elapsed_t = start_t.elapsed().as_secs();
         println!(" merging counters nb once kmer = {} nb distinct = {}", nb_unique, nb_distinct);           
         println!(" elapsed time (s) in threaded  counting scope {} ", elapsed_t);
         KmerCounterPool::new(kmer_counters)
@@ -869,7 +869,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         //
         let mut channels : Vec<RefCell< Sender<Kmer>  > >  = Vec::new();
         //
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
         // receptor threads
         for i in 0..nb_threads {
@@ -929,7 +929,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             kmer_counters.push(Box::new(thread_counter));
             // transfer from thread_counter to kmer_counter
         }
-        let elapsed_t = start_t.elapsed().whole_seconds();
+        let elapsed_t = start_t.elapsed().as_secs();
         println!(" merging counters nb once kmer = {} nb distinct = {}", nb_unique, nb_distinct);           
         println!(" elapsed time (s) in count_kmer_threaded_one_to_many  {} ", elapsed_t);
         KmerCounterPool::new(kmer_counters)
@@ -1053,7 +1053,7 @@ impl KmerFilter1 {
 /// a function for counting identifying unique kmers.
 pub fn filter1_kmer_16b32bit(seqvec : &Vec<Sequence>) -> KmerFilter1 {
    println!(" in filtering unique kmer ...");
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
 
     let mut nb_kmer : u64 = 0;
     let capacity = 1000_000_000;
@@ -1076,7 +1076,7 @@ pub fn filter1_kmer_16b32bit(seqvec : &Vec<Sequence>) -> KmerFilter1 {
            println!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.once_f.len(), kmer_counter.all_f.len() , nb_kmer);
         }        
     }
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in filter1_kmer_32b counting {} ", elapsed_t);
     println!(" nb kmer generated {}", nb_kmer);
     //
@@ -1171,7 +1171,7 @@ impl KmerCountReload {
     pub fn load_multiple_kmers_from_file(fname: &String) -> Option<Box<KmerCountReload> >  {
         //
         info!(" in  KmerCountReload::load_multiple_kmers");
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         //
         let file_r = OpenOptions::new().read(true).open(&fname);
         let file;
@@ -1268,7 +1268,7 @@ impl KmerCountReload {
                         // can check order of magnitude of kmer read
                         println!("KmerCountReload::load_multiple_kmers_from_file , EOF encountered");
                         println!(" nb kmer declared in file {} , nb loaded {}", nb_kmer, nb_kmer_read);  
-                        let elapsed_t = start_t.elapsed().whole_seconds();
+                        let elapsed_t = start_t.elapsed().as_secs();
                         println!(" elapsed time (s) in KmerCountReload:: {} ", elapsed_t);
                         return Some(Box::new(kmer_count));
                     }
@@ -1319,7 +1319,7 @@ impl KmerCountReload {
         //
         info!(" in  KmerCountReload::load_unique_kmer_from_file {} ", fname);
         println!(" in  KmerCountReload::load_unique_kmer_from_file");
-        let start_t = time::Instant::now();
+        let start_t = std::time::Instant::now();
         //
         let file_r = OpenOptions::new().read(true).open(&fname);
         let file;
@@ -1426,7 +1426,7 @@ impl KmerCountReload {
            kmer_count.insert_kmer_pos(kmer, numseq, kmerpos);
         }
         //
-        let elapsed_t = start_t.elapsed().whole_seconds();
+        let elapsed_t = start_t.elapsed().as_secs();
         println!(" elapsed time (s) in KmerCountReload::load_from_file {} ", elapsed_t);
         println!(" nb kmer loaded {}", nb_kmer);
         //

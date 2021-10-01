@@ -180,7 +180,7 @@ impl ReadBaseDistribution {
 fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     //
     println!(" in get_base_count");
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
     //
     let prec = (maxreadlen as f64).log10() as usize;
     let v_ref = &seq_array;
@@ -189,7 +189,7 @@ fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     let mut base_distribution = get_base_count_by_slice(v_ref.get(low..up).unwrap(), maxreadlen, prec).unwrap();       
     (*base_distribution).acgt_distribution *= 1./(seq_array.len() as f64);
     //
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
     //
     base_distribution.ascii_dump_acgt_distribution(&String::from("bases.histo-1thread")).unwrap();
@@ -206,7 +206,7 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
     //
     log::trace!(" in get_base_count_by_slice len : {} ", seq_array.len());
     //
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
     // allocate a structure to store percentages, we want to cover an interval [0..100] so sz = 101
     let sz : usize = 101;
 
@@ -227,7 +227,7 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
     }
     (*base_distribution).non_acgt = nb_bad as usize;
     //
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
     //
     if nb_bad > 0 {
@@ -251,7 +251,7 @@ pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec
     let nbthreads : usize = 2;
     let nb_cpus = num_cpus::get_physical();
     log::info!(" in get_base_count_par,  number of cpus found : {} " , nb_cpus);
-    let start_t = time::Instant::now();
+    let start_t = std::time::Instant::now();
     //
     // allocate nbthreads BaseDistribution.
     let v_ref = &seq_array;   // Vec n implemente pas Copy mais Ref oui!
@@ -285,7 +285,7 @@ pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec
     } // end of for on distrib_collector
     base_distribution.acgt_distribution *= 1./(seq_array.len() as f64);
     //
-    let elapsed_t = start_t.elapsed().whole_seconds();
+    let elapsed_t = start_t.elapsed().as_secs();
     println!(" elapsed time (s) in get_base_count {} ", elapsed_t);
     // dump
     log::info!("nb read outside max size for histogram {}", base_distribution.histo_out);
