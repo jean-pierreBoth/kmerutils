@@ -190,13 +190,16 @@ impl<'a>  KmerSeqIterator<'a, Kmer64bit> {
 
 /// overload Kmer generation as in Rust Week 225
 /// We define a generic trait defining a pattern for target type of kmer generation
-
+/// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.
+///       The Kmer must have an encoding larger than the one used in the sequence encoding! 
+///       A panic is provoked in other cases!!
+/// 
 pub trait KmerGenerationPattern<T:KmerT> {
     /// generate all kmers included in 0..
     fn generate_kmer_pattern(&self, seq : & Sequence) -> Vec<T>;
     /// generate all kmers inclused in begin..end with end excluded as in rust conventions.
     fn generate_kmer_pattern_in_range(&self, seq : & Sequence, begin:usize, end:usize) -> Vec<T>;   
-    ///
+    /// generate kmers with their multiplicities
     fn generate_kmer_distribution(&self, seq : & Sequence) -> Vec<(T,usize)>;
 }
 
@@ -212,6 +215,9 @@ pub trait KmerGenerationPattern<T:KmerT> {
 ///
 ///  ``` let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new::<Kmer16b32bit>(16).generate_kmer(&seq);```
 ///
+/// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.
+///       The Kmer must have an encoding larger than the one used in the sequence encoding! 
+///       A panic is provoked in other cases!!
 
 
 use std::marker::PhantomData;
@@ -254,6 +260,9 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
@@ -274,6 +283,9 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
     fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer16b32bit,usize)> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
+        }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
@@ -313,6 +325,9 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         if begin >= end {
             panic!("KmerGenerationPattern<'a, Kmer16b32bit>  bad range for kmer iteration");
         }
@@ -345,6 +360,9 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer16b32bit has less than 14 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
@@ -367,6 +385,9 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
     fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer32bit,usize)> {
         if self.kmer_size > 14u8 {
             panic!("Kmer32bit has more than 14 bases!!");
+        }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
@@ -408,6 +429,9 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer16b32bit has less than 14 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         //
         if end <= begin {
             panic!("KmerGenerationPattern<'a, Kmer32bit>:generate_kmer_pattern_in_range incoherent range");
@@ -445,6 +469,9 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
@@ -467,6 +494,9 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
     fn generate_kmer_distribution(&self, seq : &Sequence) -> Vec<(Kmer64bit,usize)> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
+        }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
@@ -513,6 +543,9 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
         }
+        if seq.get_alphabet().get_nb_bits() != 2 {
+            panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
+        }
         if end <= begin {
             panic!("KmerGenerationPattern<'a, Kmer64bit>:generate_kmer_pattern_in_range incoherent range");
         }
@@ -542,6 +575,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
 
 // function to be called from any where
 pub fn generate_all_kmer16b32bit(seqvec : &Vec<Sequence>) {
+    //
     println!(" in generating kmer ...");
     let start_t = std::time::Instant::now();
 
