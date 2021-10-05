@@ -740,7 +740,7 @@ mod tests {
     // test generation of kmer of size 11
     #[test]
     fn test_gen_kmer32bit_50bases() {
-        // got a string of 60 bases , genrate 11 Kmers, we shoud have 49 Kmers OK
+        // got a string of 50 bases , genrate 11 Kmers, we shoud have 40 Kmers OK
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGC");
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
@@ -771,11 +771,45 @@ mod tests {
     }  // end of test_gen_kmer
 
 
+/* test_generate_weighted_kmer32bit should output the following with --nocapture
+    kmer [84, 67, 65]  TCA ,   weight 4
+    kmer [67, 65, 65]  CAA ,   weight 2
+    kmer [65, 65, 65]  AAA ,   weight 4
+    kmer [65, 65, 71]  AAG ,   weight 1
+    kmer [65, 71, 71]  AGG ,   weight 1
+    kmer [71, 71, 71]  GGG ,   weight 1
+    kmer [71, 71, 65]  GGA ,   weight 1
+    kmer [71, 65, 65]  GAA ,   weight 1
+    kmer [65, 65, 67]  AAC ,   weight 1
+    kmer [65, 67, 65]  ACA ,   weight 1
+    kmer [67, 65, 84]  CAT ,   weight 1
+    kmer [65, 84, 84]  ATT ,   weight 2
+    kmer [84, 84, 67]  TTC ,   weight 2
+    kmer [65, 65, 84]  AAT ,   weight 1
+    kmer [65, 84, 67]  ATC ,   weight 1
+    kmer [67, 65, 71]  CAG ,   weight 2
+    kmer [65, 71, 84]  AGT ,   weight 2
+    kmer [71, 84, 65]  GTA ,   weight 2
+    kmer [84, 65, 84]  TAT ,   weight 2
+    kmer [65, 84, 71]  ATG ,   weight 1
+    kmer [84, 71, 67]  TGC ,   weight 1
+    kmer [71, 67, 71]  GCG ,   weight 1
+    kmer [67, 71, 67]  CGC ,   weight 1
+    kmer [71, 67, 67]  GCC ,   weight 1
+    kmer [67, 67, 67]  CCC ,   weight 1
+    kmer [67, 67, 71]  CCG ,   weight 1
+    kmer [67, 71, 84]  CGT ,   weight 2
+    kmer [71, 84, 84]  GTT ,   weight 2
+    kmer [84, 84, 65]  TTA ,   weight 1
+    kmer [84, 65, 67]  TAC ,   weight 1
+    kmer [65, 67, 71]  ACG ,   weight 1
+*/
+
     #[test]
     fn test_generate_weighted_kmer32bit() {
         //
         log_init();
-        // got a string of 80 bases shoud have 66 Kmers OK
+        // got a string of 48 bases shoud have 66 Kmers OK
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATT");
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();

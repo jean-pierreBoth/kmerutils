@@ -299,7 +299,7 @@ impl KmerT for Kmer32bit {
         // Note that the left shift pushes garbage bit between 4 upper bits and lower bits coding value.
         // We are cautious to clean them by using value_mask which reset those bit to 0!
         // It is useful when implementing PartialEq and compressed value 
-        // We could use as a mask for value field : (0b1 << (2*self.get_nb_bases())) - 1 which enforce 0 bit between 4 upper bits
+        // We use a mask for value field : (0b1 << (2*self.get_nb_bases())) - 1 which enforce 0 bit between 4 upper bits
         // and lower bits coding value.
         let value_mask :u32 = (0b1 << (2*self.get_nb_base())) - 1;
         let mut new_kmer = ((self.0 << 2) & value_mask) | (base as u32 & 0b11);

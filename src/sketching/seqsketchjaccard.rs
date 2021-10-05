@@ -16,15 +16,17 @@
 use log::*;
 
 use std::io;
-use std::io::{Write,Read};
-use std::io::{ErrorKind};
+use std::io::{Write,Read,ErrorKind, BufReader, BufWriter };
 
 use std::fs;
 use std::fs::OpenOptions;
 use std::fmt::{Debug};
+use std::path::{Path, PathBuf};
 
-#[allow(unused_imports)]
-use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
+use serde::{Deserialize, Serialize};
+use serde_json::{to_writer};
+
+use std::hash::{Hasher, Hash};
 use indexmap::{IndexMap};
 use fnv::{FnvBuildHasher};
 
@@ -88,6 +90,7 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 
 
 /// This structure describes the kmer size used in computing sketches and the number of sketch we want.
+#[derive(Serialize,Deserialize)]
 pub struct SeqSketcher {
     kmer_size : usize,
     sketch_size : usize
@@ -99,6 +102,59 @@ impl SeqSketcher {
     pub fn new(kmer_size: usize, sketch_size : usize) -> Self {
         SeqSketcher{kmer_size, sketch_size}
     }
+
+    /// returns kmer size
+    pub fn get_kmer_size(&self) -> usize {
+        self.kmer_size
+    }
+
+    /// return sketch size
+    pub fn get_sketch_size(&self) -> usize {
+        self.sketch_size
+    }  
+    
+    /// serialized dump
+    pub fn dump_json(&self, filename : &String) -> Result<(), String> {
+        //
+        let filepath = PathBuf::from(filename.clone());
+        //
+        log::info!("dumping sketching parameters in json file : {}", filename);
+        //
+        let fileres = OpenOptions::new().write(true).create(true).truncate(true).open(&filepath);
+        if fileres.is_err() {
+            log::error!("SeqSketcher dump : dump could not open file {:?}", filepath.as_os_str());
+            println!("SeqSketcher dump: could not open file {:?}", filepath.as_os_str());
+            return Err("SeqSketcher dump failed".to_string());
+        }
+        // 
+        let mut writer = BufWriter::new(fileres.unwrap());
+        let _ = to_writer(&mut writer, &self).unwrap();
+        //
+        Ok(())
+    } // end of dump
+
+
+    /// reload from a json dump
+    pub fn reload_json(dirpath : &Path) -> Result<SeqSketcher, String> {
+        log::info!("in reload_json");
+        //
+        let filepath = dirpath.join("sketchparams_dump.json");
+        let fileres = OpenOptions::new().read(true).open(&filepath);
+        if fileres.is_err() {
+            log::error!("Sketcher reload_json : reload could not open file {:?}", filepath.as_os_str());
+            println!("Sketcher reload_json: could not open file {:?}", filepath.as_os_str());
+            return Err("Sketcher reload_json could not open file".to_string());            
+        }
+        //
+        let loadfile = fileres.unwrap();
+        let reader = BufReader::new(loadfile);
+        let sketch_params:SeqSketcher = serde_json::from_reader(reader).unwrap();
+        //
+        log::info!("SeqSketcher reload, kmer_size : {}, sketch_size : {}", 
+            sketch_params.get_kmer_size(), sketch_params.get_sketch_size());     
+        //
+        Ok(sketch_params)
+    } // end of reload_json
 
 
     /// This function computes and return signatures of a vector of sequences by generating kmers of size kmer_size. 
