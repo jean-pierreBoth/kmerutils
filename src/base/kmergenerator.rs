@@ -11,6 +11,15 @@ type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 pub use super::kmer::*;
 
+
+pub trait KmerSeqIteratorT {
+    /// Kmer32bit, Kmer16b32bit, Kmer64bit
+    type Val;
+    /// get next kmer or None
+    fn next(&mut self) -> Option<Self::Val>;
+}
+
+
 // This structure must take care of encoding conversions
 // as all Kmer must be 2 bits encoded
 // The generator takes as argument an iterator over a sequence.
@@ -56,9 +65,10 @@ impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
 
 
 
-impl<'a>  KmerSeqIterator<'a, Kmer16b32bit> {
+impl<'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer16b32bit> {
+    type Val = Kmer16b32bit;
     /// return next kmer if any.
-    pub fn next(&mut self) -> Option<Kmer16b32bit> {
+    fn next(&mut self) -> Option<Self::Val> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
@@ -95,9 +105,9 @@ impl<'a>  KmerSeqIterator<'a, Kmer16b32bit> {
 
 
 
-
-impl<'a>  KmerSeqIterator<'a, Kmer32bit> {
-    pub fn next(&mut self) -> Option<Kmer32bit> {
+impl <'a> KmerSeqIteratorT for KmerSeqIterator<'a, Kmer32bit> {
+    type Val = Kmer32bit;
+    fn next(&mut self) -> Option<Self::Val> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
@@ -139,10 +149,10 @@ impl<'a>  KmerSeqIterator<'a, Kmer32bit> {
 
 
 
-
-
-impl<'a>  KmerSeqIterator<'a, Kmer64bit> {
-    pub fn next(&mut self) -> Option<Kmer64bit> {
+impl <'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer64bit> {
+    type Val = Kmer64bit;
+    //
+    fn next(&mut self) -> Option<Self::Val> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
@@ -267,9 +277,9 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
         let mut kmer_vect = Vec::<Kmer16b32bit>::with_capacity(nb_kmer);
-        let mut kmeriter = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
+        let mut kmeriter  = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
         loop {
-            match kmeriter.next(){
+            match kmeriter.next() {
                 Some(kmer) => kmer_vect.push(kmer),
                 None => break,
             }

@@ -245,6 +245,84 @@ impl SeqSketcher {
     }  // end of sketchprobminhash3_kmer32bit
 
 
+    pub fn sketch_probminhash3_kmer16b32bit<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<u32> >
+    where F : Fn(&Kmer16b32bit) -> u32 + Send + Sync {
+    //
+    let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
+        let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+        let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size as u8, &seqb);
+        kmergen.set_range(0, seqb.size()).unwrap();
+        loop {
+            match kmergen.next() {
+                Some(kmer) => {
+                    let hashval = fhash(&kmer);
+                    *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                },
+                None => break,
+            }
+        }  // end loop 
+        let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
+        pminhashb.hash_weigthed_idxmap(&wb);
+        let sigb = pminhashb.get_signature();
+        // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+        return (i,sigb.clone());
+    };
+    //
+    let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+    // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+    let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
+    for _ in 0..vseq.len() {
+        jaccard_vec.push(Vec::new());
+    }
+    // CAVEAT , boxing would avoid the clone?
+    for i in 0..sig_with_rank.len() {
+        let slot = sig_with_rank[i].0;
+        jaccard_vec[slot] = sig_with_rank[i].1.clone();
+    }
+    jaccard_vec
+}  // end of sketchprobminhash3_kmer16b2bit
+
+
+
+    pub fn sketch_probminhash3_kmer64bit<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<u64> >
+        where F : Fn(&Kmer64bit) -> u64 + Send + Sync {
+        //
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u64>) {
+            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size as u8, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval as u64).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop 
+            let mut pminhashb = ProbMinHash3a::<u64,NoHashHasher>::new(self.sketch_size, 0);
+            pminhashb.hash_weigthed_idxmap(&wb);
+            let sigb = pminhashb.get_signature();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<u64>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<u64>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    }  // end of sketchprobminhash3_kmer64bit
+
+
+
     /// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
     /// 
     /// Format of file is :
