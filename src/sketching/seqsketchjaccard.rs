@@ -30,9 +30,11 @@ use std::hash::{Hasher, Hash};
 use indexmap::{IndexMap};
 use fnv::{FnvBuildHasher};
 
+use num;
+
 use crate::nohasher::*;
 
-use crate::base::{kmergenerator::*};
+use crate::base::{kmergenerator::*, kmergenerator::KmerSeqIteratorT};
 
 use rayon::prelude::*;
 
@@ -277,6 +279,50 @@ impl SeqSketcher {
         }
         jaccard_vec
     }  // end of sketch_probminhash3a_kmer64bit
+
+
+    /// a generic implementation of probminhash3a  against our stndard compressed Kmer types
+    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
+    pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
+        where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+              Kmer::Val : num::PrimInt + Send + Sync + Debug,
+              KmerSeqIterator::<'b, Kmer> : KmerSeqIteratorT<KmerVal=Kmer> {
+        //
+        let comput_closure = | seqb : &'b Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
+            let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            let kmergen = &mut kmergen as &mut dyn KmerSeqIteratorT<KmerVal=Kmer>;
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval).or_insert(0.) += 1.;
+                    },
+                    None => break,
+                }
+            }  // end loop 
+            let mut pminhashb = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.sketch_size, num::zero::<Kmer::Val>());
+            pminhashb.hash_weigthed_idxmap(&wb);
+            let sigb = pminhashb.get_signature();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<Kmer::Val>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    }  // end of sketch_probminhash3a_compressedkmer
+
 
 
     //   Probminhash3
@@ -722,8 +768,8 @@ mod tests {
 
 
     #[test]
-    // This function tests probability jaccard estimates on less than 16 bases 
-    fn test_probminhash_kmer_smallb() {
+    // This function tests probability jaccard estimates on kmers of size less than 16 bases 
+    fn test_probminhasha_kmer_smallb() {
         // initialize test logging
         log_init_test();
         let kmer_size = 5;
@@ -811,11 +857,11 @@ mod tests {
         //
         assert!(vecsig[1] <= 0.1);
 
-    }  // end of test_probminhash_kmer_smallb
+    }  // end of test_probminhasha_kmer_smallb
 
 
     #[test]
-    fn test_probminhash_kmer_16b32bit_serial() {
+    fn test_probminhasha_kmer_16b32bit_serial() {
         // initialize test logging
         log_init_test();
         // 80 bases
