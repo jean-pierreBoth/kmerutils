@@ -14,9 +14,9 @@ pub use super::kmer::*;
 
 pub trait KmerSeqIteratorT {
     /// Kmer32bit, Kmer16b32bit, Kmer64bit
-    type Val;
+    type KmerVal;
     /// get next kmer or None
-    fn next(&mut self) -> Option<Self::Val>;
+    fn next(&mut self) -> Option<Self::KmerVal>;
 }
 
 
@@ -66,9 +66,9 @@ impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
 
 
 impl<'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer16b32bit> {
-    type Val = Kmer16b32bit;
+    type KmerVal = Kmer16b32bit;
     /// return next kmer if any.
-    fn next(&mut self) -> Option<Self::Val> {
+    fn next(&mut self) -> Option<Self::KmerVal> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
@@ -106,8 +106,8 @@ impl<'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer16b32bit> {
 
 
 impl <'a> KmerSeqIteratorT for KmerSeqIterator<'a, Kmer32bit> {
-    type Val = Kmer32bit;
-    fn next(&mut self) -> Option<Self::Val> {
+    type KmerVal = Kmer32bit;
+    fn next(&mut self) -> Option<Self::KmerVal> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
@@ -150,9 +150,9 @@ impl <'a> KmerSeqIteratorT for KmerSeqIterator<'a, Kmer32bit> {
 
 
 impl <'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer64bit> {
-    type Val = Kmer64bit;
+    type KmerVal = Kmer64bit;
     //
-    fn next(&mut self) -> Option<Self::Val> {
+    fn next(&mut self) -> Option<Self::KmerVal> {
         // check for end of iterator
         let next_base;
         match self.seqiter.next() {
