@@ -51,8 +51,8 @@ pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash+Ord
     type Val;
     /// returns the max number of base supported by compressing strategy and size of Val
     fn get_nb_base_max() -> usize;
-    /// return encoded value in type Val. Possibly in Val we have encoded number of bases and
-    /// and kmer value. We get rid of number of base, and return pure encoded value.
+    /// return encoded value in type Val. In Val we have encoded number of bases and
+    /// and kmer value. We do not get rid of number of base, and return raw value
     fn get_compressed_value(&self) -> Self::Val;
     /// get Kmer as a Vec<u8>
     fn get_uncompressed_kmer(&self) -> Vec<u8>;

@@ -286,22 +286,23 @@ impl SeqSketcher {
     pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
-              KmerSeqIterator::<'b, Kmer> : KmerSeqIteratorT<KmerVal=Kmer> {
+              KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
         let comput_closure = | seqb : &'b Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
+            let kmers : Vec<(Kmer, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+            // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
+            // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
             let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
-            kmergen.set_range(0, seqb.size()).unwrap();
-            let kmergen = &mut kmergen as &mut dyn KmerSeqIteratorT<KmerVal=Kmer>;
-            loop {
-                match kmergen.next() {
-                    Some(kmer) => {
-                        let hashval = fhash(&kmer);
-                        *wb.entry(hashval).or_insert(0.) += 1.;
-                    },
-                    None => break,
+            for kmer in kmers {
+                let hashval = fhash(&kmer.0);
+                let res = wb.insert(hashval, kmer.1 as f64);
+                match res {
+                    Some(_) => {
+                        panic!("ket already existted");
+                    }
+                    _ => { }
                 }
-            }  // end loop 
+            }
             let mut pminhashb = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.sketch_size, num::zero::<Kmer::Val>());
             pminhashb.hash_weigthed_idxmap(&wb);
             let sigb = pminhashb.get_signature();
