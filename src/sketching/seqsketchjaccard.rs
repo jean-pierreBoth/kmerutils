@@ -92,7 +92,7 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 
 
 /// This structure describes the kmer size used in computing sketches and the number of sketch we want.
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SeqSketcher {
     kmer_size : usize,
     sketch_size : usize
