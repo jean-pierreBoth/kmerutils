@@ -14,8 +14,8 @@ use log::{debug,trace};
 
 // our includes
 
-pub use super::kmer::*;
-pub use super::{nthash::*, sequence::*};
+pub use super::kmertraits::*;
+pub use super::{nthash::*, alphabet::*};
 
 /// This is a type for Kmer less than 14 bases 2 bit encoded
 /// Real number of base is encoded in upper 4 bits!!!!

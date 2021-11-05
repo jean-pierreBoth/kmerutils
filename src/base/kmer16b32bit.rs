@@ -16,8 +16,8 @@ use log::{debug,trace};
 
 // our includes
 
-pub use super::kmer::*;
-pub use super::{nthash::*, sequence::*};
+pub use super::{kmertraits::*};
+pub use super::{nthash::*, alphabet::*};
 
 /// type supporting 16 bases kmer as u32.
 

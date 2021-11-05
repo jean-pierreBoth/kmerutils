@@ -34,7 +34,7 @@ use num;
 
 use crate::nohasher::*;
 
-use crate::base::{kmergenerator::*, kmergenerator::KmerSeqIteratorT};
+use crate::base::{kmer::*, kmergenerator::*, kmergenerator::KmerSeqIteratorT};
 
 use rayon::prelude::*;
 

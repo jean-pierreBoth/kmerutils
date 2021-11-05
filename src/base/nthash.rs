@@ -1,5 +1,4 @@
 
-////////////////////////////////////////////////////////////////////////////////////////////////
 //! ntHash provides a recursive DNA kmer hashing:  adapted from Mohamadi Chu Birol BioInformatics 2016
 //!
 //! Kmer will be compressed most of the time, but possibly not...
@@ -176,10 +175,10 @@ pub fn nthash_init_8b(kmer : &[u8]) -> u64 {
 
 /// cyclic hashing of kmers.
 /// We give as arguments : hash value of current kmer ,
-///                        size of kmer the old_base and
-///                        new base in 8bit encoding to be inserted
-// at right end of kmer to get the new corresponding hash value. The old base (at leftmost byte is at byte ksize)
-// hence the rotate arg
+///                        size of kmer,the old_base and
+///                        new base in 8bit encoding to be inserted at right end of kmer 
+/// to get the new corresponding hash value. 
+/// The old base (at leftmost byte is at byte ksize) hence the rotate arg
 // It corresponds to NT64(const uint64_t fhVal, const unsigned char charOut, const unsigned char charIn, const unsigned k)
 // in original Chu-Birol
 

@@ -25,7 +25,7 @@ use metrohash::{MetroHash64};
 use fnv::*;
 
 use probminhash::invhash::*;
-pub use super::{kmergenerator::*};
+pub use super::{kmertraits::*, kmergenerator::*, kmer::*, sequence::Sequence};
 
 // a magic for file dump of unique kmers
 // this type of dump is useful if we just want to know if we can garbage a kmer.

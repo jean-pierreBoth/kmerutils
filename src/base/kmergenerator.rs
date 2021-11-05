@@ -9,7 +9,7 @@ use fnv::FnvBuildHasher;
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 
-pub use super::kmer::*;
+pub use super::{kmertraits::*, kmer::*, sequence::*};
 
 
 pub trait KmerSeqIteratorT {

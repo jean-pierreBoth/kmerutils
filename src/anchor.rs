@@ -21,7 +21,7 @@ use std::hash::{Hash};
 
 pub use crate::redisbase::*;
 
-use crate::base::{sequence::*, kmer::*, kmergenerator::*};
+use crate::base::{sequence::*, kmertraits::*, kmergenerator::*};
 
 use crate::hashed::*;
 use crate::sketching::minhash::MinInvHashCountKmer;

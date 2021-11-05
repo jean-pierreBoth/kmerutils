@@ -28,7 +28,7 @@ use std::marker::PhantomData;
 use std::fmt::Debug;
 
 use crate::hashed::*;
-pub use crate::base::kmer::*;
+pub use crate::base::{kmer::*, sequence::*};
 use probminhash::invhash::*;
 
 /// result of minhash distance computations a tuple for containment, jaccard, common, total

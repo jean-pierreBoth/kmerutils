@@ -11,7 +11,8 @@ use std::str::FromStr;
 #[allow(unused)]
 use log::{debug,trace};
 
-pub use super::kmer::*;
+pub use super::kmertraits::*;
+pub use super::{nthash::*, alphabet::*};
 
 
 // For more than 16 bases the coding of number of bases in a separate field is more efficient
