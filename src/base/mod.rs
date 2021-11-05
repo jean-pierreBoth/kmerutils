@@ -7,6 +7,7 @@
 pub mod nthash;
 
 pub use sequence::*;
+pub use kmertraits::*;
 pub use kmer::*;
 pub use kmer32bit::*;
 pub use kmer16b32bit::*;
@@ -17,6 +18,7 @@ pub use alphabet::*;
 
 pub mod alphabet;
 pub mod sequence;
+pub mod kmertraits;
 pub mod kmer;
 pub mod kmer32bit;
 pub mod kmer16b32bit;
