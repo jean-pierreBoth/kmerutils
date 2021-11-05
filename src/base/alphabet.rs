@@ -1,8 +1,12 @@
-//! This module describes encoding of bases in 4 or 2 bits. 
-//! Alphabet2b is used for compressing see [`super::kmer::CompressedKmerT`]
+//! This module describes encoding of bases in 2 or 4 bits.  
+//! 
+//! Alphabet2b is used for compressing see [`super::kmer::CompressedKmerT`]. 
 //! It provides compressing/decompressing utilities and iterator over a compressed sequence
-//! of base
-
+//! of bases.  
+//! 
+//! The 4 bits alphabet encodes ACGTN and should add IUPAC ambiguity codes.
+//!   
+//! Alphabet8b is just for uncompressed representation of sequence in a unified way
 
 
 
@@ -30,11 +34,9 @@ pub fn count_non_acgt(seq : &[u8]) -> usize {
 }
 
 
-/// We provide here small (and fast) utilities for encoding restructed DNA (A,T,C,G)
+/// We provide here small (and fast) utilities for encoding restricted DNA (A,T,C,G,N)
 /// alphabet to 2 or 4 bits (or 8 bits) and utilities to manage corresponding sequences.
 ///
-/// For a full generality need fall back to bio::alphabets (which use vec_map ...)
-/// but our implementation is 2 or 3 times faster (and is not so well abstracted)
 
 /// this trait provides basic encode/decode methods. methods panics if patterns are not in the alphabet.
 pub trait BaseCompress {
@@ -79,9 +81,10 @@ impl Alphabet2b {
         return 2;
     }
     //
-    /// This function fills decompressed bases in slice unpacked.
-    /// The slice must be larger than number of bases to be returned i.e 4 for Alphabet2b
-    /// This mode to get the result is not the niciest but the fastest for repetitive call
+    /// This function fills decompressed bases in slice unpacked.  
+    /// The slice must be larger than number of bases to be returned i.e 4 for Alphabet2b.  
+    /// This mode to get the result is not the niciest but the fastest for repetitive call.  
+    /// 
     /// The caller must be aware that the byte packed must be fully initialized with consistent
     /// For non full bytes some bits can be garbage decode will return anything.
     /// It is the reason why in Sequence::new we fill the byte with a decodable pattern.
@@ -177,14 +180,16 @@ impl BaseCompress for Alphabet2b {
 //  Alphabet4b
 
 
-/// this structure compress to 4 bits the 4 bases ACGT  
+/// this structure compress to 4 bits the 5 bases ACGTN
+///  
 /// A maps to 0b0001 = 1 = 0x01  
 /// C maps to 0b0010 = 2 = 0x02  
 /// G maps to 0b0100 = 4 = 0x04  
 /// T maps to 0b1000 = 8 = 0x08  
-
+/// N maps to 0b1111
+///
+/// It should, later, implement IUPAC ambiguity code  <http://www.bioinformatics.org/sms/iupac.html>.
 // note : the lexicographic order is preserved and bases are NOT conjugated
-//         we can convert from Alphabet4b to Alphabet2b by counting (calling)  trailing_zeros
 //         and converting form  Alphabet2b to Alphabet_4b by shifting
 //         possibly we could encode A | C and so on
 
@@ -195,18 +200,18 @@ pub struct Alphabet4b {
 
 impl Alphabet4b {
     pub fn new() -> Alphabet4b {
-        Alphabet4b { bases : String::from("ACGT")}
+        Alphabet4b { bases : String::from("ACGTN")}
     }
     //
     pub fn len(&self) -> usize {
         return 4;
     }
     //
-    /// This function fills decompressed bases in slice unpacked.
-    /// The slice must be larger than number of bases to be returned i.e 2 for Alphabet4b
-    /// This mode to get the result is not the niciest but the fastest for repetitive call
-    /// The caller must be aware that the byte packed must be fully initialized with consistent pattern
-    /// For non full bytes some bits can be garbage and decode will fail. Ugly but faster.
+    /// This function fills decompressed bases in slice unpacked.  
+    /// The slice must be larger than number of bases to be returned i.e 2 for Alphabet4b.  
+    /// The caller must be aware that the byte packed must be fully initialized with consistent pattern.  
+    /// For non full bytes some bits can be garbage and decode will fail.
+    // This mode to get the result is not the niciest but the fastest for repetitive call
     pub fn base_unpack(&self, packed : u8, unpacked : &mut [u8])  {
         // get each nibble
 //        println!(" received = {} " , packed);
@@ -276,7 +281,7 @@ impl BaseCompress for Alphabet4b {
     #[inline(always)]
     fn is_valid_base(&self, c: u8) -> bool {
         match c {
-            b'A' | b'C' | b'G' | b'T' => true,
+            b'A' | b'C' | b'G' | b'T' | b'N' => true,
             _    => false,
         }
     } // end is_valid_base
@@ -302,12 +307,13 @@ impl BaseCompress for Alphabet4b {
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////
+//
 //         Alphabet8b
-///////////////////////////////////////////////////////////////////////////////////////
+//
 
 
-/// uncompressed representation of sequence
+/// Uncompressed representation of sequence.
+/// Should represent Iupac ambiguity code in uncompressed format.
 pub struct Alphabet8b {
     pub bases: String,
 }
@@ -361,7 +367,7 @@ impl BaseCompress for Alphabet8b {
         }
     } // end is_valid_base
 
-    // we expect a slice of at least 2 bytes
+    // we expect a slice of one byte
     fn base_pack(&self, to_pack : &[u8]) -> u8 {
         //
         let packed = to_pack[0];

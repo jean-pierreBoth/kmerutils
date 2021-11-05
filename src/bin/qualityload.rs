@@ -1,7 +1,7 @@
 //! loads quality from a fastq file and provides a server to quality data.  
 //! Qualities are re-mapped to values between in [0..7] so that they need only 3 bits of storage and are
 //! stored in a wavelet matrix.  
-//! The mapping is non uniform and maps the range  [0x25,0x37] to  [1,6].
+//! The mapping is non uniform and maps the range  \[0x25,0x37\] to  \[1,6\].
 //! The server is launched on the current machine by the command:  
 //!  **qualityloader -f filename [ -p portnum] [ --wavelet]**.
 

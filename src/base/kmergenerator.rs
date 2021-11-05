@@ -270,7 +270,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -294,7 +294,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -335,7 +335,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         if self.kmer_size != 16u8 {
             panic!("Kmer16b32bit has 16 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         if begin >= end {
@@ -370,7 +370,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer16b32bit has less than 14 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -396,7 +396,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer32bit has more than 14 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -439,7 +439,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         if self.kmer_size > 14u8 {
             panic!("Kmer16b32bit has less than 14 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         //
@@ -479,7 +479,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -505,7 +505,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
@@ -553,7 +553,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         if self.kmer_size > 32u8 {
             panic!("Kmer64bit has less than 32 bases!!");
         }
-        if seq.get_alphabet().get_nb_bits() != 2 {
+        if seq.nb_bits_by_base() != 2 {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         if end <= begin {
