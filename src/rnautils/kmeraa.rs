@@ -3,6 +3,8 @@
 //! In fact KmerAA although stored in uncompress format trivially implements the trait CompressedKmerT
 //! and so KmerSeqIterator and KmerGenerationPattern (see module Kmer) applies to KmerAA 
 
+#![allow(unused)]
+
 use std::io;
 use std::io::{ErrorKind};
 
@@ -12,7 +14,30 @@ use std::cmp::Ordering;
 use log::{debug,info,error};
 
 
-use super::kmer::*;
+use crate::base::kmer::*;
+
+/// alphabet of RNA. 
+pub struct Alphabet {
+    pub bases: String,
+}
+
+
+impl Alphabet {
+    pub fn new() -> Alphabet {
+        Alphabet { bases : String::from("ACDEFGHIKLMNPQRSTVWY")}
+    }
+    //
+    pub fn len(&self) -> u8 {
+        return 2;
+    }
+
+    #[inline(always)]
+    fn is_valid_base(&self, c: u8) -> bool {
+        self.bases.find(c as char).is_some() 
+    } // end is_valid_base
+}  // end of impl Alphabet
+
+
 
 #[derive(Copy,Clone)]
 pub struct KmerAA<const N:usize> {
@@ -106,27 +131,20 @@ impl <const N : usize> PartialOrd for KmerAA<N> {
 
 
 
-impl <const N : usize> CompressedKmerT for  KmerAA<N> {
-    type Val = [u8; N];
+//=======================================================================
 
-    fn get_nb_base_max() -> usize {
-        N
-    }
+type SequenceAA = Vec<u8>;
 
-    /// return a clone of itself
-    fn get_compressed_value(&self) ->  Self::Val {
-        self.aa.clone()
-    }
 
-    fn get_uncompressed_kmer(&self) ->  Vec<u8> {
-        self.aa.clone().to_vec()
-    }
+pub trait KmerGenerationPattern<T:KmerT> {
+    /// generate all kmers included in 0..
+    fn generate_kmer_pattern(&self, seq : & SequenceAA) -> Vec<T>;
+    /// generate all kmers inclused in begin..end with end excluded as in rust conventions.
+    fn generate_kmer_pattern_in_range(&self, seq : & SequenceAA, begin:usize, end:usize) -> Vec<T>;   
+    /// generate kmers with their multiplicities
+    fn generate_kmer_distribution(&self, seq : & SequenceAA) -> Vec<(T,usize)>;
+}
 
-    fn get_bitsize(&self) -> usize {
-        N*4
-    }
-
-}  // end of impl CompressedKmerT
 
 
 /*
@@ -141,14 +159,13 @@ impl <const N : usize> CompressedKmerT for  KmerAA<N> {
 //===========================================================
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 
 #[cfg(test)]
 mod tests {
 
-    use super::*;
 
 
     fn log_init_test() {
