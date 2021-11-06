@@ -9,6 +9,7 @@ use std::io;
 use std::io::{ErrorKind};
 
 use std::cmp::Ordering;
+use std::ops::{Range};
 
 use indexmap::{IndexMap};
 use fnv::FnvBuildHasher;
@@ -33,18 +34,19 @@ impl Alphabet {
     }
     //
     pub fn len(&self) -> u8 {
-        return 2;
+        return self.bases.len() as u8;
     }
 
     #[inline(always)]
     fn is_valid_base(&self, c: u8) -> bool {
         self.bases.find(c as char).is_some() 
     } // end is_valid_base
+    
 }  // end of impl Alphabet
 
 
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Hash)]
 pub struct KmerAA<const N:usize> {
     aa : [u8; N],
 } // end of struct KmerAA
@@ -153,18 +155,34 @@ pub struct KmerSeqIterator<'a, const N : usize> {
     sequence: &'a SequenceAA,
     /// last position of last kmer returned. At the beginning its None
     previous: Option<usize>,
+    ///
+    range : Range<usize>,
 } // end of KmerSeqIterator
 
 
 impl<'a, const N : usize> KmerSeqIterator<'a, N> {
 
     pub fn new(seq : &'a SequenceAA) -> Self {
-        KmerSeqIterator{nb_base : N, sequence : seq, previous : None}
+        let range = std::ops::Range{start : 0, end : seq.len() -1};
+        KmerSeqIterator{nb_base : N, sequence : seq, previous : None, range}
     }
 
+    /// iterates...
     pub fn next(&mut self) -> Option<KmerAA<N>> {
         None
     }
+
+    /// defines the range of kmer generation.  
+    /// All bases in kmer generated must be between in first..last last excluded!
+    fn set_range(&mut self, first: usize, last:usize) -> std::result::Result<(),()> { 
+        if last <= first || last > self.sequence.len() {
+            return Err(());
+        }
+        else {
+            self.range = Range{start:first, end:last};
+            return Ok(());
+        }
+    } // end of set_range
 
 } // end of impl block for KmerSeqIterator
 
@@ -254,13 +272,13 @@ impl <const N : usize> KmerGenerationPattern<KmerAA<N>> for KmerGenerator<KmerAA
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.len() >= N { seq.len()-N+1} else {0};
-        let mut kmer_distribution : FnvIndexMap::<[u8;N],usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmer_distribution : FnvIndexMap::<KmerAA<N>,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<N>::new(seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
                     // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
-                    *kmer_distribution.entry(kmer.get_uncompressed_value()).or_insert(0) += 1;
+                    *kmer_distribution.entry(kmer).or_insert(0) += 1;
                 },
                 None => break,
             }
@@ -273,7 +291,7 @@ impl <const N : usize> KmerGenerationPattern<KmerAA<N>> for KmerGenerator<KmerAA
                 Some(key) => {
                     if let Some(weight) = kmer_distribution.get(key) {
                         // get back to Kmer16b32bit from 
-                        weighted_kmer.push((key,*weight));
+                        weighted_kmer.push((*key,*weight));
                     };
                 },
                 None => break,
@@ -296,7 +314,7 @@ impl <const N : usize> KmerGenerationPattern<KmerAA<N>> for KmerGenerator<KmerAA
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.len() >= 16 { seq.len()-N+1} else {0};
         let mut kmer_vect = Vec::<KmerAA<N>>::with_capacity(nb_kmer);
-        let mut kmeriter = KmerSeqIterator::<N>::new(self.kmer_size, seq);
+        let mut kmeriter = KmerSeqIterator::<N>::new(seq);
         kmeriter.set_range(begin, end).unwrap();
         loop {
             match kmeriter.next() {
@@ -331,5 +349,7 @@ mod tests {
         let _ = builder.is_test(true).try_init();
     }
 
+    // test iterator
 
-}
+    // test iterator with range
+}  // end of mod tests
