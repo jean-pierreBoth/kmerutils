@@ -8,6 +8,8 @@
 use std::io;
 use std::io::{ErrorKind};
 
+use std::str::FromStr;
+
 use std::cmp::Ordering;
 use std::ops::{Range};
 
@@ -41,7 +43,7 @@ impl Alphabet {
     fn is_valid_base(&self, c: u8) -> bool {
         self.bases.find(c as char).is_some() 
     } // end is_valid_base
-    
+
 }  // end of impl Alphabet
 
 
@@ -59,6 +61,10 @@ impl <const N: usize> KmerAA<N> {
 
     fn get_uncompressed_value(&self) -> [u8;N] {
         self.aa
+    }
+
+    fn get_uncompressed_value_ref(&self) -> &[u8;N] {
+        &self.aa
     }
 }  // end of impl KmerAA
 
@@ -145,7 +151,51 @@ impl <const N : usize> PartialOrd for KmerAA<N> {
 //=======================================================================
 
 /// our sequence of Amino Acid is encoded on a byte (even if 5 bits are enough but we do not store sequences yet)
-type SequenceAA = Vec<u8>;
+// type SequenceAA = Vec<u8>;
+
+pub struct SequenceAA {
+    seq: Vec<u8>
+}
+
+
+impl SequenceAA {
+
+    /// allocates and check for compatibility with alphabet
+    pub fn new(str: &[u8]) -> Self {
+        let alphabet = Alphabet::new();
+        str.iter().map(|c| if !alphabet.is_valid_base(*c) {
+            panic!("character not in alphabet {}", c); }
+        );
+        SequenceAA{seq : str.to_vec()}
+    } // end of new
+
+    pub fn len(&self) -> usize {
+        self.seq.len()
+    }
+
+}  // end of SequenceAA
+
+
+impl FromStr for SequenceAA {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        //
+        let sbytes = s.as_bytes();
+        let alphabet = Alphabet::new();
+        //
+        sbytes.iter().map(|c| if !alphabet.is_valid_base(*c) {
+                panic!("character not in alphabet {}", c);
+            }
+        );
+        Ok(SequenceAA{seq:sbytes.to_vec()})
+    }
+
+}  // end of FromStr
+
+//=========================================================================
+
+
 
 
 pub struct KmerSeqIterator<'a, const N : usize> {
@@ -342,14 +392,63 @@ impl <const N : usize> KmerGenerationPattern<KmerAA<N>> for KmerGenerator<KmerAA
 mod tests {
 
 
+    use super::*;
 
-    fn log_init_test() {
-        let mut builder = env_logger::Builder::from_default_env();
-        //    builder.filter_level(LevelFilter::Trace);
-        let _ = builder.is_test(true).try_init();
-    }
+fn log_init_test() {
+    let mut builder = env_logger::Builder::from_default_env();
+    //    builder.filter_level(LevelFilter::Trace);
+    let _ = builder.is_test(true).try_init();
+}
 
     // test iterator
+#[cfg(test)]
+    fn test_seq_aa_iterator_raange() {
+        log_init_test();
+        //
+        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEF
+        AQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPA
+        SEYKNRHASILLSLDATAEACASIAAQNSA";
 
-    // test iterator with range
+        let seqaa = SequenceAA::from_str(str).unwrap();
+        // ask for Kmer of size 4
+        const N : usize= 4;
+        let mut seq_iterator = KmerSeqIterator::<N>::new(&seqaa);
+        // set a range 
+        seq_iterator.set_range(3,8);
+        // So we must havr from "QIEL" 
+        let mut kmer_num = 0;
+        let kmer_res = [ "QIEL" ,"IELI", "ELIK",  "LIKL"];
+        while let Some(kmer) =  seq_iterator.next() {
+            let kmer_str=  std::str::from_utf8(kmer.get_uncompressed_value_ref()).unwrap();
+            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
+            if kmer_str != kmer_res[kmer_num] {
+                log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
+                panic!("error in kmeraa test::test_seq_aa_iterator at kmer num {}, got {:?}", kmer_num, kmer_res[kmer_num]);
+            }
+        }
+        // check iterator sees the end
+        match seq_iterator.next() {
+            Some(kmer) => {
+                panic!("iterator do not see end");
+            },
+            None => (),
+        } // end match
+    } // end of test_iterator_range
+
+    // test we arrive at end correctly
+#[cfg(test)]
+    fn test_seq_iterator_end() {
+
+        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEF
+        AQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPA
+        SEYKNRHASILLSLDATAEACASIAAQNSA";
+
+        let seqaa = SequenceAA::from_str(str).unwrap();
+        // ask for Kmer of size 4
+        const N : usize = 4;
+        let mut last_kmer : KmerAA<4>;
+        let mut seq_iterator = KmerSeqIterator::<4>::new(&seqaa);
+
+    }
+
 }  // end of mod tests
