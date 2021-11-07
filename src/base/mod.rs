@@ -1,4 +1,4 @@
-//! Contains basic tools to describe sequences, kmers , generate and count Kmers  
+//! Contains basic tools to describe DNA-sequences, kmers , generate and count Kmers  
 //! It implements multithreaded counters with Bloom filters and Cuckoo filters
 
 

@@ -11,7 +11,6 @@
 use std::mem;
 
 use std::io;
-use std::io::{ErrorKind};
 
 use std::str::FromStr;
 
@@ -74,6 +73,7 @@ impl Alphabet {
         self.bases.find(c as char).is_some() 
     } // end is_valid_base
 
+    #[allow(unused)]
     fn get_nb_bits(&self) -> u8 { 
         5
     }
@@ -101,7 +101,7 @@ impl Alphabet {
             b'V' => 0b10011,
             b'W' => 0b10100,
             b'Y' => 0b10101,
-            _    => panic!("encode pattern not a code in alpahabet for amino acid {}", c),
+            _    => panic!("encode: not a code in alpahabet for amino acid {}", c),
         } // end of match
     }   // end of encode
 
@@ -146,7 +146,7 @@ pub struct KmerAA {
 impl KmerAA {
 
     pub fn new(nb_base : u8) -> Self {
-        if (nb_base >= 25) {
+        if nb_base >= 25 {
             panic!("For KmerAA nb_base must be less or equal to 25")
         }
         KmerAA{aa:0, nb_base}
@@ -278,13 +278,18 @@ impl SequenceAA {
     /// allocates and check for compatibility with alphabet
     pub fn new(str: &[u8]) -> Self {
         let alphabet = Alphabet::new();
-        str.iter().map(|c| if !alphabet.is_valid_base(*c) {
+        let _res= str.iter().map(|c| if !alphabet.is_valid_base(*c) {
             panic!("character not in alphabet {}", c); }
         );
         SequenceAA{seq : str.to_vec()}
     } // end of new
 
     pub fn len(&self) -> usize {
+        self.seq.len()
+    }
+
+    /// return the the uncompressed lenght (maintained by analogy with DNA case)
+    pub fn size(&self) -> usize {
         self.seq.len()
     }
 
@@ -308,7 +313,7 @@ impl FromStr for SequenceAA {
         let sbytes = s.as_bytes();
         let alphabet = Alphabet::new();
         //
-        sbytes.iter().map(|c| if !alphabet.is_valid_base(*c) {
+        let _res = sbytes.iter().map(|c| if !alphabet.is_valid_base(*c) {
                 panic!("character not in alphabet {}", c);
             }
         );
@@ -402,7 +407,7 @@ impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA> {
             log::debug!("value  mask {:#b}", value_mask);
             let mut new_kmer = 0u128;
             let kmer_size = self.nb_base as usize;
-            for i in 0..kmer_size {
+            for _ in 0..kmer_size {
                 let next_base = self.sequence.get_base(self.base_position);
                 log::debug!(" init kmer base : {}", char::from_u32(next_base as u32).unwrap());
                 // contrary to dna sequence base in seq is not encoded, we must encode it!!
@@ -582,7 +587,7 @@ mod tests {
 // to run with  cargo test -- --nocapture kmeraa
 //  possibly with export RUST_LOG=INFO,kmerutils::rnautils=debug
 
-    use super::*;
+use super::*;
 
 fn log_init_test() {
     let mut builder = env_logger::Builder::from_default_env();
@@ -605,7 +610,7 @@ fn log_init_test() {
         // ask for Kmer of size 4
         let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(4, &seqaa);
         // set a range 
-        seq_iterator.set_range(3,10);   // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
+        seq_iterator.set_range(3,10).unwrap();   // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
         // So we must havr from "QIEL" 
         let mut kmer_num = 0;
         let kmer_res = [ "QIEL" ,"IELI", "ELIK",  "LIKL"];
@@ -621,7 +626,7 @@ fn log_init_test() {
         }
         // check iterator sees the end
         match seq_iterator.next() {
-            Some(kmer) => {
+            Some(_kmer) => {
                 panic!("iterator do not see end");
             },
             None => (),
