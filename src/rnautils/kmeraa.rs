@@ -595,7 +595,7 @@ fn log_init_test() {
     fn test_seqaa_iterator_range() {
         log_init_test();
         //
-        log::info!("in test_seqaa_iterator_range");
+        log::debug!("in test_seqaa_iterator_range");
         //
         let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEF
         AQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPA
@@ -612,7 +612,7 @@ fn log_init_test() {
         while let Some(kmer) = seq_iterator.next() {
             let k_uncompressed = kmer.get_uncompressed_kmer();
             let kmer_str=  std::str::from_utf8(&k_uncompressed).unwrap();
-            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
+//            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
             if kmer_str != kmer_res[kmer_num] {
                 log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
                 panic!("error in kmeraa test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
@@ -635,7 +635,7 @@ fn log_init_test() {
     fn test_seqaa_iterator_end() {
         //
         log_init_test();
-        log::info!("in test_seqaa_iterator_end");
+        log::debug!("in test_seqaa_iterator_end");
         //
         let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPD";
         let seqaa = SequenceAA::from_str(str).unwrap();
@@ -646,10 +646,10 @@ fn log_init_test() {
         let mut k_uncompressed;
 
         while let Some(kmer) = seq_iterator.next() {
-            log::info!("in test_seqaa_iterator_end iteration {}", kmer_num);
+            log::debug!("in test_seqaa_iterator_end iteration {}", kmer_num);
             k_uncompressed = kmer.get_uncompressed_kmer();
             last_kmer =  std::str::from_utf8(&k_uncompressed).unwrap();
-            log::info!(" kmer {} = {:?}", kmer_num, last_kmer);
+            log::debug!(" kmer {} = {:?}", kmer_num, last_kmer);
             kmer_num += 1;
         }
         if last_kmer != "VGSLDNPD" {

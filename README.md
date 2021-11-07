@@ -2,7 +2,9 @@
 
 This package (**currently in development**) provides the following tools :
 
-* kmer counting tools.
+* Simple representation of Kmers with compressed representation on 2 or 4 bits stored in u32 or u64 for simplicity and efficacity.
+  
+* Basic Kmer counting tools with Bloom and Cuckoo filters 
 
 * Sketching of sequences with up to date sensitive hashing see *module sketching*.  
 
@@ -41,13 +43,18 @@ dumped in a file. This file can be reprocessed to examine neighborhood of a read
 For example it takes 51s on a 8 (hyperthreaded i7 @2.3Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
 
 * The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
-  See executable *datasketcher*in this crate and the crate *hnsw_rs*
+  See executable *datasketcher* in this crate and the crate *hnsw_rs*
 
 Some others standard tools such :
 
 * Nthash : This is a recursive hashing described in: **"ntHash: recursive nucleotide hashing"**  
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
+
+## A minimal module rnautils 
+
+This module provides an uncompressed representation of RNA-sequences along with generation of compressed Kmer (up to a size of 25 amino acids).  
+This module is, in present state, minimal. Its main objective is to provide sketching of RNA sequences in the same way as DNA sequences.
 
 ## Some basic statistics on sequences
 
