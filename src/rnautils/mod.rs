@@ -2,3 +2,5 @@
 //! 
 
 mod kmeraa;
+
+mod seqsketchjaccard;
