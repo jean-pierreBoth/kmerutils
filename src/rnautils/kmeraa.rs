@@ -1,6 +1,7 @@
-//! This file implements KmerAA representing Kmer for Amino Acid.
-//! We use implement compression og base on 5 bits stored in a u128.
-//! So KmerAA can store up to 25 AA. For less 12 AA a u64 would be sufficient.
+//! This file implements KmerAA representing Kmer for Amino Acid.  
+//! We implement compression of bases on 5 bits stored in a u128.  
+//! So KmerAA can store up to 25 AA. For less than 12 AA a u64 is sufficient and could be implemented
+//! as Kmer for DNA bases.  
 //! The structures found in module base such as KmerSeqIterator and KmerGenerationPattern
 //! applies to KmerAA 
 
@@ -29,7 +30,7 @@ use log::{debug,info,error};
 
 use crate::base::kmertraits::*;
 
-/// alphabet of RNA. 
+/// alphabet of RNA is encoded from 1 to 20 according to lexicographic order. 
 pub struct Alphabet {
     pub bases: String,
 }
@@ -78,7 +79,7 @@ impl Alphabet {
     }
 
     // encode a base into its bit pattern and returns it in a u8
-    fn encode(c : u8) -> u8 {
+    fn encode(&self, c : u8) -> u8 {
         match c {
             b'A' => 0b00001,
             b'C' => 0b00010,
@@ -100,7 +101,7 @@ impl Alphabet {
             b'V' => 0b10011,
             b'W' => 0b10100,
             b'Y' => 0b10101,
-            _    => panic!("pattern not a code in alpahabet for amino acid"),
+            _    => panic!("encode pattern not a code in alpahabet for amino acid {}", c),
         } // end of match
     }   // end of encode
 
@@ -127,7 +128,7 @@ impl Alphabet {
             0b10011 => b'V',
             0b10100 => b'W',
             0b10101 => b'Y',
-            _    => panic!("pattern not a code in alpahabet for Amino Acid"),
+            _    => panic!("decode : pattern not a code in alpahabet for Amino Acid got : {:#b}", c & 0b11111),
         }
    }  // end of decode
 }  // end of impl Alphabet
@@ -163,8 +164,11 @@ impl KmerT for KmerAA {
     // 
     fn push(&self, c : u8) -> Self {
         // shift left 5 bits, insert new base and enforce 0 at upper bits
-        let value_mask :u128 = (0b1 << (2*self.get_nb_base())) - 1;
-        let new_kmer = ((self.aa << 5) & value_mask) | (c as u128 & 0b11111);
+        let value_mask :u128 = (0b1 << (5*self.get_nb_base())) - 1;
+        // contrary to dna sequence base in seq is not encoded, we must encode it!!
+        let encoded_base = Alphabet::new().encode(c);
+        let new_kmer = ((self.aa << 5) & value_mask) | (encoded_base as u128 & 0b11111);
+        log::debug!("after push {:#b}", new_kmer);
         KmerAA{aa:new_kmer, nb_base:self.nb_base}
     }  // end of push
 
@@ -212,6 +216,7 @@ impl CompressedKmerT for KmerAA {
         //
         let mut buf = self.aa;
         // get the base coding part at left end of u32
+        log::debug!("rotating left {}", 128 - 5 * nb_bases);
         buf = buf.rotate_left((128 - 5 * nb_bases) as u32);
         for _ in 0..nb_bases {
             buf = buf.rotate_left(5);
@@ -261,8 +266,8 @@ impl PartialOrd for KmerAA {
 //=======================================================================
 
 /// our sequence of Amino Acid is encoded on a byte (even if 5 bits are enough but we do not store sequences yet)
-// type SequenceAA = Vec<u8>;
-
+/// If necessary an implementation on bitvec could be used using a struct SeqIterator as a bridge from
+/// Sequence to KmerSeqIterator
 pub struct SequenceAA {
     seq: Vec<u8>
 }
@@ -315,6 +320,13 @@ impl FromStr for SequenceAA {
 //=========================================================================
 
 
+// TODO factorize this trait?
+pub trait KmerSeqIteratorT {
+    /// KmerAA 
+    type KmerVal;
+    /// get next kmer or None
+    fn next(&mut self) -> Option<Self::KmerVal>;
+}
 
 
 pub struct KmerSeqIterator<'a, T> where T : CompressedKmerT {
@@ -322,8 +334,11 @@ pub struct KmerSeqIterator<'a, T> where T : CompressedKmerT {
     nb_base: usize,
     /// an iterator for base calling
     sequence: &'a SequenceAA,
+    /// The alphabet needed to encode base from sequence into a (encoded!!) Kmer
+    alphabet_aa : Alphabet,
     /// last position of last kmer returned. At the beginning its None
     previous: Option<T>,
+
     ///
     range : Range<usize>,
     /// at present time, sequence for Amino Acid are not compressed, only Kmer so we do not need IterSequence as in mode base
@@ -331,46 +346,21 @@ pub struct KmerSeqIterator<'a, T> where T : CompressedKmerT {
 } // end of KmerSeqIterator
 
 
-impl<'a, T> KmerSeqIterator<'a, T> where T : CompressedKmerT {
+impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
 
     pub fn new(kmer_size : usize, seq : &'a SequenceAA) -> Self {
+        let alphabet_aa = Alphabet::new();
         let range = std::ops::Range{start : 0, end : seq.len() -1};
         let base_position = 0;
-        KmerSeqIterator{nb_base : kmer_size, sequence : seq, previous : None, range, base_position}
+        KmerSeqIterator{nb_base : kmer_size, sequence : seq, alphabet_aa, previous : None, range, base_position}
     }
-
-    /// iterates...
-    pub fn next(&mut self) -> Option<T> {
-        // check for end of iterator
-        if self.base_position >= self.sequence.len() {
-            return None;
-        }
-        // now we know we are not at end of iterator
-        // if we do not have a previous we have to contruct first kmer
-        // we have to push a base.
-        //
-        if let Some(kmer) = self.previous {
-            // in fact we have the base to push
-            self.previous = Some(kmer.push(self.sequence.get_base(self.base_position)));
-            self.base_position += 1;
-            return self.previous;
-        }
-        else {
-            // we are at beginning of kmer construction sequence, we must push kmer_size bases
-            let kmer_size = self.nb_base as usize;
-            let pos = 5*(kmer_size -1);
-            let mut new_kmer = 0u128;
-
-        }
-        None
-    } // end of next
 
 
 
     /// defines the range of kmer generation.  
     /// All bases in kmer generated must be between in first..last last excluded!
     fn set_range(&mut self, first: usize, last:usize) -> std::result::Result<(),()> { 
-        if last <= first || last > self.sequence.len() {
+        if last <= first || last > self.sequence.len() - self.nb_base {
             return Err(());
         }
         else {
@@ -381,6 +371,53 @@ impl<'a, T> KmerSeqIterator<'a, T> where T : CompressedKmerT {
     } // end of set_range
 
 } // end of impl block for KmerSeqIterator
+
+
+
+impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA> {
+    type KmerVal = KmerAA;
+
+    /// iterates...
+    fn next(&mut self) -> Option<Self::KmerVal> {
+        // check for end of iterator
+        if self.base_position >= self.sequence.len().min(self.range.end) {
+            log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
+            return None;
+        }
+        // now we know we are not at end of iterator
+        // if we do not have a previous we have to contruct first kmer
+        // we have to push a base.
+        //
+        if let Some(kmer) = self.previous {
+            // in fact we have the base to push
+            let next_base = self.sequence.get_base(self.base_position);
+            log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
+            self.previous = Some(kmer.push(next_base));
+            self.base_position += 1;
+            return self.previous;
+        }
+        else {
+            // we are at beginning of kmer construction sequence, we must push kmer_size bases
+            let value_mask :u128 = (0b1 << 5*self.nb_base) - 1;
+            log::debug!("value  mask {:#b}", value_mask);
+            let mut new_kmer = 0u128;
+            let kmer_size = self.nb_base as usize;
+            for i in 0..kmer_size {
+                let next_base = self.sequence.get_base(self.base_position);
+                log::debug!(" init kmer base : {}", char::from_u32(next_base as u32).unwrap());
+                // contrary to dna sequence base in seq is not encoded, we must encode it!!
+                let encoded_base = self.alphabet_aa.encode(next_base);
+                new_kmer = ((new_kmer << 5) & value_mask) | (encoded_base as u128 & 0b11111);
+                log::debug!("after init {:#b}", new_kmer);
+                self.base_position += 1;                
+            }
+            self.previous = Some(KmerAA{aa: new_kmer, nb_base : self.nb_base as u8});
+            return self.previous;
+        }
+    } // end of next
+    
+    
+} // end of impl KmerSeqIteratorT for 
 
 //============================================================================
 
@@ -543,6 +580,8 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
 mod tests {
 
 // to run with  cargo test -- --nocapture kmeraa
+//  possibly with export RUST_LOG=INFO,kmerutils::rnautils=debug
+
     use super::*;
 
 fn log_init_test() {
@@ -566,18 +605,19 @@ fn log_init_test() {
         // ask for Kmer of size 4
         let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(4, &seqaa);
         // set a range 
-        seq_iterator.set_range(3,8);
+        seq_iterator.set_range(3,10);   // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
         // So we must havr from "QIEL" 
         let mut kmer_num = 0;
         let kmer_res = [ "QIEL" ,"IELI", "ELIK",  "LIKL"];
-        while let Some(kmer) =  seq_iterator.next() {
+        while let Some(kmer) = seq_iterator.next() {
             let k_uncompressed = kmer.get_uncompressed_kmer();
             let kmer_str=  std::str::from_utf8(&k_uncompressed).unwrap();
             log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
             if kmer_str != kmer_res[kmer_num] {
                 log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
-                panic!("error in kmeraa test::test_seq_aa_iterator at kmer num {}, got {:?}", kmer_num, kmer_res[kmer_num]);
+                panic!("error in kmeraa test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
             }
+            kmer_num += 1;
         }
         // check iterator sees the end
         match seq_iterator.next() {
@@ -587,6 +627,8 @@ fn log_init_test() {
             None => (),
         } // end match
     } // end of test_iterator_range
+
+
 
     // test we arrive at end correctly
 #[test]

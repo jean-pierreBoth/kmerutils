@@ -435,10 +435,8 @@ impl<'a> IterSequence<'a> {
             self.last_bit = self.myseq.nb_bits_by_base() * (end % nb_bases_by_byte) as u8;
         };
         //
-        if cfg!(feature = "verbose_1") {
-            println!("IterSequence set range seq size  byte,  bit =  {} {} {} ", self.myseq.size(), self.byte , self.bit);
-            println!("IterSequence set range seq size last byte, last bit =  {} {} {} ", self.myseq.size(), self.last_byte , self.last_bit);
-        }
+//        log::debug!("IterSequence set range seq size  byte,  bit =  {} {} {} ", self.myseq.size(), self.byte , self.bit);
+//        log::debug!("IterSequence set range seq size last byte, last bit =  {} {} {} ", self.myseq.size(), self.last_byte , self.last_bit);
         //
         Ok(())
     }
@@ -463,12 +461,12 @@ impl<'a> Iterator for IterSequence<'a> {
     type Item = u8;
     //
     fn next(&mut self) -> Option<u8> {
-        //      println!("IterSequence entering next state : byte bit  = {} {} ", self.byte , self.bit);
+//        log::trace!("IterSequence entering next state : byte bit  = {} {} ", self.byte , self.bit);
         //
         let mut endbit:u8 = 8;
         //
         if self.byte > self.last_byte  || (self.byte == self.last_byte && self.bit >= self.last_bit) {
-            //          println!("IterSequence end of iterator {} {} ", self.byte , self.myseq.description[1]);
+//            log::trace!("IterSequence end of iterator {} {} ", self.byte , self.myseq.description[1]);
             return None;
         }
         //
@@ -478,7 +476,7 @@ impl<'a> Iterator for IterSequence<'a> {
         }
         //
         if self.bit >= endbit {
-            //            println!("IterSequence end of iterator byte, bit, tail : {} {} {} ", self.byte , self.bit, self.myseq.description[1]);
+//            log::trace!("IterSequence end of iterator byte, bit, tail : {} {} {} ", self.byte , self.bit, self.myseq.description[1]);
             return None;
         }
         //
@@ -491,7 +489,7 @@ impl<'a> Iterator for IterSequence<'a> {
         else {
             0xFF
         };
-        //        println!("IterSequence next : byte bit endbit  = {} {} {} ", self.byte , self.bit, endbit);
+        // log::trace!("IterSequence next : byte bit endbit  = {} {} {} ", self.byte , self.bit, endbit);
         // we must check consistency : endbit - bit >= nb_bits. moreover we could check parity of bit
         assert!(endbit - self.bit >= nb_bits);
         let base = mask & (self.myseq.seq[self.byte as usize] >>  8 - self.bit - nb_bits) as u8;
@@ -614,14 +612,23 @@ impl<'a> IntoIterator for &'a Sequence {
 mod tests {
     use super::*;
     //
+    fn log_init_test() {
+        let mut builder = env_logger::Builder::from_default_env();
+        //    builder.filter_level(LevelFilter::Trace);
+        let _ = builder.is_test(true).try_init();
+    }
+    //
     #[test]
     fn test_alphabet2b () {
+        log_init_test();
         let alphabet2 = Alphabet2b::new();
         assert_eq!(alphabet2.encode(b'G') , 0b10);
         assert_eq!(alphabet2.decode(0b10) , b'G');
     }
     #[test]
     fn encode4b_4bases() {
+        log_init_test();
+        //
         let v = vec![b'A', b'C', b'G', b'T'];
         let seq = Sequence::new(&v, 4);
         assert!(seq.seq.len() == 2);
@@ -652,6 +659,8 @@ mod tests {
 
     #[test]
     fn encode4b_5bases() {
+        log_init_test();
+        //
         let v = vec![b'A', b'C', b'G', b'T', b'A'];
         let seq = Sequence::new(&v, 4);
         // test encoding
@@ -694,6 +703,8 @@ mod tests {
 
     #[test]
     fn encode2b_5bases() {
+        log_init_test();
+        //
         let v = vec![b'A', b'C', b'G', b'T', b'C'];
         let seq = Sequence::new(&v, 2);
         assert!(seq.seq.len() == 2);
@@ -762,6 +773,8 @@ mod tests {
 
      #[test]
     fn encode2b_4bases() {
+        log_init_test();
+        //
         let v = vec![b'A', b'C', b'G', b'T'];
         let seq = Sequence::new(&v, 2);
         assert!(seq.seq.len() == 1);
@@ -792,6 +805,8 @@ mod tests {
     #[test]
     // this test also reverse iteration
     fn test_reverse_complement_sequence_8 () {
+        log_init_test();
+        //
         let seqstr = String::from("TACGAGTAGGAT");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
@@ -806,6 +821,8 @@ mod tests {
     #[test]
     // this test also reverse iteration
     fn test_reverse_complement_sequence_2_12bases () {
+        log_init_test();
+        //
         let seqstr = String::from("TACGAGTAGGAT");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
@@ -820,6 +837,8 @@ mod tests {
     #[test]
     // this test also reverse iteration
     fn test_reverse_complement_sequence_2_14bases () {
+        log_init_test();
+        //
         let seqstr = String::from("TACGAGTAGGATCC");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
