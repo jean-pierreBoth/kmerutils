@@ -350,7 +350,7 @@ impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
 
     pub fn new(kmer_size : usize, seq : &'a SequenceAA) -> Self {
         let alphabet_aa = Alphabet::new();
-        let range = std::ops::Range{start : 0, end : seq.len() -1};
+        let range = std::ops::Range{start : 0, end : seq.len()};
         let base_position = 0;
         KmerSeqIterator{nb_base : kmer_size, sequence : seq, alphabet_aa, previous : None, range, base_position}
     }
@@ -626,23 +626,36 @@ fn log_init_test() {
             },
             None => (),
         } // end match
-    } // end of test_iterator_range
+    } // end of test_seqaa_iterator_range 
 
 
 
     // test we arrive at end correctly
 #[test]
     fn test_seqaa_iterator_end() {
-
-        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEF
-        AQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPA
-        SEYKNRHASILLSLDATAEACASIAAQNSA";
-
+        //
+        log_init_test();
+        log::info!("in test_seqaa_iterator_end");
+        //
+        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPD";
         let seqaa = SequenceAA::from_str(str).unwrap();
-        // ask for Kmer of size 4
-        let mut last_kmer : KmerAA;
-        let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(4, &seqaa);
+        // ask for Kmer of size 8
+        let mut last_kmer : &str = "toto";
+        let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(8, &seqaa);
+        let mut kmer_num = 0;
+        let mut k_uncompressed;
 
-    }
+        while let Some(kmer) = seq_iterator.next() {
+            log::info!("in test_seqaa_iterator_end iteration {}", kmer_num);
+            k_uncompressed = kmer.get_uncompressed_kmer();
+            last_kmer =  std::str::from_utf8(&k_uncompressed).unwrap();
+            log::info!(" kmer {} = {:?}", kmer_num, last_kmer);
+            kmer_num += 1;
+        }
+        if last_kmer != "VGSLDNPD" {
+            log::info!(" last kmer seen {} = {:?}", kmer_num, last_kmer);
+            panic!("test_seqaa_iterator_end did not get the correct last_kmer");
+        }
+    }  // end of test_seqaa_iterator_end
 
 }  // end of mod tests
