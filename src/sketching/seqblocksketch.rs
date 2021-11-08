@@ -548,6 +548,7 @@ fn log_init_test() {
         println!("sketchb has number of blocks = {:?}",  sketchb.sketch.len());
         // check of distance computations
         let mydist = DistBlockSketched{};
+        // distance between blocks of the same seq is set to 1 in dist function! (See comment)
         assert_eq!(mydist.eval(&sketcha.sketch[0], &sketcha.sketch[0]), 1.);
         //
         let dist_1 = mydist.eval(&sketcha.sketch[0], &sketchb.sketch[0]);

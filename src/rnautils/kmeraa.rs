@@ -863,10 +863,10 @@ fn log_init_test() {
 
     // test iterator
 #[test]
-    fn test_seqaa_iterator_range() {
+    fn test_seqaa_128bit_iterator_range() {
         log_init_test();
         //
-        log::debug!("in test_seqaa_iterator_range");
+        log::debug!("in test_seqaa_128bit_iterator_range");
         //
         let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEFAQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
 
@@ -897,6 +897,40 @@ fn log_init_test() {
         } // end match
     } // end of test_seqaa_iterator_range 
 
+    #[test]
+    fn test_seqaa_64bit_iterator_range() {
+        log_init_test();
+        //
+        log::debug!("in test_seqaa_64bit_iterator_range");
+        //
+        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEFAQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
+
+        let seqaa = SequenceAA::from_str(str).unwrap();
+        // ask for Kmer of size 4
+        let mut seq_iterator = KmerSeqIterator::<KmerAA64bit>::new(4, &seqaa);
+        // set a range 
+        seq_iterator.set_range(3,10).unwrap();   // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
+        // So we must havr from "QIEL" 
+        let mut kmer_num = 0;
+        let kmer_res = [ "QIEL" ,"IELI", "ELIK",  "LIKL"];
+        while let Some(kmer) = seq_iterator.next() {
+            let k_uncompressed = kmer.get_uncompressed_kmer();
+            let kmer_str=  std::str::from_utf8(&k_uncompressed).unwrap();
+//            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
+            if kmer_str != kmer_res[kmer_num] {
+                log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
+                panic!("error in KmerAA64bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
+            }
+            kmer_num += 1;
+        }
+        // check iterator sees the end
+        match seq_iterator.next() {
+            Some(_kmer) => {
+                panic!("iterator do not see end");
+            },
+            None => (),
+        } // end match
+    } // end of test_seqaa_64bit_iterator_range 
 
 
     // test we arrive at end correctly

@@ -167,7 +167,7 @@ use std::str::FromStr;
     }
 
     #[test]
-    fn test_seqaa_probminhash() {
+    fn test_seqaa_probminhash_128bit() {
         log_init_test();
         //
         log::debug!("test_seqaa_probminhash");
@@ -204,7 +204,7 @@ use std::str::FromStr;
         let dist = inter as f64/sig1.len() as f64;
         log::info!("inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
         assert!( (dist-0.5).abs() < 1./10.);
-    } // end of test_seqaa_probminhash
+    } // end of test_seqaa_probminhash_128bit
 
 
 }  // end of mod tests in rnautils::seqsketchjaccard
