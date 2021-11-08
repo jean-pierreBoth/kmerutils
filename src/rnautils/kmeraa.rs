@@ -1,13 +1,13 @@
-//! This file implements KmerAA representing Kmer for Amino Acid.  
+//! This file implements KmerAA128bit representing Kmer for Amino Acid.  
 //! We implement compression of bases on 5 bits stored in a u128.  
-//! So KmerAA can store up to 25 AA. For less than 12 AA a u64 is sufficient and could be implemented
+//! So KmerAA128bit can store up to 25 AA. For less than 12 AA a u64 is sufficient and could be implemented
 //! as Kmer for DNA bases.  
 //! The structures found in module base such as KmerSeqIterator and KmerGenerationPattern
-//! applies to KmerAA 
+//! applies to KmerAA128bit 
 
 #![allow(unused)]
 
-
+use std::mem::size_of;
 use std::mem;
 
 use std::io;
@@ -133,28 +133,31 @@ impl Alphabet {
 }  // end of impl Alphabet
 
 
+//=======================================================================================
+/// A Kmer of amino acids represented on 128 bits, it can store up to 25 AA
+/// See also KmerAA64bit for less than 12 AA
+/// We implement Amino Acif Kmer as packed in a u128 using 5bits by base. So we can go up to 25 bases.
 
 #[derive(Copy,Clone,Hash)]
-/// We implement Amino Acif Kmer as packed in a u128 using 5bits by base. So we can go up to 25 bases.
-pub struct KmerAA {
+pub struct KmerAA128bit {
     aa      : u128,
     nb_base : u8,
  
-} // end of struct KmerAA
+} // end of struct KmerAA128bit
 
-impl KmerAA {
+impl KmerAA128bit {
 
     pub fn new(nb_base : u8) -> Self {
         if nb_base >= 25 {
-            panic!("For KmerAA nb_base must be less or equal to 25")
+            panic!("For KmerAA128bit nb_base must be less or equal to 25")
         }
-        KmerAA{aa:0, nb_base}
+        KmerAA128bit{aa:0, nb_base}
     }
-}  // end of impl KmerAA
+}  // end of impl KmerAA128bit
 
 
 
-impl KmerT for KmerAA {
+impl KmerT for KmerAA128bit {
 
     fn get_nb_base(&self) -> u8 {
         self.nb_base
@@ -168,12 +171,12 @@ impl KmerT for KmerAA {
         let encoded_base = Alphabet::new().encode(c);
         let new_kmer = ((self.aa << 5) & value_mask) | (encoded_base as u128 & 0b11111);
         log::debug!("after push {:#b}", new_kmer);
-        KmerAA{aa:new_kmer, nb_base:self.nb_base}
+        KmerAA128bit{aa:new_kmer, nb_base:self.nb_base}
     }  // end of push
 
     // TODO
     fn reverse_complement(&self) -> Self {
-        panic!("KmerAA reverse_complement not yet implemented");
+        panic!("KmerAA128bit reverse_complement not yet implemented");
     } // end of reverse_complement
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
@@ -181,17 +184,17 @@ impl KmerT for KmerAA {
         bufw.write(unsafe { &mem::transmute::<u128, [u8;16]>(self.aa) } )
     } 
      
-} // end of impl KmerT block for KmerAA
+} // end of impl KmerT block for KmerAA128bit
 
 
-impl PartialEq for KmerAA {
+impl PartialEq for KmerAA128bit {
     // we must check equality of field
-    fn eq(&self, other: &KmerAA) -> bool {
+    fn eq(&self, other: &KmerAA128bit) -> bool {
         if (self.aa == other.aa) & (self.nb_base ==other.nb_base) { true } else {false}
     }
-}  // end of impl PartialEq for KmerAA
+}  // end of impl PartialEq for KmerAA128bit
 
-impl Eq for KmerAA {}
+impl Eq for KmerAA128bit {}
 
 
 
@@ -200,7 +203,7 @@ impl Eq for KmerAA {}
 /// 
 /// 
 
-impl CompressedKmerT for KmerAA {
+impl CompressedKmerT for KmerAA128bit {
     type Val = u128;
 
     fn get_nb_base_max() -> usize { 25}
@@ -233,16 +236,16 @@ impl CompressedKmerT for KmerAA {
 
     #[inline(always)]    
     fn get_bitsize(&self) -> usize { 128 }
-}  // end of impl CompressedKmerT for KmerAA
+}  // end of impl CompressedKmerT for KmerAA128bit
 
 
 //===================================================================
 
 
 
-impl  Ord for KmerAA {
+impl  Ord for KmerAA128bit {
 
-    fn cmp(&self, other: &KmerAA) -> Ordering {
+    fn cmp(&self, other: &KmerAA128bit) -> Ordering {
         if self.nb_base != other.nb_base {
             return (self.nb_base).cmp(&(other.nb_base));
         }
@@ -250,17 +253,141 @@ impl  Ord for KmerAA {
             return (self.aa).cmp(&(other.aa));
         }
     } // end cmp
-} // end impl Ord for KmerAA 
+} // end impl Ord for KmerAA128bit 
 
 
 
-impl PartialOrd for KmerAA {
-    fn partial_cmp(&self, other: &KmerAA) -> Option<Ordering> {
+impl PartialOrd for KmerAA128bit {
+    fn partial_cmp(&self, other: &KmerAA128bit) -> Option<Ordering> {
         Some(self.cmp(other))
     } // end partial_cmp
-} // end impl Ord for KmerAA
+} // end impl Ord for KmerAA128bit
 
 
+//======================================================================
+
+/// A Kmer of amino acids for less than 12 Amino Acid, stored on a u64.
+
+#[derive(Copy,Clone,Hash)]
+pub struct KmerAA64bit {
+    aa      : u64,
+    nb_base : u8,
+ 
+} // end of struct KmerAA64bit
+
+impl KmerAA64bit {
+
+    pub fn new(nb_base : u8) -> Self {
+        if nb_base >= 12 {
+            panic!("For KmerAA64bit nb_base must be less or equal to 12")
+        }
+        KmerAA64bit{aa:0, nb_base}
+    }
+}  // end of impl KmerAA64bit
+
+
+
+
+impl KmerT for KmerAA64bit {
+
+    fn get_nb_base(&self) -> u8 {
+        self.nb_base
+    } // end of get_nb_base
+
+    // 
+    fn push(&self, c : u8) -> Self {
+        // shift left 5 bits, insert new base and enforce 0 at upper bits
+        let value_mask :u64 = (0b1 << (5*self.get_nb_base())) - 1;
+        // contrary to dna sequence base in seq is not encoded, we must encode it!!
+        let encoded_base = Alphabet::new().encode(c);
+        let new_kmer = ((self.aa << 5) & value_mask) | (encoded_base as u64 & 0b11111);
+        log::debug!("after push {:#b}", new_kmer);
+        KmerAA64bit{aa:new_kmer, nb_base:self.nb_base}
+    }  // end of push
+
+    // TODO
+    fn reverse_complement(&self) -> Self {
+        panic!("KmerAA64bit reverse_complement not yet implemented");
+    } // end of reverse_complement
+
+
+    fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
+        bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(self.nb_base) }).unwrap();
+        bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(self.aa) } )
+    } 
+     
+} // end of impl KmerT block for KmerAA64bit
+
+
+
+
+impl PartialEq for KmerAA64bit {
+    // we must check equality of field
+    fn eq(&self, other: &KmerAA64bit) -> bool {
+        if (self.aa == other.aa) & (self.nb_base ==other.nb_base) { true } else {false}
+    }
+}  // end of impl PartialEq for KmerAA128bit
+
+impl Eq for KmerAA64bit {}
+
+
+
+
+impl  Ord for KmerAA64bit {
+
+    fn cmp(&self, other: &KmerAA64bit) -> Ordering {
+        if self.nb_base != other.nb_base {
+            return (self.nb_base).cmp(&(other.nb_base));
+        }
+        else {
+            return (self.aa).cmp(&(other.aa));
+        }
+    } // end cmp
+} // end impl Ord for KmerAA64bit 
+
+
+
+impl PartialOrd for KmerAA64bit {
+    fn partial_cmp(&self, other: &KmerAA64bit) -> Option<Ordering> {
+        Some(self.cmp(other))
+    } // end partial_cmp
+} // end impl Ord for KmerAA128bit
+
+
+impl CompressedKmerT for KmerAA64bit {
+    type Val = u64;
+
+    fn get_nb_base_max() -> usize { 12}
+
+    /// a decompressing function mainly for test and debugging purpose
+    fn get_uncompressed_kmer(&self) -> Vec<u8> {
+        let nb_bases = self.nb_base;
+        let alphabet = Alphabet::new();
+        //
+        let mut decompressed_kmer = Vec::<u8>::with_capacity(nb_bases as usize);
+        let mut base:u8;
+        //
+        let mut buf = self.aa;
+        // get the base coding part at left end of u32
+        log::debug!("rotating left {}", 64 - 5 * nb_bases);
+        buf = buf.rotate_left((64 - 5 * nb_bases) as u32);
+        for _ in 0..nb_bases {
+            buf = buf.rotate_left(5);
+            base = (buf & 0b11111) as u8; 
+            decompressed_kmer.push(alphabet.decode(base));
+        }
+        return decompressed_kmer;
+    }
+
+        /// return the pure value with part coding number of bases reset to 0.
+    #[inline(always)]    
+    fn get_compressed_value(&self) -> u64 {
+        return self.aa;
+    }
+
+    #[inline(always)]    
+    fn get_bitsize(&self) -> usize { 128 }
+}  // end of impl CompressedKmerT for KmerAA128bit
 
 //=======================================================================
 
@@ -326,7 +453,7 @@ impl FromStr for SequenceAA {
 
 // TODO factorize this trait?
 pub trait KmerSeqIteratorT {
-    /// KmerAA 
+    /// KmerAA128bit 
     type KmerVal;
     /// get next kmer or None
     fn next(&mut self) -> Option<Self::KmerVal>;
@@ -378,8 +505,8 @@ impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
 
 
 
-impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA> {
-    type KmerVal = KmerAA;
+impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA128bit> {
+    type KmerVal = KmerAA128bit;
 
     /// iterates...
     fn next(&mut self) -> Option<Self::KmerVal> {
@@ -415,14 +542,58 @@ impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA> {
                 log::debug!("after init {:#b}", new_kmer);
                 self.base_position += 1;                
             }
-            self.previous = Some(KmerAA{aa: new_kmer, nb_base : self.nb_base as u8});
+            self.previous = Some(KmerAA128bit{aa: new_kmer, nb_base : self.nb_base as u8});
             return self.previous;
         }
     } // end of next
     
-    
-} // end of impl KmerSeqIteratorT for 
+} // end of impl KmerSeqIteratorT for KmerSeqIterator<'a, KmerAA128bit>
 
+
+
+impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA64bit> {
+    type KmerVal = KmerAA64bit;
+
+    /// iterates...
+    fn next(&mut self) -> Option<Self::KmerVal> {
+        // check for end of iterator
+        if self.base_position >= self.sequence.len().min(self.range.end) {
+            log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
+            return None;
+        }
+        // now we know we are not at end of iterator
+        // if we do not have a previous we have to contruct first kmer
+        // we have to push a base.
+        //
+        if let Some(kmer) = self.previous {
+            // in fact we have the base to push
+            let next_base = self.sequence.get_base(self.base_position);
+            log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
+            self.previous = Some(kmer.push(next_base));
+            self.base_position += 1;
+            return self.previous;
+        }
+        else {
+            // we are at beginning of kmer construction sequence, we must push kmer_size bases
+            let value_mask :u64 = (0b1 << 5*self.nb_base) - 1;
+//            log::debug!("value  mask {:#b}", value_mask);
+            let mut new_kmer = 0u64;
+            let kmer_size = self.nb_base as usize;
+            for _ in 0..kmer_size {
+                let next_base = self.sequence.get_base(self.base_position);
+                log::debug!(" init kmer base : {}", char::from_u32(next_base as u32).unwrap());
+                // contrary to dna sequence base in seq is not encoded, we must encode it!!
+                let encoded_base = self.alphabet_aa.encode(next_base);
+                new_kmer = ((new_kmer << 5) & value_mask) | (encoded_base as u64 & 0b11111);
+                log::debug!("after init {:#b}", new_kmer);
+                self.base_position += 1;                
+            }
+            self.previous = Some(KmerAA64bit{aa: new_kmer, nb_base : self.nb_base as u8});
+            return self.previous;
+        }
+    } // end of next
+
+} // end of impl KmerSeqIteratorT for KmerSeqIterator<'a, KmerAA64bit>
 //============================================================================
 
 
@@ -474,23 +645,25 @@ impl  <T:KmerT> KmerGenerator<T> {
 
 /*
     Now we have the basics of Kmer Traits we implement KmerSeqIterator and KmerGenerationPattern
+    Implementation  of Kmer Generation for KmerAA128bit
+    ===================================================
  */
 
 
 
 
-/// implementation of kmer generation pattern for KmerAA<N>
-impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
-    fn generate_kmer_pattern(&self, seq : &SequenceAA) -> Vec<KmerAA> {
+/// implementation of kmer generation pattern for KmerAA128bit<N>
+impl KmerGenerationPattern<KmerAA128bit> for KmerGenerator<KmerAA128bit> {
+    fn generate_kmer_pattern(&self, seq : &SequenceAA) -> Vec<KmerAA128bit> {
         if self.kmer_size > 25 {
-            panic!("KmerAA cannot have size greater than 25!!");   // cannot happen !
+            panic!("KmerAA128bit cannot have size greater than 25!!");   // cannot happen !
         }
         let kmer_size = self.kmer_size as usize; 
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.len() >= kmer_size { seq.len()-kmer_size+1} else {0};
-        let mut kmer_vect = Vec::<KmerAA>::with_capacity(nb_kmer);
-        let mut kmeriter  = KmerSeqIterator::new(kmer_size, seq);
+        let mut kmer_vect = Vec::<KmerAA128bit>::with_capacity(nb_kmer);
+        let mut kmeriter  = KmerSeqIterator::<KmerAA128bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next() {
                 Some(kmer) => kmer_vect.push(kmer),
@@ -504,17 +677,17 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
 
     /// generate all kmers associated to their multiplicity
     /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
-    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> Vec<(KmerAA,usize)> {
+    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> Vec<(KmerAA128bit,usize)> {
         if self.kmer_size as usize > 25 {
-            panic!("KmerAA cannot be greater than 25!!");  // cannot happen
+            panic!("KmerAA128bit cannot be greater than 25!!");  // cannot happen
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let kmer_size = self.kmer_size as usize; 
         //
         let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
-        let mut kmer_distribution : FnvIndexMap::<KmerAA,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-        let mut kmeriter = KmerSeqIterator::new(kmer_size, seq);
+        let mut kmer_distribution : FnvIndexMap::<KmerAA128bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmeriter = KmerSeqIterator::<KmerAA128bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
@@ -526,7 +699,7 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
         }
         // convert to a Vec
         let mut hashed_kmers = kmer_distribution.keys();
-        let mut weighted_kmer = Vec::<(KmerAA,usize)>::with_capacity(kmer_distribution.len());
+        let mut weighted_kmer = Vec::<(KmerAA128bit,usize)>::with_capacity(kmer_distribution.len());
         loop {
             match hashed_kmers.next() {
                 Some(key) => {
@@ -544,19 +717,19 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
 
 
 
-    fn generate_kmer_pattern_in_range(&self, seq : &SequenceAA, begin:usize, end:usize) -> Vec<KmerAA> {
+    fn generate_kmer_pattern_in_range(&self, seq : &SequenceAA, begin:usize, end:usize) -> Vec<KmerAA128bit> {
         if self.kmer_size as usize > 25 {
-            panic!("KmerAA cannot have size greater than 25");   // cannot happen
+            panic!("KmerAA128bit cannot have size greater than 25");   // cannot happen
         }
         if begin >= end {
-            panic!("KmerGenerationPattern<'a, KmerAA>  bad range for kmer iteration");
+            panic!("KmerGenerationPattern<'a, KmerAA128bit>  bad range for kmer iteration");
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let kmer_size = self.kmer_size as usize; 
         let nb_kmer = if seq.len() >= kmer_size { seq.len() - kmer_size + 1} else {0};
-        let mut kmer_vect = Vec::<KmerAA>::with_capacity(nb_kmer);
-        let mut kmeriter = KmerSeqIterator::new(kmer_size, seq);
+        let mut kmer_vect = Vec::<KmerAA128bit>::with_capacity(nb_kmer);
+        let mut kmeriter = KmerSeqIterator::<KmerAA128bit>::new(kmer_size, seq);
         kmeriter.set_range(begin, end).unwrap();
         loop {
             match kmeriter.next() {
@@ -568,10 +741,104 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
         return kmer_vect;
     }  // end of generate_kmer_pattern
 
-}  // end of impl KmerGenerationPattern<'a, KmerAA<N>>
+}  // end of impl KmerGenerationPattern<'a, KmerAA128bit<N>>
+
+
+/*
+ Implementation for Kmer64 bit
+ */
+
+/// implementation of kmer generation pattern for KmerAA128bit<N>
+impl KmerGenerationPattern<KmerAA64bit> for KmerGenerator<KmerAA64bit> {
+    fn generate_kmer_pattern(&self, seq : &SequenceAA) -> Vec<KmerAA64bit> {
+        if self.kmer_size > 12 {
+            panic!("KmerAA64bit cannot have size greater than 12!!");   // cannot happen !
+        }
+        let kmer_size = self.kmer_size as usize; 
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let nb_kmer = if seq.len() >= kmer_size { seq.len()-kmer_size+1} else {0};
+        let mut kmer_vect = Vec::<KmerAA64bit>::with_capacity(nb_kmer);
+        let mut kmeriter  = KmerSeqIterator::<KmerAA64bit>::new(kmer_size, seq);
+        loop {
+            match kmeriter.next() {
+                Some(kmer) => kmer_vect.push(kmer),
+                None => break,
+            }
+        }
+        //
+        return kmer_vect;
+    }  // end of generate_kmer_pattern
 
 
 
+    /// generate all kmers associated to their multiplicity
+    /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
+    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> Vec<(KmerAA64bit,usize)> {
+        if self.kmer_size as usize > 12 {
+            panic!("KmerAA128bit cannot be greater than 12!!");  // cannot happen
+        }
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let kmer_size = self.kmer_size as usize; 
+        //
+        let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
+        let mut kmer_distribution : FnvIndexMap::<KmerAA64bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmeriter = KmerSeqIterator::<KmerAA64bit>::new(kmer_size, seq);
+        loop {
+            match kmeriter.next(){
+                Some(kmer) => {
+                    // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
+                    *kmer_distribution.entry(kmer).or_insert(0) += 1;
+                },
+                None => break,
+            }
+        }
+        // convert to a Vec
+        let mut hashed_kmers = kmer_distribution.keys();
+        let mut weighted_kmer = Vec::<(KmerAA64bit,usize)>::with_capacity(kmer_distribution.len());
+        loop {
+            match hashed_kmers.next() {
+                Some(key) => {
+                    if let Some(weight) = kmer_distribution.get(key) {
+                        // get back to Kmer16b32bit from 
+                        weighted_kmer.push((*key,*weight));
+                    };
+                },
+                None => break,
+            }
+        }
+        //
+        return weighted_kmer;
+    }  // end of generate_kmer_pattern
+
+
+
+    fn generate_kmer_pattern_in_range(&self, seq : &SequenceAA, begin:usize, end:usize) -> Vec<KmerAA64bit> {
+        if self.kmer_size as usize > 12 {
+            panic!("KmerAA64bit cannot have size greater than 12");   // cannot happen
+        }
+        if begin >= end {
+            panic!("KmerGenerationPattern<'a, KmerAA64bit>  bad range for kmer iteration");
+        }
+        // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
+        // But it happens that "long reads" are really short 
+        let kmer_size = self.kmer_size as usize; 
+        let nb_kmer = if seq.len() >= kmer_size { seq.len() - kmer_size + 1} else {0};
+        let mut kmer_vect = Vec::<KmerAA64bit>::with_capacity(nb_kmer);
+        let mut kmeriter = KmerSeqIterator::<KmerAA64bit>::new(kmer_size, seq);
+        kmeriter.set_range(begin, end).unwrap();
+        loop {
+            match kmeriter.next() {
+                Some(kmer) => kmer_vect.push(kmer),
+                None => break,
+            }
+        }
+        //
+        return kmer_vect;
+    }  // end of generate_kmer_pattern
+
+}  // end of impl KmerGenerationPattern<'a, KmerAA64bit<N>>
 
 //===========================================================
 
@@ -583,7 +850,7 @@ impl KmerGenerationPattern<KmerAA> for KmerGenerator<KmerAA> {
 #[cfg(test)]
 mod tests {
 
-// to run with  cargo test -- --nocapture kmeraa
+// to run with  cargo test -- --nocapture KmerAA128bit
 //  possibly with export RUST_LOG=INFO,kmerutils::rnautils=debug
 
 use super::*;
@@ -605,7 +872,7 @@ fn log_init_test() {
 
         let seqaa = SequenceAA::from_str(str).unwrap();
         // ask for Kmer of size 4
-        let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(4, &seqaa);
+        let mut seq_iterator = KmerSeqIterator::<KmerAA128bit>::new(4, &seqaa);
         // set a range 
         seq_iterator.set_range(3,10).unwrap();   // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
         // So we must havr from "QIEL" 
@@ -617,7 +884,7 @@ fn log_init_test() {
 //            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
             if kmer_str != kmer_res[kmer_num] {
                 log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
-                panic!("error in kmeraa test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
+                panic!("error in KmerAA128bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
             }
             kmer_num += 1;
         }
@@ -643,7 +910,7 @@ fn log_init_test() {
         let seqaa = SequenceAA::from_str(str).unwrap();
         // ask for Kmer of size 8
         let mut last_kmer : &str = "toto";
-        let mut seq_iterator = KmerSeqIterator::<KmerAA>::new(8, &seqaa);
+        let mut seq_iterator = KmerSeqIterator::<KmerAA128bit>::new(8, &seqaa);
         let mut kmer_num = 0;
         let mut k_uncompressed;
 

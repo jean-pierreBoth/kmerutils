@@ -103,17 +103,18 @@ impl SeqSketcher {
 
 
     /// a generic implementation of probminhash3a  against our stndard compressed Kmer types
-    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
-    pub fn sketch_probminhash3a_compressedkmeraa<'b, KmerAA : CompressedKmerT, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<KmerAA::Val> >
-        where F : Fn(&KmerAA) -> KmerAA::Val + Send + Sync,
-              KmerAA::Val : num::PrimInt + Send + Sync + Debug,
-              KmerGenerator<KmerAA> :  KmerGenerationPattern<KmerAA> {
+    /// Kmer::Val is the base type u128 on which compressed kmer representations relies. 
+    /// We could lso implement a version on 64bit , we have KmerAA64bit.
+    pub fn sketch_probminhash3a_compressed_kmeraa128bit<'b, KmerAA128bit : CompressedKmerT, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<KmerAA128bit::Val> >
+        where F : Fn(&KmerAA128bit) -> KmerAA128bit::Val + Send + Sync,
+              KmerAA128bit::Val : num::PrimInt + Send + Sync + Debug,
+              KmerGenerator<KmerAA128bit> :  KmerGenerationPattern<KmerAA128bit> {
         //
-        let comput_closure = | seqb : &'b SequenceAA, i:usize | -> (usize,Vec<KmerAA::Val>) {
-            let kmers : Vec<(KmerAA, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+        let comput_closure = | seqb : &'b SequenceAA, i:usize | -> (usize,Vec<KmerAA128bit::Val>) {
+            let kmers : Vec<(KmerAA128bit, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
             // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
             // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
-            let mut wb : FnvIndexMap::<KmerAA::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            let mut wb : FnvIndexMap::<KmerAA128bit::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
             for kmer in kmers {
                 let hashval = fhash(&kmer.0);
                 let res = wb.insert(hashval, kmer.1 as f64);
@@ -125,16 +126,16 @@ impl SeqSketcher {
                 }
             }
             // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
-            let mut pminhashb = ProbMinHash3a::<KmerAA::Val,fnv::FnvHasher>::new(self.sketch_size, num::zero::<KmerAA::Val>());
+            let mut pminhashb = ProbMinHash3a::<KmerAA128bit::Val,fnv::FnvHasher>::new(self.sketch_size, num::zero::<KmerAA128bit::Val>());
             pminhashb.hash_weigthed_idxmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<KmerAA::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<KmerAA128bit::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<KmerAA::Val>>::with_capacity(vseq.len());
+        let mut jaccard_vec = Vec::<Vec<KmerAA128bit::Val>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
             jaccard_vec.push(Vec::new());
         }
@@ -183,16 +184,16 @@ use std::str::FromStr;
         let sketcher = SeqSketcher::new(kmer_size, sketch_size);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
-        let kmer_hash_fn = | kmer : &KmerAA | -> <KmerAA as CompressedKmerT>::Val {
-            let mask : <KmerAA as CompressedKmerT>::Val = num::NumCast::from::<u128>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
+        let kmer_hash_fn = | kmer : &KmerAA128bit | -> <KmerAA128bit as CompressedKmerT>::Val {
+            let mask : <KmerAA128bit as CompressedKmerT>::Val = num::NumCast::from::<u128>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
             let hashval = kmer.get_compressed_value() & mask;
             hashval
         };
         let mask : u128 = num::NumCast::from::<u128>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
         log::info!("mask = {:b}", mask);
         //
-        log::info!("calling sketch_probminhash3a_compressedkmeraa");
-        let signatures = sketcher.sketch_probminhash3a_compressedkmeraa(&vseq, kmer_hash_fn); 
+        log::info!("calling sketch_probminhash3a_compressedKmerAA128bit");
+        let signatures = sketcher.sketch_probminhash3a_compressed_kmeraa128bit(&vseq, kmer_hash_fn); 
         // get distance between the 2 strings  
         // compute Jp as in 
         let mut jp = 0.;
