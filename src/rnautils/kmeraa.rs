@@ -73,8 +73,7 @@ impl Alphabet {
         self.bases.find(c as char).is_some() 
     } // end is_valid_base
 
-    #[allow(unused)]
-    fn get_nb_bits(&self) -> u8 { 
+    pub fn get_nb_bits(&self) -> u8 { 
         5
     }
 
@@ -101,7 +100,7 @@ impl Alphabet {
             b'V' => 0b10011,
             b'W' => 0b10100,
             b'Y' => 0b10101,
-            _    => panic!("encode: not a code in alpahabet for amino acid {}", c),
+            _    => panic!("encode: not a code in alpahabet for amino acid: {:x}", c),
         } // end of match
     }   // end of encode
 
@@ -404,7 +403,7 @@ impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA> {
         else {
             // we are at beginning of kmer construction sequence, we must push kmer_size bases
             let value_mask :u128 = (0b1 << 5*self.nb_base) - 1;
-            log::debug!("value  mask {:#b}", value_mask);
+//            log::debug!("value  mask {:#b}", value_mask);
             let mut new_kmer = 0u128;
             let kmer_size = self.nb_base as usize;
             for _ in 0..kmer_size {
@@ -602,9 +601,7 @@ fn log_init_test() {
         //
         log::debug!("in test_seqaa_iterator_range");
         //
-        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEF
-        AQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPA
-        SEYKNRHASILLSLDATAEACASIAAQNSA";
+        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEFAQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
 
         let seqaa = SequenceAA::from_str(str).unwrap();
         // ask for Kmer of size 4

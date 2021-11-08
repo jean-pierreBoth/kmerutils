@@ -124,7 +124,8 @@ impl SeqSketcher {
                     _ => { }
                 }
             }
-            let mut pminhashb = ProbMinHash3a::<KmerAA::Val,NoHashHasher>::new(self.sketch_size, num::zero::<KmerAA::Val>());
+            // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
+            let mut pminhashb = ProbMinHash3a::<KmerAA::Val,fnv::FnvHasher>::new(self.sketch_size, num::zero::<KmerAA::Val>());
             pminhashb.hash_weigthed_idxmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
@@ -170,23 +171,38 @@ use std::str::FromStr;
         //
         log::debug!("test_seqaa_probminhash");
         //
-        let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITEFAQNVKACALGQAAASVAAQNIIGRTAEEVVRARDELAAMLKSGGPPPGPPFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
+        let str1 = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
+        // The second string is the first half of the first repeated
+        let str2 = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVMTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKV";
 
-        let seqaa = SequenceAA::from_str(str).unwrap();
-        let vseq = vec![&seqaa];
+        let seq1 = SequenceAA::from_str(str1).unwrap();
+        let seq2 = SequenceAA::from_str(str2).unwrap();
+        let vseq = vec![&seq1, &seq2];
         let kmer_size = 5;
-        let sketcher = SeqSketcher::new(kmer_size, 100);
+        let sketch_size = 100;
+        let sketcher = SeqSketcher::new(kmer_size, sketch_size);
+        let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA | -> <KmerAA as CompressedKmerT>::Val {
-            let mask : <KmerAA as CompressedKmerT>::Val = num::NumCast::from::<u128>((0b1 << 5*kmer.get_nb_base()) - 1).unwrap();
+            let mask : <KmerAA as CompressedKmerT>::Val = num::NumCast::from::<u128>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
             let hashval = kmer.get_compressed_value() & mask;
             hashval
         };
-        let mask : u128 = num::NumCast::from::<u128>((0b1 << 5*kmer_size) - 1).unwrap();
+        let mask : u128 = num::NumCast::from::<u128>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
         log::info!("mask = {:b}", mask);
         //
         log::info!("calling sketch_probminhash3a_compressedkmeraa");
-        let signatures = sketcher.sketch_probminhash3a_compressedkmeraa(&vseq, kmer_hash_fn);                            
+        let signatures = sketcher.sketch_probminhash3a_compressedkmeraa(&vseq, kmer_hash_fn); 
+        // get distance between the 2 strings  
+        // compute Jp as in 
+        let mut jp = 0.;
+        let sig1 = &signatures[0];
+        let sig2 = &signatures[1];
+        //
+        let inter : u128 = sig1.iter().zip(sig2.iter()).map(|(a,b)| if a==b {1} else {0}).sum();
+        let dist = inter as f64/sig1.len() as f64;
+        log::info!("inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
+        assert!( (dist-0.5).abs() < 1./10.);
     } // end of test_seqaa_probminhash
 
 
