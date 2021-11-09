@@ -521,7 +521,7 @@ fn log_init_test() {
 
 
 #[test]
-    fn test_block_sketch() {
+    fn test_block_32bit_sketch() {
         log_init_test();
         // define a closure for our hash function
         let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {

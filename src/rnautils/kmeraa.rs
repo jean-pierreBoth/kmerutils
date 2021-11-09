@@ -69,7 +69,7 @@ impl Alphabet {
     }
 
     #[inline(always)]
-    fn is_valid_base(&self, c: u8) -> bool {
+    pub fn is_valid_base(&self, c: u8) -> bool {
         self.bases.find(c as char).is_some() 
     } // end is_valid_base
 

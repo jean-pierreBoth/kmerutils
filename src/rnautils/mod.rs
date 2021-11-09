@@ -1,6 +1,6 @@
 //! This module provides minimal implementation of alphabet, sequence and sketching on rna data
 //! 
 
-mod kmeraa;
+pub mod kmeraa;
 
-mod seqsketchjaccard;
+pub mod seqsketchjaccard;
