@@ -1,11 +1,9 @@
-//! This file implements KmerAA128bit representing Kmer for Amino Acid.  
-//! We implement compression of bases on 5 bits stored in a u128.  
-//! So KmerAA128bit can store up to 25 AA. For less than 12 AA a u64 is sufficient and could be implemented
-//! as Kmer for DNA bases.  
-//! The structures found in module base such as KmerSeqIterator and KmerGenerationPattern
-//! applies to KmerAA128bit 
+//! This file implements KmerAA32bit and KmerAA64bit representing Kmer for Amino Acid.  
+//! We implement compression of bases on 5 bits stored in a u64 or u32.  
+//! So KmerAA64bit can store up to 12 AA. For less than 6 AA a u32 is sufficient. 
+//! The structures  KmerSeqIterator and KmerGenerationPattern provides Kmer generation tools
+//! corresponding to those in module base 
 
-#![allow(unused)]
 
 use std::mem::size_of;
 use std::mem;
