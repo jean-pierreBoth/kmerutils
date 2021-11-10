@@ -1,7 +1,7 @@
 //! provide minimal tool to sketch RNA sequences by probminhash3a
 
 
-#![allow(unused)]
+//#![allow(unused)]
 
 use std::io::{BufReader, BufWriter };
 
@@ -18,10 +18,11 @@ use fnv::{FnvBuildHasher};
 
 use num;
 
+#[allow(unused)]
 use crate::nohasher::*;
 
 use crate::base::{kmertraits::*};
-use crate::rnautils::{kmeraa::*};
+use crate::aautils::{kmeraa::*};
 
 use rayon::prelude::*;
 
@@ -280,8 +281,6 @@ use std::str::FromStr;
         log::info!("calling sketch_probminhash3a_compressedKmerAA64bit");
         let signatures = sketcher.sketch_probminhash3a_compressed_kmeraa64bit(&vseq, kmer_hash_fn); 
         // get distance between the 2 strings  
-        // compute Jp as in 
-        let mut jp = 0.;
         let sig1 = &signatures[0];
         let sig2 = &signatures[1];
         //
@@ -322,8 +321,6 @@ use std::str::FromStr;
         log::info!("calling sketch_probminhash3a_compressedKmerAA32bit");
         let signatures = sketcher.sketch_probminhash3a_compressed_kmeraa32bit(&vseq, kmer_hash_fn); 
         // get distance between the 2 strings  
-        // compute Jp as in 
-        let mut jp = 0.;
         let sig1 = &signatures[0];
         let sig2 = &signatures[1];
         //
@@ -364,8 +361,6 @@ use std::str::FromStr;
         log::info!("calling sketch_probminhash3a_compressed_kmeraa for KmerAA32bit");
         let signatures = sketcher.sketch_probminhash3a_compressedkmeraa(&vseq, kmer_hash_fn); 
         // get distance between the 2 strings  
-        // compute Jp as in 
-        let mut jp = 0.;
         let sig1 = &signatures[0];
         let sig2 = &signatures[1];
         //

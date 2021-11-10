@@ -38,7 +38,7 @@ pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash+Ord
     /// get Kmer as a Vec<u8>
     fn get_uncompressed_kmer(&self) -> Vec<u8>;
     /// returns the size in bits of word supporting compressed kmer.
-    /// not just number of base * size of base
+    /// not just number of base * size of base. In fact it is number of bits of Self::Val
     fn get_bitsize(&self) -> usize;
 }  // end of trait CompressedKmer
 

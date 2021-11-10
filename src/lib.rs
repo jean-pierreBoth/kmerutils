@@ -9,7 +9,7 @@ extern crate lazy_static;
 // basic stuff bases definitions, kmer , kmer generation sequences,
 pub mod base;
 
-pub mod rnautils;
+pub mod aautils;
 
 pub mod statutils;
 pub mod io;
