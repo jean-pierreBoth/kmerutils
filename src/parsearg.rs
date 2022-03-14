@@ -13,6 +13,7 @@ pub struct ReturnTimesArgs {
     // size consecutive base regions to analyze
     pub window_size: u8,
     /// if non null gives the name of file to reload ret times from
+#[allow(unused)]
     file:Option<String>,
 }
 
@@ -47,6 +48,7 @@ pub struct KmerArgs {
     /// what is to be done
     pub kmer_task:KmerProcessing,
     /// filename to dump result in
+#[allow(unused)]
     file:Option<String>,
     /// number of threads to use
     pub nb_threads: usize,

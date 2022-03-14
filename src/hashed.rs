@@ -22,6 +22,8 @@ pub type ItemHash = u64;
 #[derive(Debug,Clone,Copy)]
 pub struct HashedItem<T:Clone+Copy> {
     pub(crate) hash: ItemHash,
+    ///
+#[allow(unused)]
     pub(crate) item: Option<T>,
 }
 

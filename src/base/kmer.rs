@@ -36,7 +36,7 @@ pub struct KmerCoord {
   
 
 
-//  implementation block of Trait NtHash
+//  implementation block of Trait NtHash for Kmers using 2 bits encoded bases
 //========================================================================================
 
 
@@ -141,20 +141,6 @@ macro_rules! implement_nthash_for(
 
 implement_nthash_for!(Kmer32bit);
 implement_nthash_for!(Kmer16b32bit);
-
-//====================================================================================
-
-/// 9 bytes structure
-#[allow(dead_code)]
-struct KmerHashed {
-    /// hashed value created by invertible hash hash_64
-    hashed : u64,
-    /// nb base
-    size : u8,
-}
-
-//===========================================================
-
 
 
 
