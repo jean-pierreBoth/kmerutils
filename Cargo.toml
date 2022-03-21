@@ -62,7 +62,6 @@ xdr-codec= {version = "0.2.5"}
 
 # for //
 crossbeam = {version = "0.8"}
-crossbeam-channel = {version = "0.5"}
 
 parking_lot ={version="0.12"}
 rayon = {version = "1.5"}

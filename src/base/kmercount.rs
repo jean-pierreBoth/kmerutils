@@ -665,7 +665,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump as u64) })?;
     println!(" threaded dump multiple kmer , nb kmer to dump : {} ", nb_kmer_to_dump);
     // we set count to u16 beccause of high coverage and high error rates in long reads that force us to reduce kmer size!!
-    let (s, r) = crossbeam_channel::bounded::<(Kmer, u16)>(1_000_000);
+    let (s, r) = crossbeam::channel::bounded::<(Kmer, u16)>(1_000_000);
     //
     crossbeam::thread::scope(|scope| {
         //
@@ -841,7 +841,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
 
 
 use std::cell::{RefCell};
-use crossbeam_channel::{Sender};
+use crossbeam::channel::{Sender};
 
 /// This function counts K-mers from a vector of Sequence.
 /// One thread generates all kmer and dispatch them to counter threads via messages.
@@ -873,7 +873,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
         // receptor threads
         for i in 0..nb_threads {
-            let channel = crossbeam_channel::bounded::<Kmer>(1_000_000);
+            let channel = crossbeam::channel::bounded::<Kmer>(1_000_000);
             channels.push(RefCell::new(channel.0));
             // can generate thread
             let receiver = channel.1;
