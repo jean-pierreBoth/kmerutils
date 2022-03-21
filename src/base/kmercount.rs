@@ -14,7 +14,7 @@ use ::std::fs;
 use ::std::fs::OpenOptions;
 use ::std::marker::PhantomData;
 
-use crossbeam_utils::thread::*;
+use crossbeam::thread::*;
 
 use std::time::*;
 use ::cuckoofilter::*;
@@ -667,7 +667,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     // we set count to u16 beccause of high coverage and high error rates in long reads that force us to reduce kmer size!!
     let (s, r) = crossbeam_channel::bounded::<(Kmer, u16)>(1_000_000);
     //
-    crossbeam_utils::thread::scope(|scope| {
+    crossbeam::thread::scope(|scope| {
         //
         let mut join_handles = Vec::new();
         // channel creation, type of message is a tuple (compressed value of kmer, u8)
@@ -783,7 +783,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
     // realize a partition, but we will have to tranfer contents to one of cuckoo.
     //
         
-    let poolcounters :KmerCounterPool<Kmer> = crossbeam_utils::thread::scope(|scope| {
+    let poolcounters :KmerCounterPool<Kmer> = crossbeam::thread::scope(|scope| {
         let start_t = std::time::Instant::now();
         let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
         for i in 0..nb_threads {
@@ -865,7 +865,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
     // Filters must be a partition of the kmer set!!!
     //
         
-    let poolcounters:KmerCounterPool<Kmer> = crossbeam_utils::thread::scope(|scope| {
+    let poolcounters:KmerCounterPool<Kmer> = crossbeam::thread::scope(|scope| {
         //
         let mut channels : Vec<RefCell< Sender<Kmer>  > >  = Vec::new();
         //

@@ -1,8 +1,8 @@
 [package]
 name = "kmerutils"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["jeanpierre.both@gmail.com"]
-#repository = "https://github.com/jean-pierreBoth/kmerutils"
+repository = "https://github.com/jean-pierreBoth/kmerutils"
 keywords = ["genomics", "hash", "kmer"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -61,12 +61,12 @@ zmq= {version =  "0.9"}
 xdr-codec= {version = "0.2.5"}
 
 # for //
-crossbeam-utils = {version = "0.8"}
+crossbeam = {version = "0.8"}
 crossbeam-channel = {version = "0.5"}
 
-parking_lot ={version="0.11"}
+parking_lot ={version="0.12"}
 rayon = {version = "1.5"}
-num_cpus = {version = "1.13.0"}
+num_cpus = {version = "1.13"}
 
 ndarray = {version = "0.15"}
 needletail = {version = "0.4"}
