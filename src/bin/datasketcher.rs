@@ -60,34 +60,34 @@ fn main() {
     let matches = Box::new(App::new("datasketcher")       
                     .arg(Arg::with_name("file")
                         .long("file")
-                        .short("f")
+                        .short('f')
                         .takes_value(true)
                         .help("expecting a fastq file"))
                     .arg(Arg::with_name("sketch_size")
                         .long("sketch")
-                        .short("s")
+                        .short('s')
                         .takes_value(true)
                         .help("expecting sketch size as usize"))
                     .arg(Arg::with_name("kmer_size")
                         .long("kmer")
-                        .short("k")
+                        .short('k')
                         .takes_value(true)
                         .help("expecting a kmer size"))
                     .arg(Arg::with_name("dumpfile")
                         .long("dumpfile")
-                        .short("d")
+                        .short('d')
                         .takes_value(true)
                         .help("expecting name of dumpfile for signature"))
                     .arg(Arg::with_name("block_size")
                         .long("block_size")
-                        .short("b")
+                        .short('b')
                         .takes_value(true)
                         .help("-b for blocksize if sketching by block"))
                     .subcommand(SubCommand::with_name("ann")
                         .about("ann parameters")
                         .arg(Arg::with_name("nbng")
                                 .long("nb")
-                                .short("n")
+                                .short('n')
                                 .takes_value(true)
                                 .help("expecting number of neighbours"))
                     )
@@ -151,21 +151,21 @@ fn main() {
         process::exit(1);
     }
     // ann asked for
-    match matches.subcommand() {
-        ("ann", Some(ann_match)) => {
-            println!("got ann command");
-            do_ann = true;
-            if ann_match.is_present("nbng") {
-                println!("got nbng arg");
-                let nbng_decoded = ann_match.value_of("nbng").unwrap().parse::<usize>().unwrap();
-                nbng = nbng_decoded as u8;
-                println!("got nbng {}", nbng);
-            }      
-        }
-
-        ("", None)               => println!("no subcommand at all"),
-        _                        => unreachable!(),
+    if let Some(ann_match) = matches.subcommand_matches("ann") {
+        println!("got ann command");
+        do_ann = true;
+        if ann_match.is_present("nbng") {
+            println!("got nbng arg");
+            let nbng_decoded = ann_match.value_of("nbng").unwrap().parse::<usize>().unwrap();
+            nbng = nbng_decoded as u8;
+            println!("got nbng {}", nbng);
+        }      
     }
+    if !matches.args_present() {
+        println!(" got no subcommand!");
+        log::error!(" got no subcommand!");
+    }
+
     //
     //
     let mut hnsw_opt_seq : Option<Hnsw<u32, DistHamming> > = None;

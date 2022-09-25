@@ -46,7 +46,7 @@ fn main() {
     let matches = App::new("reloadkmermulti")
         .arg(Arg::with_name("file")
              .long("file")
-             .short("f")
+             .short('f')
              .takes_value(true)
              .help("expecting dumped file .bin"))
         .get_matches();

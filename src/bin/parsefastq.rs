@@ -54,13 +54,13 @@ fn main() {
     let matches = App::new("parsefastq")
         .arg(Arg::with_name("bits")
              .long("bits")
-             .short("b")
+             .short('b')
              .takes_value(true)
              .default_value("8")
              .help("nb bits by base : can be 2 , 4 or 8 (compression 4 , 2 , 1)"))
         .arg(Arg::with_name("file")
              .long("file")
-             .short("f")
+             .short('f')
              .takes_value(true)
              .help("expecting a fastq file"))
         .subcommand(SubCommand::with_name("ret")
@@ -68,33 +68,33 @@ fn main() {
                     .arg(Arg::with_name("base")
                          .takes_value(true)
                          .long("base")
-                         .short("b")
+                         .short('b')
                          .help("ask for return times for a given base AT/CG"))
         )
         .subcommand(SubCommand::with_name("kmer")
                     .about("kmer options")
                     .arg(Arg::with_name("count")
                          .long("count")
-                         .short("c")
+                         .short('c')
                          .takes_value(false)
                          .help("kmer subcommand : option to count kmer"))
                     .arg(Arg::with_name("thread")
-                         .short("t")
+                         .short('t')
                          .takes_value(true)
                          .help(" to tell number of thread to be used, -t n"))
                     .arg(Arg::with_name("ksize")
                          .long("ksize")
-                         .short("s")
+                         .short('s')
                          .takes_value(true)
                          .help(" to tell size of kmer to generate, -s n"))
                     .arg(Arg::with_name("csize")
                          .long("csize")
-                         .short("c")
+                         .short('c')
                          .takes_value(true)
                          .help(" to tell size of counter to use in bloom filter, -s n"))                    
                     .arg(Arg::with_name("unique")
                          .long("unique")
-                         .short("u")
+                         .short('u')
                          .takes_value(false)
                          .help("kmer subcommand : option to determine unique kmer"))
         )
@@ -126,55 +126,56 @@ fn main() {
         process::exit(1);
     }
 
-    match matches.subcommand() {
-        ("kmer", Some(kmer_match)) => {
-            println!("got kmer subcommand");
-            if kmer_match.is_present("count") {
-                println!(" got subcommand count option");
-                kmer_count_args.kmer_task = KmerProcessing::Counting;
-            }
-            if kmer_match.is_present("thread") {
-                let nb_threads = kmer_match.value_of("thread").unwrap().parse::<usize>().unwrap();
-                kmer_count_args.nb_threads = nb_threads;
-            }
-            if kmer_match.is_present("ksize") {
-                let k_size = kmer_match.value_of("ksize").unwrap().parse::<usize>().unwrap();
-                kmer_count_args.kmer_size = k_size;
-            }                        
-            if kmer_match.is_present("csize") {
-                let c_size = kmer_match.value_of("csize").unwrap().parse::<usize>().unwrap();
-                kmer_count_args.counter_size = c_size;
-            }
-            if kmer_match.is_present("unique") {
-                println!(" got subcommand unicity option");
-                kmer_count_args.kmer_task = KmerProcessing::Unicity;
-            }
-            parse_args.kmer_args = kmer_count_args;
-        },
+    if let Some(kmer_match) = matches.subcommand_matches("kmer") {
+        println!("got kmer subcommand");
+        if kmer_match.is_present("count") {
+            println!(" got subcommand count option");
+            kmer_count_args.kmer_task = KmerProcessing::Counting;
+        }
+        if kmer_match.is_present("thread") {
+            let nb_threads = kmer_match.value_of("thread").unwrap().parse::<usize>().unwrap();
+            kmer_count_args.nb_threads = nb_threads;
+        }
+        if kmer_match.is_present("ksize") {
+            let k_size = kmer_match.value_of("ksize").unwrap().parse::<usize>().unwrap();
+            kmer_count_args.kmer_size = k_size;
+        }                        
+        if kmer_match.is_present("csize") {
+            let c_size = kmer_match.value_of("csize").unwrap().parse::<usize>().unwrap();
+            kmer_count_args.counter_size = c_size;
+        }
+        if kmer_match.is_present("unique") {
+            println!(" got subcommand unicity option");
+            kmer_count_args.kmer_task = KmerProcessing::Unicity;
+        }
+        parse_args.kmer_args = kmer_count_args;
+    };
         // for return times command
-        ("ret", Some(ret_match)) => {
-            println!("got ret subcommand");
-            ret_times_args.to_do = true;
-            if ret_match.is_present("base") {
-                println!(" got subcommand ret base affectation");
-                let base_char = ret_match.value_of("base").unwrap().parse::<char>().unwrap();
-                let base = get_ac_from_tg(base_char as u8);
-                if base != b'A' && base != b'C' {
-                    println!(" bad base for return times analyze : {} ", base as char);
-                    println!(" base must be b'A' or b'C' ");
-                    std::process::exit(1);
-                }
-                else {
-                    ret_times_args.searched_base = base;       
-                }
+    if let Some(ret_match) =  matches.subcommand_matches("ret") { 
+        println!("got ret subcommand");
+        ret_times_args.to_do = true;
+        if ret_match.is_present("base") {
+            println!(" got subcommand ret base affectation");
+            let base_char = ret_match.value_of("base").unwrap().parse::<char>().unwrap();
+            let base = get_ac_from_tg(base_char as u8);
+            if base != b'A' && base != b'C' {
+                println!(" bad base for return times analyze : {} ", base as char);
+                println!(" base must be b'A' or b'C' ");
+                std::process::exit(1);
             }
-            parse_args.ret_times_args_opt = Some(ret_times_args);
-        },
+            else {
+                ret_times_args.searched_base = base;       
+            }
+        }
+        parse_args.ret_times_args_opt = Some(ret_times_args);
+    };
      
-        ("", None)               => println!("no subcommand at all"),
-        _                        => unreachable!(),
+    if !matches.args_present() {
+        println!(" got no subcommand!");
+        log::error!(" got no subcommand!");
     }
 
+    
     let seqvec;
     match parse_with_needletail(parse_args.clone()) {
         Ok(sthing) => seqvec = sthing,
