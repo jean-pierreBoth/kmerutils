@@ -17,7 +17,6 @@ use self::xdr_codec::{Pack, Unpack};
 
 use std::io::{Cursor,Read};
 use self::zmq::{Message};
-use std::convert::TryFrom;
 
 use rand::{Rng,thread_rng};
 

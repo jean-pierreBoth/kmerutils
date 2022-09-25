@@ -9,7 +9,6 @@ license = "MIT OR Apache-2.0"
 description = "Kmer counting, hashing"
 
 
-[features]
 
 
 [[bin]]
@@ -21,6 +20,7 @@ path= "src/bin/parsefastq.rs"
 
 name= "qualityloader"
 path= "src/bin/qualityload.rs"
+required-features = ["withzmq"]
 
 [[bin]]
 
@@ -57,7 +57,7 @@ histogram =  {version = "0.6"}
 multimap= {version =  "0.4.0"}
 
 # for networking
-zmq= {version =  "0.9"}
+zmq= {version =  "0.9", optional = true}
 xdr-codec= {version = "0.2.5"}
 
 # for //
@@ -104,3 +104,11 @@ redis = { version = "0.21.0"}
 #log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"] }
 log = { version = "0.4"}
 env_logger = { version = "0.9"}
+
+
+[features]
+
+default = []
+
+# This feature requires libzmq (and libsodium). It enables loadind of quality as a service in the target qualityloader
+withzmq = ["zmq"]
