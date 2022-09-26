@@ -14,7 +14,7 @@ This package provides the following tools :
 
 * some basic statistics dumps  such as base distributions, read length distributions.
 
-The package is mainly devoted to the crate [archaea](https://crates.io/crates/archaea), to classify prokariotiic genomes.
+The package is mainly devoted to the crate [archaea](https://crates.io/crates/archaea), to classify prokaryotic genomes.
 It has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
 
