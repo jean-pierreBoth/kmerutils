@@ -1,6 +1,6 @@
 # Some Kmer counting utilities
 
-This package (**currently in development**) provides the following tools :
+This package provides the following tools :
 
 * Simple representation of Kmers with compressed representation on 2 or 4 bits stored in u32 or u64 for simplicity and efficacity.
   
@@ -14,7 +14,8 @@ This package (**currently in development**) provides the following tools :
 
 * some basic statistics dumps  such as base distributions, read length distributions.
 
-The package has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
+The package is mainly devoted to the crate [archaea](https://crates.io/crates/archaea), to classify prokariotiic genomes.
+It has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
 
 ## Kmer Compression and Counting
@@ -80,3 +81,9 @@ The server is launched on the server machine by the command:
  **qualityloader -f filename [ -p portnum] [ --wavelet]**.
 
 The server listens by default to port 4766, the option "--wavelet" asks for wavelet compression.
+
+
+## Installation
+
+Just download from crates.io. The qualityloader target relies on libzmq (and libsodium) which are provided by
+the witzmq feature. To get the whole compiled , use cargo build --release --features="withzmq"
