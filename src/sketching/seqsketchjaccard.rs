@@ -41,6 +41,7 @@ use rayon::prelude::*;
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 use probminhash::probminhasher::*;
+use probminhash::jaccard::compute_probminhash_jaccard;
 
 
 /// given 2 weighted set given as IndexMap, compute weighted jaccard index and return common objects if any or None
