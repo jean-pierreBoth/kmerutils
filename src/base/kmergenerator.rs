@@ -282,7 +282,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer16b32bit>::with_capacity(nb_kmer);
         let mut kmeriter  = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
         loop {
@@ -308,7 +308,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
         // TODO for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_distribution : FnvIndexMap::<u32,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
         loop {
@@ -354,7 +354,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
         // TODO for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
-        let nb_kmer = nb_kmer.min(10_000_0000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer16b32bit>::with_capacity(nb_kmer);
         let mut kmeriter = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size, seq);
         kmeriter.set_range(begin, end).unwrap();
@@ -388,7 +388,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
         let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer32bit>::with_capacity(nb_kmer);
         let mut kmeriter = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size, seq);
         loop {
@@ -414,7 +414,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short 
         let nb_kmer = if seq.size() >= 16 { seq.size()-16+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_distribution : FnvIndexMap::<u32,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size, seq);
         loop {
@@ -463,7 +463,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
         let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer32bit>::with_capacity(nb_kmer);
         let mut kmeriter = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size, seq);
         kmeriter.set_range(begin, end).unwrap();
@@ -500,7 +500,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
         let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer64bit>::with_capacity(nb_kmer);
         let mut kmeriter = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size, seq);
         loop {
@@ -527,7 +527,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         // But it happens that "long reads" are really short 
         let kmer_size = self.kmer_size as usize;
         let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_distribution : FnvIndexMap::<u64,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size, seq);
         let mut nb_base = 0;
@@ -579,7 +579,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         // But it happens that "long reads" are really short
         let kmer_size = self.kmer_size as usize;
         let nb_kmer = if seq.size() >= kmer_size { seq.size()- kmer_size+1} else {0};
-        let nb_kmer = nb_kmer.min(10_000_000);
+        let nb_kmer = nb_kmer.min(1_000_000) * (1usize + seq.size().ilog2() as usize);
         let mut kmer_vect = Vec::<Kmer64bit>::with_capacity(nb_kmer);
         let mut kmeriter = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size, seq);
         kmeriter.set_range(begin, end).unwrap();
