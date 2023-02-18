@@ -108,20 +108,19 @@ impl SeqSketcher {
         where F : Fn(&KmerAA64bit) -> u64 + Send + Sync {
         //
         let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<u64>) {
-            let kmers : Vec<(KmerAA64bit, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
-            // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
-            // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
-            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-            for kmer in kmers {
-                let hashval = fhash(&kmer.0);
-                let res = wb.insert(hashval, kmer.1 as f64);
-                match res {
-                    Some(_) => {
-                        panic!("key already existed");
-                    }
-                    _ => { }
+            let nb_kmer = get_nbkmer_guess(&seqb);
+            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<KmerAA64bit>::new(self.kmer_size, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval).or_insert(0.) += 1.;
+                    },
+                    None => break,
                 }
-            }
+            }  // end loop 
             // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
             let mut pminhashb = ProbMinHash3a::<u64,fnv::FnvHasher>::new(self.sketch_size, num::zero::<u64>());
             pminhashb.hash_weigthed_idxmap(&wb);
@@ -152,27 +151,28 @@ impl SeqSketcher {
         where F : Fn(&KmerAA32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<u32>) {
-            let kmers : Vec<(KmerAA32bit, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
-            // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
-            // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
-            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
-            for kmer in kmers {
-                let hashval = fhash(&kmer.0);
-                let res = wb.insert(hashval, kmer.1 as f64);
-                match res {
-                    Some(_) => {
-                        panic!("key already existed");
-                    }
-                    _ => { }
+            //
+            let nb_kmer = get_nbkmer_guess(&seqb);
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<KmerAA32bit>::new(self.kmer_size, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval).or_insert(0.) += 1.;
+                    },
+                    None => break,
                 }
-            }
+            }  // end loop 
+            //
             // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
             let mut pminhashb = ProbMinHash3a::<u32,fnv::FnvHasher>::new(self.sketch_size, num::zero::<u32>());
             pminhashb.hash_weigthed_idxmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
             return (i,sigb.clone());
-        };
+        };  // end closure
         //
         let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
@@ -197,10 +197,10 @@ impl SeqSketcher {
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
                 
             let comput_closure = | seqb : &'b SequenceAA, i:usize | -> (usize,Vec<Kmer::Val>) {
-                let kmers : Vec<(Kmer, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+                let kmers : FnvIndexMap<Kmer, usize>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
                 // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
-                // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
-                let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+               // TODO we use 2 FnvIndexMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
+               let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
                 for kmer in kmers {
                     let hashval = fhash(&kmer.0);
                     let res = wb.insert(hashval, kmer.1 as f64);

@@ -19,7 +19,7 @@ pub use super::{nthash::*, alphabet::*};
 // This representation is consistent with Kmer32bit as self.0 gives the word supporting value of kmer
 
 /// The type supporting Kmer for number of bases between 17 and 32.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug, Hash)]
 pub struct  Kmer64bit(pub u64, pub u8);
 
 

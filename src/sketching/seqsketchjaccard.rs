@@ -44,6 +44,16 @@ use probminhash::probminhasher::*;
 use probminhash::jaccard::compute_probminhash_jaccard;
 
 
+// We need a guess to allocate HashMap used with Kmer Generation
+// for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
+fn get_nbkmer_guess(seq : &Sequence) -> usize {
+    let nb = 1_000_000 * (1usize + seq.size().ilog2() as usize);
+    let nb_kmer = seq.size().min(nb);
+    return nb_kmer;
+} // end of get_nbkmer_guess
+
+
+
 /// given 2 weighted set given as IndexMap, compute weighted jaccard index and return common objects if any or None
 pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, idxb: &IndexMap<D, f64, Hidx>, 
                                                         sketch_size : usize, return_object: bool)  -> (f64, Option<Vec<D>>)
@@ -170,7 +180,9 @@ impl SeqSketcher {
         where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
-            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+            let nb_kmer = get_nbkmer_guess(seqb);
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -209,7 +221,9 @@ impl SeqSketcher {
         where F : Fn(&Kmer16b32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
-            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+            let nb_kmer = get_nbkmer_guess(seqb);
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -248,7 +262,9 @@ impl SeqSketcher {
         where F : Fn(&Kmer64bit) -> u64 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u64>) {
-            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+            let nb_kmer = get_nbkmer_guess(seqb);
+            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -282,7 +298,8 @@ impl SeqSketcher {
     }  // end of sketch_probminhash3a_kmer64bit
 
 
-    /// a generic implementation of probminhash3a  against our stndard compressed Kmer types
+
+    /// a generic implementation of probminhash3a  against our standard compressed Kmer types
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
@@ -290,10 +307,10 @@ impl SeqSketcher {
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
         let comput_closure = | seqb : &'b Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
-            let kmers : Vec<(Kmer, usize)>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+            // TODO we use 2 FnvIndexMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
+            let kmers : FnvIndexMap<Kmer, usize>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+            let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
             // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
-            // TODO we pass twice in a FnvIndexMap! generate_kmer_distribution should return a FnvIndexMap
-            let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
             for kmer in kmers {
                 let hashval = fhash(&kmer.0);
                 let res = wb.insert(hashval, kmer.1 as f64);
@@ -340,7 +357,9 @@ impl SeqSketcher {
         where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
-            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+            // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+            let nb_kmer = get_nbkmer_guess(seqb);
+            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -425,7 +444,9 @@ pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec
     }
     // default is invertible hash and then superminhash without any hashing
     let mut pminhasha = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
-    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqa.size(), FnvBuildHasher::default());
+    // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+    let nb_kmer = get_nbkmer_guess(seqa);
+    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     // seqa
@@ -444,7 +465,9 @@ pub fn jaccard_index_probminhash3a_kmer16b32bit<F>(seqa: &Sequence, vseqb : &Vec
     let siga = pminhasha.get_signature();
     // loop on vseqb to // with rayon
     let comput_closure = | seqb : &Sequence, i:usize | -> (usize,f64) {
-        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+        // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+        let nb_kmer = get_nbkmer_guess(seqb);
+        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(16, &seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
@@ -495,7 +518,9 @@ pub fn jaccard_index_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Se
     }
     // default is invertible hash and then superminhash without any hashing
     let mut pminhasha = ProbMinHash3a::<usize,NoHashHasher>::new(sketch_size, 0);
-    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqa.size(), FnvBuildHasher::default());
+    // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+    let nb_kmer = get_nbkmer_guess(seqa);
+    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     // seqa
@@ -516,7 +541,9 @@ pub fn jaccard_index_probminhash3a_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Se
     trace!("siga = {:?}", siga);
     // loop on vseqb to // with rayon
     let comput_closure = | seqb : &Sequence, i:usize | -> (usize,f64) {
-        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+    // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+        let nb_kmer = get_nbkmer_guess(seqb);
+        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
@@ -561,7 +588,9 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
     }
     // default is invertible hash and then superminhash without any hashing
     let mut pminhasha = ProbMinHash3::<usize,NoHashHasher>::new(sketch_size, 0);
-    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqa.size(), FnvBuildHasher::default());
+    // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+    let nb_kmer = get_nbkmer_guess(seqa);
+    let mut wa : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     // seqa
@@ -582,7 +611,9 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
     trace!("siga = {:?}", siga);
     // loop on vseqb to // with rayon
     let comput_closure = | seqb : &Sequence, i:usize | -> (usize,f64) {
-        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(seqb.size(), FnvBuildHasher::default());
+        // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+        let nb_kmer = get_nbkmer_guess(seqb);
+        let mut wb : FnvIndexMap::<usize,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
@@ -774,6 +805,8 @@ mod tests {
     fn test_probminhasha_kmer_smallb() {
         // initialize test logging
         log_init_test();
+        log::info!("test_probminhasha_kmer_smallb");
+        //
         let kmer_size = 5;
         let sketch_size = 50;
         // 80 bases
@@ -792,6 +825,7 @@ mod tests {
         println!("\n reverse string : {}", reverse_str);
         // for this hash function seqarevcomp sjaccard signature  should be : [ (40-kmer_size)/(80-kmer_size) , 1.]
         let jac_theo_0 = (40-kmer_size) as f64 / (80-kmer_size) as f64;
+        log::info!("jac_theo_0 : {:.3e}", jac_theo_0);
         let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
             let canonical =  kmer.reverse_complement().min(*kmer);
             let hashval = probminhash::invhash::int32_hash(canonical.0);
@@ -804,7 +838,7 @@ mod tests {
             hashval
         };
         let vecsig = jaccard_index_probminhash3a_kmer32bit(&seqa, &vecseqb, sketch_size, kmer_size, kmer_revcomp_hash_fn);
-        debug!("vecsig with revcomp hash  {:?}", vecsig);
+        log::info!("vecsig with revcomp hash  {:?}", vecsig);
         assert!(vecsig[0] >= 0.75 * jac_theo_0);
         assert!(vecsig[1] >= 1.);
         // now we try with identity hash

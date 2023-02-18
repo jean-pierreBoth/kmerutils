@@ -20,7 +20,7 @@ pub use super::{nthash::*, alphabet::*};
 /// This is a type for Kmer less than 14 bases 2 bit encoded
 /// Real number of base is encoded in upper 4 bits!!!!
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug, Hash)]
 pub struct Kmer32bit(pub u32);
 
 // we need to implement PartialEq, Eq PartialOrd and Ord for Kmer32bit.

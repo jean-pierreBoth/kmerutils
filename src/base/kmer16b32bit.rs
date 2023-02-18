@@ -21,7 +21,7 @@ pub use super::{nthash::*, alphabet::*};
 
 /// type supporting 16 bases kmer as u32.
 
-#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Debug)]
+#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord,Hash,Debug)]
 pub struct Kmer16b32bit(pub u32);
 
 
