@@ -1,9 +1,11 @@
 //! module kmer provides Kmer representation using 2bit base encoding, and are stored in 32 or 64 bit unsigned integers
 //!
 //! In a 32 bit word we can encode a 16-mer. This type is Kmer16b32bit.  
+//!   
 //! For smaller Kmer, so we use also a 32 bit word but keep 4 (upper) bits to encode size of
-//! kmer, it leaves us 28 bits for kmer representation so we can have kmers up to 14 bases. This is type Kmer32bit.    
-//! For larger kmer we use a Tuple(u64,u8) for kmer and number of base.  
+//! kmer, it leaves us 28 bits for kmer representation so we can have kmers up to 14 bases. This is type Kmer32bit.  
+//!    
+//! For larger kmer we use a 2uple(u64,u8) for kmer and number of base.  
 //! Rust has now u128 bits so we can go up to 64 bases-kmer with this strategy
 //! A bit cumbersome but some space is spared and reverse complement
 //! can be efficiently computed with bit symetry. (and soon use reverse instruction!)

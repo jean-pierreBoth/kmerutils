@@ -1,4 +1,5 @@
-//! Contains basic tools to describe DNA-sequences, kmers , generate and count Kmers  
+//! Contains basic tools to describe DNA-sequences, kmers, compressed kmers.
+//! It provides iterators to generate Kmers, and counter of Kmers with their multiplicity.  
 //! It implements multithreaded counters with Bloom filters and Cuckoo filters
 
 

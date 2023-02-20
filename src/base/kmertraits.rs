@@ -35,7 +35,7 @@ pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash+Ord
     /// return encoded value in type Val. In Val we have encoded number of bases and
     /// and kmer value. We do not get rid of number of base, and return raw value
     fn get_compressed_value(&self) -> Self::Val;
-    /// get Kmer as a Vec<u8>
+    /// get Kmer as a Vec\<u8\>
     fn get_uncompressed_kmer(&self) -> Vec<u8>;
     /// returns the size in bits of word supporting compressed kmer.
     /// not just number of base * size of base. In fact it is number of bits of Self::Val

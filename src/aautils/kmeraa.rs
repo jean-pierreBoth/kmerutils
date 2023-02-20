@@ -683,7 +683,7 @@ pub(super) fn get_nbkmer_guess(seq : &SequenceAA) -> usize {
 
 
 
-/// implementation of kmer generation pattern for KmerAA128bit<N>
+/// implementation of kmer generation pattern for KmerAA32bit\<N\>
 impl KmerGenerationPattern<KmerAA32bit> for KmerGenerator<KmerAA32bit> {
     fn generate_kmer_pattern(&self, seq : &SequenceAA) -> Vec<KmerAA32bit> {
         if self.kmer_size as usize > KmerAA32bit::get_nb_base_max() {
@@ -768,7 +768,7 @@ impl KmerGenerationPattern<KmerAA32bit> for KmerGenerator<KmerAA32bit> {
  Implementation for Kmer64 bit
  */
 
-/// implementation of kmer generation pattern for KmerAA128bit<N>
+/// implementation of kmer generation pattern for KmerAA64bit\<N\>
 impl KmerGenerationPattern<KmerAA64bit> for KmerGenerator<KmerAA64bit> {
     fn generate_kmer_pattern(&self, seq : &SequenceAA) -> Vec<KmerAA64bit> {
         if self.kmer_size > 12 {

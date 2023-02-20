@@ -47,7 +47,7 @@ fn remap_quality8(q:u8) -> u8 {
         1 + nqf.floor() as u8
     }
 }
-/// a quality record can be either in raw data Vec<u8> or in WaveletMatrix
+/// a quality record can be either in raw data Vec\<u8\> or in WaveletMatrix
 
 pub enum QualityMode {
     /// represent u8 encoding of quality

@@ -4,7 +4,7 @@ This package provides the following tools :
 
 * Simple representation of Kmers with compressed representation on 2 or 4 bits stored in u32 or u64 for simplicity and efficacity.
   
-* Basic Kmer counting tools with Bloom and Cuckoo filters 
+* Basic Kmer counting tools with Bloom and Cuckoo filters.
 
 * Sketching of sequences with up to date sensitive hashing see *module sketching*.  
 
@@ -14,7 +14,7 @@ This package provides the following tools :
 
 * some basic statistics dumps  such as base distributions, read length distributions.
 
-The package is mainly devoted to the crate [archaea](https://crates.io/crates/archaea), to classify prokaryotic genomes.
+The package is mainly devoted to the crate [gsearch](https://crates.io/crates/gsearch), to classify prokaryotic genomes.
 It has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
 
@@ -52,7 +52,7 @@ Some others standard tools such :
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
 
-## A minimal module rnautils 
+## A minimal module rnautils
 
 This module provides an uncompressed representation of Amino Acid sequences along with generation of compressed Kmer (up to a size of 25 amino acids).  
 This module is, in present state, minimal. Its main objective is to provide sketching of AA sequences in the same way as DNA sequences.
@@ -82,8 +82,7 @@ The server is launched on the server machine by the command:
 
 The server listens by default to port 4766, the option "--wavelet" asks for wavelet compression.
 
-
 ## Installation
 
 Just download from crates.io. The qualityloader target relies on libzmq (and libsodium) which are provided by
-the witzmq feature. To get the whole compiled , use cargo build --release --features="withzmq"
+the witzmq feature. To get the whole compiled , use cargo build --release --features="withzmq

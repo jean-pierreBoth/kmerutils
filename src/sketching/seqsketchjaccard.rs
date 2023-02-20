@@ -1,10 +1,10 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
-//! It is adapted to short read sequences.   
-//! For long read it is necessary to split sequences into blocks, see module seqbloocksketch.
+//!    
+//! For long (many Gbytes) sequences it may be useful to split sequences into blocks, see module seqbloocksketch.
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
-//! and a jaccard index between sequences is computed.
+//! and a jaccard weighted index between sequences is computed. See [Probminhash](https://crates.io/crates/probminhash)
 //! 
 //! It is also possible to ask for the common Kmers found in the signature of 2 sequences
 //! 
@@ -299,8 +299,9 @@ impl SeqSketcher {
 
 
 
-    /// a generic implementation of probminhash3a  against our standard compressed Kmer types
-    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
+    /// a generic implementation of probminhash3a  against our standard compressed Kmer types.  
+    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.  
+    /// This implementation is less efficient as the specialized ones.
     pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
@@ -398,7 +399,7 @@ impl SeqSketcher {
     /// 
     /// Format of file is :
     /// -  MAGIC_SIG_DUMP as u32
-    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
+    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec\<u32\> or Vec\<u64\>
     /// -  sketch_size  : length of vecteur dumped as u32
     /// -  kmer_size    : as u32
     /// 
@@ -756,7 +757,7 @@ impl SigSketchFileReader {
     pub fn get_signature_size(&self) -> usize {
         self.sig_size as usize
     }
-    /// emulates iterator API. Return next object's signature (a Vec<u32> ) if any, None otherwise.
+    /// emulates iterator API. Return next object's signature (a Vec\<u32\> ) if any, None otherwise.
     pub fn next(&mut self) -> Option<Vec<u32> > {
         let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
         let mut buf : Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();

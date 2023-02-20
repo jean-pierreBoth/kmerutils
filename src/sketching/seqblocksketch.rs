@@ -1,5 +1,5 @@
-//! This file split a sequence in blocks and sketch each block. It is then possible to compute 
-//! Jaccard Probability Distance between blocks.  
+//! This module splits a sequence in blocks and sketch each block. It is then possible to compute 
+//! Jaccard Probability Distance between blocks among various sequences.    
 //! This module is adapted to long reads with variable length.
 //! 
 
@@ -78,7 +78,7 @@ impl BlockSketched {
 
 
 /// For each i, skectch\[i\] is a vector of size 1!! A bit cumbersome but we need this for Hnsw
-/// as BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec<BlockSketched>
+/// as BlockSketched do not satisfay Copy, there is a move out when we want to allocate a Vec\<BlockSketched\>
 /// to send it to Distance
 pub struct BlockSketchedSeq {
     numseq : usize, 
@@ -185,7 +185,7 @@ impl BlockSeqSketcher {
     /// 
     /// Format of file is :
     /// -  MAGIC_BLOCKSIG_DUMP as u32
-    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec<u32> or Vec<u64>
+    /// -  sig_size 4 or 8 dumped as u32 according to type of signature Vec\<u32\> or Vec\<u64\>
     /// -  sketch_size  : length of vecteur dumped as u32
     /// -  kmer_size    : as u32
     /// -  block_size   : as u32
@@ -332,7 +332,7 @@ impl SigBlockSketchFileReader {
         self.block_size as usize
     }
     /// emulates iterator API.
-    /// Return next sequence blocks signature (a Vec<u32> for each block) if any, None otherwise.
+    /// Return next sequence blocks signature (a Vec\<u32\> for each block) if any, None otherwise.
     pub fn next(&mut self) -> Option<Vec<Vec<u32> > > {
         // must read sequence num and number of blocks which were dumped as u32 in little endian
         let numseq : u32;

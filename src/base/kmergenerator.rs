@@ -6,6 +6,8 @@ use log::{trace};
 use indexmap::{IndexMap};
 
 use fnv::FnvBuildHasher;
+
+/// an IndexMap used for Kmer counting
 pub type FnvIndexMap<K, V> = IndexMap<K, V, fnv::FnvBuildHasher>;
 
 
@@ -22,20 +24,15 @@ pub trait KmerSeqIteratorT {
 
 // This structure must take care of encoding conversions
 // as all Kmer must be 2 bits encoded
-// The generator takes as argument an iterator over a sequence.
+// The generator takes as argument size of kmer and a sequence to iterate over.
 // The structure KmerSeqIterator is dependant upon implementation of Kmer representation.
-// The structure KmerGenerationPattern is there to provide absraction over it.
+
 /// a Kmer iterator over a sequence.
 ///
-/// usage:
-/// 
-///    let mut kmeriter = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
-///            match kmeriter.next(){
-///                Some(kmer) => ...,
-///                None => break,
-///            }
-/// 
+/// usage: see examples in tests
 ///
+/// The structure [KmerGenerationPattern] is there to provide absraction over it.
+
 pub struct KmerSeqIterator<'a , T > where T:CompressedKmerT {
     /// size of kmer
     nb_base: u8,
@@ -48,7 +45,7 @@ pub struct KmerSeqIterator<'a , T > where T:CompressedKmerT {
 
 
 impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
-    /// Constructor with default mode: no decoding of base!! for faster kmer generation, and default length
+    /// Constructor for a given sequence and kmersize
     pub fn new(ksize: u8, sequence: &'a Sequence) -> KmerSeqIterator<'a, T> {
         if ksize as usize > T::get_nb_base_max() {
             panic!("\n KmerSeqIterator cannot support so many bases for given kmer type, kmer size  {}", ksize);
@@ -56,7 +53,7 @@ impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
         let seqiter_arg = IterSequence::new(sequence, false);
         KmerSeqIterator{nb_base: ksize, seqiter:seqiter_arg, previous:None}
     } // end of new
-    /// Set the range from which all kmer of a given size are to be extracted.
+    /// Set the range from which all kmer of a given size are to be extracted from the sequence associated to the iterator.
     pub fn set_range(&mut self, begin: usize, end: usize) -> std::result::Result<(),()> {
         self.seqiter.set_range(begin, end)
     }
@@ -198,7 +195,7 @@ impl <'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer64bit> {
 
 
 
-/// overload Kmer generation as in Rust Week 225
+/// overload Kmer generation for various Kmer types. (see Rust Week 225).  
 /// We define a generic trait defining a pattern for target type of kmer generation
 /// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.
 ///       The Kmer must have an encoding larger than the one used in the sequence encoding! 
@@ -220,23 +217,22 @@ pub trait KmerGenerationPattern<T:KmerT> {
 }
 
 
+
+use std::marker::PhantomData;
+
 // a  structure just providing reference to type of generation pattern to use Kmer to generate
 // The structure could be empty. It is the method generate_kmer that really counts.
 // Via type inference we go from T to KmerGenerationPattern<'a, T> and so to the generation of correct T kmer
 // Finally we put back T in KmerGenerator ??
 
-/// This structure store the size of kmer and provides overload of kmer generation for different types of Kmer.
+/// This structure stores the size of kmer and provides overload of kmer generation for different types of Kmer.
 ///
-///  usage:
+///  usage: see an example in tests::test_generate_kmer16b32bit_pattern
 ///
-///  ``` let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new::<Kmer16b32bit>(16).generate_kmer(&seq);```
-///
-/// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.
+/// 
+/// NOTE: The sequence must be encoded with 2 bit alphabet to generate compressed Kmer on 2 bits.
 ///       The Kmer must have an encoding larger than the one used in the sequence encoding! 
 ///       A panic is provoked in other cases!!
-
-
-use std::marker::PhantomData;
 
 pub struct KmerGenerator<T:KmerT> {
     /// size of kmer we generate
@@ -268,7 +264,6 @@ impl  <T:KmerT> KmerGenerator<T> {
 
 
 /// A utility to convert FnvIndexMap<T,usize> to Vec<(T, usize)> 
-
 pub fn hashmap_count_to_vec_count<T:CompressedKmerT+ std::hash::Hash>(kmer_distribution: &FnvIndexMap<T,usize>) -> Vec<(T, usize)> {
         // convert to a Vec
         let mut hashed_kmers = kmer_distribution.keys();
