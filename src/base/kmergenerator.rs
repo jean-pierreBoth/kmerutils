@@ -807,6 +807,8 @@ mod tests {
 
 
 /* test_generate_weighted_kmer32bit should output the following with --nocapture
+  but not in this order as we switched from IndexMap to FnvHashMap in indexing Kmers!!!!
+
     kmer [84, 67, 65]  TCA ,   weight 4
     kmer [67, 65, 65]  CAA ,   weight 2
     kmer [65, 65, 65]  AAA ,   weight 4
@@ -873,17 +875,27 @@ mod tests {
         let weighted_kmer_h : FnvHashMap<Kmer64bit, u32> = KmerGenerator::new(15).generate_weighted_kmer(&seq);
         let weighted_kmer = hashmap_count_to_vec_count(&weighted_kmer_h);
         // first 9 kmers have weight 2 else weight 1
-        let mut i = 0;
         for x in weighted_kmer {
             let ukmer = (x.0).get_uncompressed_kmer();
-            println!("kmer {:?}  {} ,   weight {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1);
-            if i <= 9 {
-                assert!(x.1 == 2);
+            let searched = String::from_utf8_lossy(ukmer.as_slice()).into_owned();
+            println!("kmer {:?} position : {},   weight {}", ukmer , searched, x.1);
+            if x.1 == 2 {
+                // check we have it
+                let pos1 = seqstr.find(&searched).unwrap();
+                // check we have it once more
+                let pos2 = &seqstr[pos1+1..].find(&searched).unwrap();
+                // and no more
+                if let Some(pos3) = seqstr[pos1+1+pos2+1..].find(&searched) {
+                    log::error!("found kmer : {} more than 2 times, last found at {}", searched, pos1+1+pos2+1+pos3);
+                }       
+                assert!(&seqstr[pos1+1+pos2+1..].find(&searched).is_none());
             }
-            if i > 9 {
-                assert!(x.1 == 1);
+            if x.1 == 1 {
+                // check we have it
+                let pos = &seqstr.find(&searched).unwrap();
+                // check we have it once 
+                assert!(&seqstr[pos+1..].find(&searched).is_none());
             }
-            i = i+1;
         }
     } // end of test_generate_weighted_kmer64bit
 
