@@ -18,7 +18,6 @@ use std::ops::{Range};
 
 use indexmap::{IndexMap};
 use fnv::FnvBuildHasher;
-type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 
 #[allow(unused)]
@@ -685,12 +684,12 @@ impl KmerGenerationPattern<KmerAA32bit> for KmerGenerator<KmerAA32bit> {
         let kmer_size = self.kmer_size as usize; 
         //
         let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
-        let mut kmer_distribution : FnvIndexMap::<KmerAA32bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmer_distribution : FnvHashMap::<KmerAA32bit,usize> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<KmerAA32bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
-                    // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
+                    // do we store the kmer in the FnvHashMap or a already hashed value aka nthash?
                     *kmer_distribution.entry(kmer).or_insert(0) += 1;
                 },
                 None => break,
@@ -782,12 +781,12 @@ impl KmerGenerationPattern<KmerAA64bit> for KmerGenerator<KmerAA64bit> {
         let kmer_size = self.kmer_size as usize; 
         //
         let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
-        let mut kmer_distribution : FnvIndexMap::<KmerAA64bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmer_distribution : FnvHashMap::<KmerAA64bit,usize> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<KmerAA64bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
-                    // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
+                    // do we store the kmer in the FnvHashMap or a already hashed value aka nthash?
                     *kmer_distribution.entry(kmer).or_insert(0) += 1;
                 },
                 None => break,

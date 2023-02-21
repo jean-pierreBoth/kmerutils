@@ -12,11 +12,10 @@ use serde::{Serialize, Deserialize};
 
 #[allow(unused_imports)]
 use std::hash::{BuildHasher, BuildHasherDefault, Hasher, Hash};
-use indexmap::{IndexMap};
-#[allow(unused_imports)]
-use std::collections::HashMap;
 
-use fnv::{FnvBuildHasher};
+
+
+use fnv::{FnvHashMap, FnvBuildHasher};
 
 use std::io;
 use std::io::{Write,Read, ErrorKind};
@@ -31,7 +30,6 @@ use crate::base::{kmergenerator::*};
 
 use rayon::prelude::*;
 
-type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 use probminhash::probminhasher::*;
 use hnsw_rs::prelude::*;
@@ -116,7 +114,7 @@ impl BlockSeqSketcher {
         // 
         let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seq);
         kmergen.set_range(0, seq.size()).unwrap();
-        let mut wa : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(self.block_size, FnvBuildHasher::default());
+        let mut wa : FnvHashMap::<u32,f64> = FnvHashMap::with_capacity_and_hasher(self.block_size, FnvBuildHasher::default());
         // loop on blocks and compute signature of each block
         for numblock in 0..nb_blocks {
             let mut pminhasha = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
@@ -140,7 +138,7 @@ impl BlockSeqSketcher {
                     },
                 }
             }  // end loop
-            pminhasha.hash_weigthed_idxmap(&wa);
+            pminhasha.hash_weigthed_hashmap(&wa);
             let siga = pminhasha.get_signature();
             let current_block = vec![BlockSketched{ numseq:numseq as u32, numblock: numblock as u32, sketch:siga.clone()}];
             sketch.push(current_block);

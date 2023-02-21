@@ -7,14 +7,13 @@ use std::io::{BufReader, BufWriter };
 
 
 use std::fs::OpenOptions;
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{to_writer};
 
-use indexmap::{IndexMap};
-use fnv::{FnvBuildHasher};
+use fnv::{FnvHashMap, FnvBuildHasher};
 
 use num;
 
@@ -26,7 +25,6 @@ use crate::aautils::{kmeraa::*};
 
 use rayon::prelude::*;
 
-type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
 
 use probminhash::probminhasher::*;
 
@@ -109,7 +107,7 @@ impl SeqSketcher {
         //
         let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<u64>) {
             let nb_kmer = get_nbkmer_guess(&seqb);
-            let mut wb : FnvIndexMap::<u64,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<u64,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<KmerAA64bit>::new(self.kmer_size, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -123,7 +121,7 @@ impl SeqSketcher {
             }  // end loop 
             // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
             let mut pminhashb = ProbMinHash3a::<u64,fnv::FnvHasher>::new(self.sketch_size, num::zero::<u64>());
-            pminhashb.hash_weigthed_idxmap(&wb);
+            pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
             return (i,sigb.clone());
@@ -153,7 +151,7 @@ impl SeqSketcher {
         let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<u32>) {
             //
             let nb_kmer = get_nbkmer_guess(&seqb);
-            let mut wb : FnvIndexMap::<u32,f64> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<u32,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<KmerAA32bit>::new(self.kmer_size, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
@@ -168,7 +166,7 @@ impl SeqSketcher {
             //
             // We cannot use NohashHasher beccause Hash::finish is declared to return a f64 in trait std::hash::Hasher
             let mut pminhashb = ProbMinHash3a::<u32,fnv::FnvHasher>::new(self.sketch_size, num::zero::<u32>());
-            pminhashb.hash_weigthed_idxmap(&wb);
+            pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
             return (i,sigb.clone());
@@ -197,10 +195,10 @@ impl SeqSketcher {
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
                 
             let comput_closure = | seqb : &'b SequenceAA, i:usize | -> (usize,Vec<Kmer::Val>) {
-                let kmers : FnvIndexMap<Kmer, usize>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
-                // now we have weights but in usize and we want them in float!! and in another FnvIndexMap, ....
-               // TODO we use 2 FnvIndexMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
-               let mut wb : FnvIndexMap::<Kmer::Val,f64> = FnvIndexMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
+                let kmers : FnvHashMap<Kmer, usize>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
+                // now we have weights but in usize and we want them in float!! and in another FnvHashMap, ....
+               // TODO we use 2 FnvHashMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
+               let mut wb : FnvHashMap::<Kmer::Val,f64> = FnvHashMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
                 for kmer in kmers {
                     let hashval = fhash(&kmer.0);
                     let res = wb.insert(hashval, kmer.1 as f64);
@@ -213,7 +211,7 @@ impl SeqSketcher {
                 }
                 // TODO   NohashHasher or not NoHasher
                 let mut pminhashb = ProbMinHash3a::<Kmer::Val,fnv::FnvHasher>::new(self.sketch_size, num::zero::<Kmer::Val>());
-                pminhashb.hash_weigthed_idxmap(&wb);
+                pminhashb.hash_weigthed_hashmap(&wb);
                 let sigb = pminhashb.get_signature();
                 //
                 return (i,sigb.clone());

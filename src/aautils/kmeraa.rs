@@ -17,9 +17,7 @@ use std::str::FromStr;
 use std::cmp::Ordering;
 use std::ops::{Range};
 
-use indexmap::{IndexMap};
-use fnv::FnvBuildHasher;
-pub type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
+use fnv::{FnvHashMap,FnvBuildHasher};
 
 
 #[allow(unused)]
@@ -606,7 +604,7 @@ pub trait KmerGenerationPattern<T:KmerT> {
     /// generate all kmers inclused in begin..end with end excluded as in rust conventions.
     fn generate_kmer_pattern_in_range(&self, seq : & SequenceAA, begin:usize, end:usize) -> Vec<T>;   
     /// generate kmers with their multiplicities
-    fn generate_kmer_distribution(&self, seq : & SequenceAA) -> FnvIndexMap<T,usize>;
+    fn generate_kmer_distribution(&self, seq : & SequenceAA) -> FnvHashMap<T,usize>;
 }
 
 
@@ -637,7 +635,7 @@ impl  <T:KmerT> KmerGenerator<T> {
         self.generate_kmer_pattern_in_range(seq, begin, end)
     }
     /// generic driver for kmer distribution pattern
-    pub fn generate_weighted_kmer(&self, seq : &SequenceAA) -> FnvIndexMap<T,usize>  where Self : KmerGenerationPattern<T> {
+    pub fn generate_weighted_kmer(&self, seq : &SequenceAA) -> FnvHashMap<T,usize>  where Self : KmerGenerationPattern<T> {
         self.generate_kmer_distribution(seq)
     }
     ///
@@ -646,9 +644,9 @@ impl  <T:KmerT> KmerGenerator<T> {
 
 
 
-/// A utility to convert FnvIndexMap<T,usize> to Vec<(T, usize)> 
+/// A utility to convert FnvHashMap<T,usize> to Vec<(T, usize)> 
 
-pub fn hashmap_count_to_vec_count<T:CompressedKmerT + std::hash::Hash + Eq>(kmer_distribution: &FnvIndexMap<T,usize>) -> Vec<(T, usize)> {
+pub fn hashmap_count_to_vec_count<T:CompressedKmerT + std::hash::Hash + Eq>(kmer_distribution: &FnvHashMap<T,usize>) -> Vec<(T, usize)> {
     // convert to a Vec
     let mut hashed_kmers = kmer_distribution.keys();
     let mut weighted_kmer = Vec::<(T,usize)>::with_capacity(kmer_distribution.len());
@@ -676,7 +674,7 @@ pub fn hashmap_count_to_vec_count<T:CompressedKmerT + std::hash::Hash + Eq>(kmer
 // We need a guess to allocate HashMap used with Kmer Generation
 // for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
 pub(super) fn get_nbkmer_guess(seq : &SequenceAA) -> usize {
-    let nb = 1_000_000 * (1usize + seq.len().ilog2() as usize);
+    let nb = 10_000_000 * (1usize + seq.len().ilog2() as usize);
     let nb_kmer = seq.len().min(nb);
     return nb_kmer;
 } // end of get_nbkmer_guess
@@ -709,7 +707,7 @@ impl KmerGenerationPattern<KmerAA32bit> for KmerGenerator<KmerAA32bit> {
 
     /// generate all kmers associated to their multiplicity
     /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
-    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> FnvIndexMap<KmerAA32bit,usize> {
+    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> FnvHashMap<KmerAA32bit,usize> {
         if self.kmer_size as usize > KmerAA32bit::get_nb_base_max() {
             panic!("KmerAA32bit cannot have size greater than {} !!", KmerAA32bit::get_nb_base_max());   // cannot happen !
         }
@@ -719,12 +717,12 @@ impl KmerGenerationPattern<KmerAA32bit> for KmerGenerator<KmerAA32bit> {
         //
         let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
         let nb_kmer = nb_kmer.min(get_nbkmer_guess(&seq));
-        let mut kmer_distribution : FnvIndexMap::<KmerAA32bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmer_distribution : FnvHashMap::<KmerAA32bit,usize> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<KmerAA32bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
-                    // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
+                    // do we store the kmer in the FnvHashMap or a already hashed value aka nthash?
                     *kmer_distribution.entry(kmer).or_insert(0) += 1;
                 },
                 None => break,
@@ -795,7 +793,7 @@ impl KmerGenerationPattern<KmerAA64bit> for KmerGenerator<KmerAA64bit> {
 
     /// generate all kmers associated to their multiplicity
     /// This is useful in the context of Jaccard Probability Index estimated with ProbminHash 
-    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> FnvIndexMap<KmerAA64bit,usize> {
+    fn generate_kmer_distribution(&self, seq : &SequenceAA) -> FnvHashMap<KmerAA64bit,usize> {
         if self.kmer_size as usize > 12 {
             panic!("KmerAA128bit cannot be greater than 12!!");  // cannot happen
         }
@@ -805,12 +803,12 @@ impl KmerGenerationPattern<KmerAA64bit> for KmerGenerator<KmerAA64bit> {
         //
         let nb_kmer = if seq.len() >= kmer_size { seq.len()- kmer_size + 1} else {0};
         let nb_kmer = nb_kmer.min(get_nbkmer_guess(&seq));
-        let mut kmer_distribution : FnvIndexMap::<KmerAA64bit,usize> = FnvIndexMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        let mut kmer_distribution : FnvHashMap::<KmerAA64bit,usize> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
         let mut kmeriter = KmerSeqIterator::<KmerAA64bit>::new(kmer_size, seq);
         loop {
             match kmeriter.next(){
                 Some(kmer) => {
-                    // do we store the kmer in the FnvIndexMap or a already hashed value aka nthash?
+                    // do we store the kmer in the FnvHashMap or a already hashed value aka nthash?
                     *kmer_distribution.entry(kmer).or_insert(0) += 1;
                 },
                 None => break,
