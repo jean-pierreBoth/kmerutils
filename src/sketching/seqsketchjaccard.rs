@@ -301,36 +301,30 @@ impl SeqSketcher {
     /// a generic implementation of probminhash3a  against our standard compressed Kmer types.  
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.  
     /// This implementation is less efficient as the specialized ones.
-    pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
+    pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
         log::debug!("entering sketch_probminhash3a_compressedkmer");
         //
-        let comput_closure = | seqb : &'b Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
-            //
-            log::debug!("sketch_probminhash3a_compressedkmer generating kmer for seq ; len is {}", seqb.size());
-            // TODO we use 2 FnvHashMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
-            let kmers : FnvHashMap<Kmer, u32>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
-            //
-            log::info!("got nb kmers : {}", kmers.len());
-            let mut wb : FnvHashMap::<Kmer::Val,f64> = FnvHashMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
-            // now we have weights but in usize and we want them in float!! and in another FnvHashMap, ....
-            for kmer in kmers {
-                let hashval = fhash(&kmer.0);
-                let res = wb.insert(hashval, kmer.1 as f64);
-                match res {
-                    Some(_) => {
-                        panic!("ket already existted");
-                    }
-                    _ => { }
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
+            // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+            let nb_kmer = get_nbkmer_guess(seqb);
+            let mut wb : FnvHashMap::<Kmer::Val,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval).or_insert(0.) += 1.;
+                    },
+                    None => break,
                 }
-            }
-            //
-            log::info!("converted kmers weights to f64, nbmers : {}", wb.len());
-            //
-            let mut pminhashb = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.sketch_size, num::zero::<Kmer::Val>());
+            }  // end loop 
+            let mut pminhashb = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.sketch_size, 
+                <Kmer::Val>::default());
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.

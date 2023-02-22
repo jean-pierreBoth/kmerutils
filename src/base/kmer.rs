@@ -146,6 +146,41 @@ implement_nthash_for!(Kmer16b32bit);
 
 
 
+/// a trait to homogenize Kmer initialization.
+/// The Kmer is built from the bases encoded in a u32 or u64 and the number of bases (encoded) in the Kmer
+/// Useful in making KerSeqIterator generic over Kmer
+pub trait KmerBuilder<Kmer : CompressedKmerT> {
+    fn build(val : <Kmer as CompressedKmerT>::Val, kmer_size : u8) -> Kmer;
+}
+
+
+impl KmerBuilder<Kmer32bit> for Kmer32bit {
+    /// for Kmer32bit we encode the number of bases in the 4 upper bits
+    fn build(val: u32, nb_base : u8) -> Kmer32bit {
+        let mut new_kmer:u32 = (nb_base as u32) << 28;
+        new_kmer = new_kmer | val;
+        Kmer32bit(new_kmer)
+    }
+}
+
+
+
+impl KmerBuilder<Kmer16b32bit> for Kmer16b32bit {
+    /// we know the number of bases by definition of the Kmer
+    fn build(val: u32, _nb_base : u8) -> Kmer16b32bit {
+        Kmer16b32bit(val)
+    }
+}
+
+
+
+impl KmerBuilder<Kmer64bit> for Kmer64bit {
+    /// For Kmer64bit the number of bases is encoded in separate field 
+    fn build(val: u64, nb_base : u8) -> Kmer64bit {
+        Kmer64bit(val, nb_base)
+    }
+}
+
 
 
 #[cfg(test)]

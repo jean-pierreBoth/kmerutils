@@ -9,7 +9,7 @@ use fnv::{FnvHashMap, FnvBuildHasher};
 /// an IndexMap used for Kmer counting
 
 
-pub use super::{kmertraits::*, kmer::*, sequence::*};
+pub use super::{kmertraits::*, kmer::*, sequence::*, kmer32bit::Kmer32bit, kmer16b32bit::Kmer16b32bit, kmer64bit::Kmer64bit};
 
 
 pub trait KmerSeqIteratorT {
@@ -31,7 +31,7 @@ pub trait KmerSeqIteratorT {
 ///
 /// The structure [KmerGenerationPattern] is there to provide absraction over it.
 
-pub struct KmerSeqIterator<'a , T > where T:CompressedKmerT {
+pub struct KmerSeqIterator<'a , T > where T:CompressedKmerT + KmerBuilder<T> {
     /// size of kmer
     nb_base: u8,
     /// an iterator for base calling
@@ -42,7 +42,7 @@ pub struct KmerSeqIterator<'a , T > where T:CompressedKmerT {
 
 
 
-impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
+impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT + KmerBuilder<T> {
     /// Constructor for a given sequence and kmersize
     pub fn new(ksize: u8, sequence: &'a Sequence) -> KmerSeqIterator<'a, T> {
         if ksize as usize > T::get_nb_base_max() {
@@ -59,17 +59,20 @@ impl<'a, T> KmerSeqIterator<'a, T>  where T:CompressedKmerT {
 
 
 
+// KmerSeqIterator impl over generic Kmer
 
-impl<'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer16b32bit> {
-    type KmerVal = Kmer16b32bit;
-    /// return next kmer if any.
-    fn next(&mut self) -> Option<Self::KmerVal> {
-        // check for end of iterator
-        let next_base;
-        match self.seqiter.next() {
-            Some(b) => next_base = b,
-            None => return None,
-        }
+impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer> 
+        where Kmer : CompressedKmerT + KmerBuilder<Kmer> {
+    
+    type KmerVal = Kmer;
+
+    fn next(&mut self) -> Option<Kmer> {
+       // check for end of iterator
+       let next_base;
+       match self.seqiter.next() {
+           Some(b) => next_base = b,
+           None => return None,
+       }
         // now we know we are not at end of iterator
         // if we do not have a previous we have to contruct first kmer
         // we have to push a base.
@@ -81,111 +84,26 @@ impl<'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer16b32bit> {
         }
         else {
             // we are at beginning of kmer construction sequence we have first base
-            // we need 15 more!!
-            let mut new_kmer_val:u32 = (next_base as u32) << 30;
-            for i in 0..15 {
+            // we need to place first base at the correct place.
+            let kmer_size = self.nb_base as usize;            
+            let pos = 2*(kmer_size -1);
+            let mut new_kmer_val = <Kmer as CompressedKmerT>::Val::from(next_base) << pos;
+            for i in 0..(kmer_size-1) {
                 if let Some(next_base) = self.seqiter.next()  {
-                    new_kmer_val = new_kmer_val | ((next_base as u32) << (28-2*i));
+                    let base_val = <Kmer as CompressedKmerT>::Val::from(next_base) << (pos - 2 - 2*i);
+                    new_kmer_val = new_kmer_val | base_val;
                 }
                 else {
                     return None;
                 }
             } // end of for
-            let new_kmer = Kmer16b32bit(new_kmer_val);
+            let new_kmer: Kmer = <Kmer as KmerBuilder<Kmer>>::build(new_kmer_val, self.nb_base);
             self.previous = Some(new_kmer);
-            return Some(new_kmer);   
-        } // end else        
+            return Some(new_kmer);
+        }
     }  // end of next
-} // end of impl<'a,T> KmerSeqIterator<'a, Kmer16b32bit>
 
-
-
-impl <'a> KmerSeqIteratorT for KmerSeqIterator<'a, Kmer32bit> {
-    type KmerVal = Kmer32bit;
-    fn next(&mut self) -> Option<Self::KmerVal> {
-        // check for end of iterator
-        let next_base;
-        match self.seqiter.next() {
-            Some(b) => next_base = b,
-            None => return None,
-        }
-        // now we know we are not at end of iterator
-        // if we do not have a previous we have to contruct first kmer
-        // we have to push a base.
-        //
-        if let Some(kmer) = self.previous {
-            // in fact we have the base to push
-            self.previous = Some(kmer.push(next_base));
-            return self.previous;
-        }
-        else {
-            // we are at beginning of kmer construction sequence we have first base
-            // we need to place first base at the correct place.
-            let kmer_size = self.nb_base as usize;
-//            info!("in Kmer32bit next nb_base, base = {} {:b} ", kmer_size, next_base);
-            let pos = 2*(kmer_size -1);
-            let mut new_kmer:u32 = (kmer_size as u32) << 28;
-            new_kmer = new_kmer | (next_base as u32) << pos;
-            for i in 0..(kmer_size-1) {
-                if let Some(next_base) = self.seqiter.next()  {
-                    new_kmer = new_kmer | ((next_base as u32) << (pos-2-2*i));
-                }
-                else {
-                    return None;
-                }
-            } // end of for
-//            info!("in Kmer32bit next , kmer  = {:b} ", new_kmer);
-            self.previous = Some(Kmer32bit(new_kmer));
-            return Some(Kmer32bit(new_kmer));   
-        } // end else        
-    }  // end of next
-} // end of impl<'a,T> KmerSeqIterator<'a, Kmer16b32bit>
-
-
-
-
-impl <'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer64bit> {
-    type KmerVal = Kmer64bit;
-    //
-    fn next(&mut self) -> Option<Self::KmerVal> {
-        // check for end of iterator
-        let next_base;
-        match self.seqiter.next() {
-            Some(b) => next_base = b,
-            None => return None,
-        }
-        // now we know we are not at end of iterator
-        // if we do not have a previous we have to contruct first kmer
-        // we have to push a base.
-        //
-        if let Some(kmer) = self.previous {
-            // in fact we have the base to push
-            self.previous = Some(kmer.push(next_base));
-            return self.previous;
-        }
-        else {
-            // we are at beginning of kmer construction sequence we have first base
-            // we need to place first base at the correct place.
-            let kmer_size = self.nb_base as usize;
-//            info!("in Kmer64bit next nb_base, base = {} {:b} ", kmer_size, next_base);
-            let pos = 2*(kmer_size -1);
-            let mut new_kmer = 0u64;
-            new_kmer = new_kmer| (next_base as u64) << pos;
-            for i in 0..(kmer_size-1) {
-                if let Some(next_base) = self.seqiter.next()  {
-                    new_kmer = new_kmer | ((next_base as u64) << (pos-2-2*i));
-                }
-                else {
-                    return None;
-                }
-            } // end of for
-//            info!("in Kmer64bit next , kmer  = {:b} ", new_kmer);
-            self.previous = Some(Kmer64bit(new_kmer, self.nb_base));
-            return Some(Kmer64bit(new_kmer, self.nb_base));   
-        } // end else        
-    }  // end of next
-} // end of impl<'a,T> KmerSeqIterator<'a, Kmer64bit>
-
+}
 
 
 
@@ -194,10 +112,10 @@ impl <'a>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer64bit> {
 
 
 /// overload Kmer generation for various Kmer types. (see Rust Week 225).  
-/// We define a generic trait defining a pattern for target type of kmer generation
-/// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.
-///       The Kmer must have an encoding larger than the one used in the sequence encoding! 
-///       A panic is provoked in other cases!!
+/// We define a generic trait defining a pattern for target type of kmer generation.  
+/// NOTE: The sequence must be encode with 2 bit alphabet to generate compressed Kmer on 2 bits.  
+/// The Kmer must have an encoding larger than the one used in the sequence encoding!  
+/// **A panic is provoked in other cases!!**
 /// 
 pub trait KmerGenerationPattern<T:KmerT> {
     /// generate all kmers included in 0..

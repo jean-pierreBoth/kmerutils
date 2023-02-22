@@ -26,7 +26,7 @@ pub trait KmerT {
 /// all our Kmer implements this trait as they use 2/4 bit base encoding.
 /// So basically our Kmer are copy, orderable, representable as hashable orderable compressed value.
 /// which is a minimum
-pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash+Ord
+pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash + Ord + From<u8> + num::PrimInt + Default + std::ops::BitOr + std::ops::Shl
 {
     /// type of compressed value , u16, u32, u64.
     type Val;
