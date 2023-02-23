@@ -155,6 +155,15 @@ impl CompressedKmerT for Kmer64bit {
 
 
 
+impl KmerBuilder<Kmer64bit> for Kmer64bit {
+    /// For Kmer64bit the number of bases is encoded in separate field 
+    fn build(val: u64, nb_base : u8) -> Kmer64bit {
+        Kmer64bit(val, nb_base)
+    }
+}
+
+
+
 impl FromStr for Kmer64bit {
     type Err = String;
 

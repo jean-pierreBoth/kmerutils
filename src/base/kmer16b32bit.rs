@@ -105,6 +105,13 @@ impl CompressedKmerT for Kmer16b32bit {
 
 
 
+impl KmerBuilder<Kmer16b32bit> for Kmer16b32bit {
+    /// we know the number of bases by definition of the Kmer
+    fn build(val: u32, _nb_base : u8) -> Kmer16b32bit {
+        Kmer16b32bit(val)
+    }
+}
+
  
 impl FromStr for Kmer16b32bit {
     type Err = String;

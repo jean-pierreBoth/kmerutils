@@ -228,6 +228,19 @@ impl FromStr for Kmer32bit {
 }  // end of impl FromStr for Kmer32bit
 
 
+
+impl KmerBuilder<Kmer32bit> for Kmer32bit {
+    /// for Kmer32bit we encode the number of bases in the 4 upper bits
+    fn build(val: u32, nb_base : u8) -> Kmer32bit {
+        let mut new_kmer:u32 = (nb_base as u32) << 28;
+        new_kmer = new_kmer | val;
+        Kmer32bit(new_kmer)
+    }
+}
+
+//===================================================================================================
+
+
 mod tests {
 
     #[allow(unused)]

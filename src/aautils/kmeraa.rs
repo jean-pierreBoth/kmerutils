@@ -262,6 +262,14 @@ impl PartialOrd for KmerAA32bit {
 } // end impl Ord for KmerAA128bit
 
 
+
+impl KmerBuilder<KmerAA32bit> for KmerAA32bit {
+    /// for Kmer32bit we encode the number of bases in the 4 upper bits
+    fn build(val: u32, nb_base : u8) -> KmerAA32bit {
+        KmerAA32bit{aa : val, nb_base}
+    }
+}
+
 //======================================================================
 
 /// A Kmer of amino acids for less than 12 Amino Acid, stored on a u64.
@@ -387,6 +395,17 @@ impl CompressedKmerT for KmerAA64bit {
     fn get_bitsize(&self) -> usize { 128 }
 }  // end of impl CompressedKmerT for KmerAA128bit
 
+
+
+impl KmerBuilder<KmerAA64bit> for KmerAA64bit {
+    /// for Kmer32bit we encode the number of bases in the 4 upper bits
+    fn build(val: u64, nb_base : u8) -> KmerAA64bit {
+        KmerAA64bit{aa : val, nb_base}
+    }
+} // end of  KmerBuilder<KmerAA64bit>
+
+
+
 //=======================================================================
 
 /// our sequence of Amino Acid is encoded on a byte (even if 5 bits are enough but we do not store sequences yet)
@@ -501,7 +520,7 @@ impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
 
 } // end of impl block for KmerSeqIterator
 
-
+/* 
 
 impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA32bit> {
     type KmerVal = KmerAA32bit;
@@ -595,6 +614,63 @@ impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA64bit> {
     } // end of next
 
 } // end of impl KmerSeqIteratorT for KmerSeqIterator<'a, KmerAA64bit>
+
+*/
+
+
+
+impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer> 
+        where Kmer : CompressedKmerT + KmerBuilder<Kmer> {
+    
+    type KmerVal = Kmer;
+
+        /// iterates...
+        fn next(&mut self) -> Option<Self::KmerVal> {
+            // check for end of iterator
+            if self.base_position >= self.sequence.len().min(self.range.end) {
+                log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
+                return None;
+            }
+            // now we know we are not at end of iterator
+            // if we do not have a previous we have to contruct first kmer
+            // we have to push a base.
+            //
+            if let Some(kmer) = self.previous {
+                // in fact we have the base to push
+                let next_base = self.sequence.get_base(self.base_position);
+                log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
+                self.previous = Some(kmer.push(next_base));
+                self.base_position += 1;
+                return self.previous;
+            }
+            else {
+                // we are at beginning of kmer construction sequence, we must push kmer_size bases
+                let kmer_size = self.nb_base as usize;
+                let nb_base_bits = 5;           
+                let pos = nb_base_bits*(kmer_size -1);
+                let next_base = self.sequence.get_base(self.base_position);
+                let encoded_base = self.alphabet_aa.encode(next_base);
+                self.base_position += 1;                
+                log::debug!(" init kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
+                let mut new_kmer_val = <Kmer as CompressedKmerT>::Val::from(encoded_base) << pos;
+                for i in 0..(kmer_size-1) {
+                    let next_base = self.sequence.get_base(self.base_position);
+                    log::debug!(" next kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
+                    let encoded_base = self.alphabet_aa.encode(next_base);
+                    let base_val = <Kmer as CompressedKmerT>::Val::from(encoded_base) << (pos - nb_base_bits - nb_base_bits*i);
+                    new_kmer_val = new_kmer_val | base_val;
+                    self.base_position += 1;                
+                }
+                // we know by assert that self.nb_base is less than 12 so can be seen as a u8
+                let new_kmer: Kmer = <Kmer as KmerBuilder<Kmer>>::build(new_kmer_val, self.nb_base as u8);
+                self.previous = Some(new_kmer);
+                return self.previous;
+            }
+        } // end of next
+}  // end of impl  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer> 
+
+
+
 //============================================================================
 
 

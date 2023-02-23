@@ -189,31 +189,31 @@ impl SeqSketcher {
 
 
     /// A generic version of sketching on compressed kmer for amino acids
-    pub fn sketch_probminhash3a_compressedkmeraa<'b, Kmer : CompressedKmerT, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Kmer::Val> >
+    pub fn sketch_probminhash3a_compressedkmeraa<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
-                
-            let comput_closure = | seqb : &'b SequenceAA, i:usize | -> (usize,Vec<Kmer::Val>) {
-                let kmers : FnvHashMap<Kmer, usize>= KmerGenerator::new(self.kmer_size as u8).generate_kmer_distribution(&seqb);
-                // now we have weights but in usize and we want them in float!! and in another FnvHashMap, ....
-               // TODO we use 2 FnvHashMap, must implement KmerSeqIterator for Kmer : CompressedKmerT
-               let mut wb : FnvHashMap::<Kmer::Val,f64> = FnvHashMap::with_capacity_and_hasher(kmers.len(), FnvBuildHasher::default());
-                for kmer in kmers {
-                    let hashval = fhash(&kmer.0);
-                    let res = wb.insert(hashval, kmer.1 as f64);
-                    match res {
-                        Some(_) => {
-                            panic!("key already existed");
-                        }
-                        _ => { }
+
+            let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<Kmer::Val>) {
+                // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
+                let nb_kmer = get_nbkmer_guess(seqb);
+                let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+                let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, &seqb);
+                kmergen.set_range(0, seqb.size()).unwrap();
+                loop {
+                    match kmergen.next() {
+                        Some(kmer) => {
+                            let hashval = fhash(&kmer);
+                            *wb.entry(hashval).or_insert(0) += 1;
+                        },
+                        None => break,
                     }
-                }
-                // TODO   NohashHasher or not NoHasher
-                let mut pminhashb = ProbMinHash3a::<Kmer::Val,fnv::FnvHasher>::new(self.sketch_size, num::zero::<Kmer::Val>());
+                }  // end loop 
+                let mut pminhashb = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.sketch_size, 
+                    <Kmer::Val>::default());
                 pminhashb.hash_weigthed_hashmap(&wb);
                 let sigb = pminhashb.get_signature();
-                //
+                // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
                 return (i,sigb.clone());
             };
             //

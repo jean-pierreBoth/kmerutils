@@ -181,14 +181,14 @@ impl SeqSketcher {
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
-            let mut wb : FnvHashMap::<u32,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<u32,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
                     Some(kmer) => {
                         let hashval = fhash(&kmer);
-                        *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                        *wb.entry(hashval as u32).or_insert(0) += 1;
                     },
                     None => break,
                 }
@@ -222,14 +222,14 @@ impl SeqSketcher {
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
-            let mut wb : FnvHashMap::<u32,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<u32,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
                     Some(kmer) => {
                         let hashval = fhash(&kmer);
-                        *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                        *wb.entry(hashval as u32).or_insert(0) += 1;
                     },
                     None => break,
                 }
@@ -263,14 +263,14 @@ impl SeqSketcher {
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u64>) {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
-            let mut wb : FnvHashMap::<u64,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<u64,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer64bit>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
                     Some(kmer) => {
                         let hashval = fhash(&kmer);
-                        *wb.entry(hashval as u64).or_insert(0.) += 1.;
+                        *wb.entry(hashval as u64).or_insert(0) += 1;
                     },
                     None => break,
                 }
@@ -300,7 +300,6 @@ impl SeqSketcher {
 
     /// a generic implementation of probminhash3a  against our standard compressed Kmer types.  
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.  
-    /// This implementation is less efficient as the specialized ones.
     pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
@@ -311,14 +310,14 @@ impl SeqSketcher {
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
-            let mut wb : FnvHashMap::<Kmer::Val,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
                     Some(kmer) => {
                         let hashval = fhash(&kmer);
-                        *wb.entry(hashval).or_insert(0.) += 1.;
+                        *wb.entry(hashval).or_insert(0) += 1;
                     },
                     None => break,
                 }

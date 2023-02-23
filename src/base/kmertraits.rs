@@ -42,3 +42,11 @@ pub trait CompressedKmerT : KmerT+Ord+Copy  where Self::Val : Hash + Ord + From<
     fn get_bitsize(&self) -> usize;
 }  // end of trait CompressedKmer
 
+
+
+/// a trait to homogenize Kmer initialization.
+/// The Kmer is built from the bases encoded in a u32 or u64 and the number of bases (encoded) in the Kmer
+/// Useful in making KerSeqIterator generic over Kmer
+pub trait KmerBuilder<Kmer : CompressedKmerT> {
+    fn build(val : <Kmer as CompressedKmerT>::Val, kmer_size : u8) -> Kmer;
+}
