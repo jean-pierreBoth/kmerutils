@@ -35,6 +35,7 @@ use probminhash::invhash::*;
 pub struct MinHashDist(pub f64, pub f64, pub u64, pub u64);
 
 pub struct MinHashCount<T: Hash+Clone+Copy+Debug, H: Hasher+Default> {
+    // if set to true the hashed item is pushed into HashItem along the hasshed value
     keep_item:bool,
     hashes: BinaryHeap<HashedItem<T>>,
     b_hasher: BuildHasherDefault<H>,
@@ -137,7 +138,7 @@ impl <T:Hash + Clone + Copy + Debug ,  H : Hasher+Default> MinHashCount<T, H> {
         results
     }  // end of get_sketchcount
 
-    /// returns 
+    /// returns if keep_item was set to false
     pub fn get_signature(&self) -> Option<&BinaryHeap<HashedItem<T>> > {
         if self.keep_item == true {
             return None;
@@ -384,8 +385,8 @@ mod tests {
         let va : Vec<usize> = (0..100).collect();
         let vb : Vec<usize> = (80..160).collect();
         let _bh = BuildHasherDefault::<FnvHasher>::default();
-        let mut minhash_a : MinHashCount<usize, FnvHasher>= MinHashCount::new(50, true);
-        let mut minhash_b : MinHashCount<usize, FnvHasher>= MinHashCount::new(50, true);
+        let mut minhash_a : MinHashCount<usize, FnvHasher>= MinHashCount::new(500, true);
+        let mut minhash_b : MinHashCount<usize, FnvHasher>= MinHashCount::new(500, true);
         // now compute sketches
         println!("sketching a ");
         minhash_a.sketch_slice(&va);
@@ -395,13 +396,13 @@ mod tests {
         let sketch_b = minhash_b.get_sketchcount();
         // 
         let resdist = minhash_distance(&sketch_a, &sketch_b);
-        debug!("distance minhash (contain, dist, common, total):  {}  {}   {}  {} ",
+        log::info!("distance minhash (contain, dist, common, total):  {:.3e}  {:.3e}   {:.3e}  {:.3e} ",
                resdist.0, resdist.1, resdist.2, resdist.3);
         if let Some(opthashes) = minhash_a.get_signature() {
             trace!(" nb objects {} ", opthashes.len());
         }
         else {
-            println!("minhash_a.get_signature() returned None");
+            trace!("minhash_a.get_signature() returned None");
         }
         // 
         assert!(resdist.2 > 0);

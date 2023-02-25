@@ -1475,8 +1475,19 @@ mod tests {
     use super::*;
     use std::ops::Range;
     use rand::distributions::*;
+
+
+    fn log_init_test() {
+        let mut builder = env_logger::Builder::from_default_env();
+        //    builder.filter_level(LevelFilter::Trace);
+        let _ = builder.is_test(true).try_init();
+    }
+
+
     #[test]
     fn test_kmer_counter() {
+        //
+        log_init_test();
         let fp_rate = 0.03;
         let nb_random = 1_000_000;
         //
@@ -1518,7 +1529,7 @@ mod tests {
         println!(" kmer maxpos {} minpos {} ", maxpos, minpos);
         // now we can check the error rate ?
         for i in 2..countvec.len() {
-            println!(" pos count {}  {} ", i, countvec[i]);
+            log::debug!(" pos count {}  {} ", i, countvec[i]);
         }
         println!(" kmer min {} count {} ", minpos, countvec[minpos]);
         println!(" kmer max {} count {} ", maxpos, countvec[maxpos]);
@@ -1531,6 +1542,9 @@ mod tests {
     
     #[test]
     fn test_false_positive() {
+        //
+        log_init_test();
+        //
         let mut kmer_counter = KmerCounter::new(0.03, 10_000_000, 8);
         //
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
@@ -1557,13 +1571,13 @@ mod tests {
         let minpos = (0..countvec.len()).min_by_key(|&x| countvec[x]).unwrap() as usize;
         println!(" kmer maxpos {} minpos {} ", maxpos, minpos);
         for i in 0..countvec.len() {
+            log::debug!(" pos count {}  {} ", i, countvec[i]);
             if i < countvec.len() /2 {
                 assert!(countvec[i] == 0);
             }
             else {
                 assert!(countvec[i] == 255);
             }
-            println!(" pos count {}  {} ", i, countvec[i]);
         }
         println!(" kmer min {} count {} ", minpos, countvec[minpos]);
         println!(" kmer max {} count {} ", maxpos, countvec[maxpos]);

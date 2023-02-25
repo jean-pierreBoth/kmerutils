@@ -3,7 +3,7 @@
 // It gathers some heuristics on how to pairs blocks of read before going to sketching
 
 
-use ::histogram::*;
+use ::hdrhistogram::*;
 
 
 use ::ndarray::*;
@@ -40,7 +40,8 @@ use crate::base::sequence::*;
 /// 
 
 pub struct ReadBaseDistribution {
-    pub readsizehisto : histogram::Histogram,
+    /// to store read length distribution
+    pub readsizehisto : hdrhistogram::Histogram<u64>,
     /// upper value of histo
     upper_histo : usize,
     /// count number of values greater than upper , histo trackable value
@@ -56,16 +57,23 @@ pub struct ReadBaseDistribution {
 impl ReadBaseDistribution {
     /// readmaxsize is the maximum length represented in the histogram  
     /// prec : is the precision for histogram representation1,2 or 3
-    pub fn new(readmaxsize : usize, prec : usize, d: ndarray::Ix2) -> ReadBaseDistribution {
+    pub fn new(readmaxsize : usize, prec : u8, d: ndarray::Ix2) -> ReadBaseDistribution {
         // TODO check that prec < log10(readmaxsize)
         // record histogram length from 1 to readmaxsize with slot of size readmaxsize/10**prec
         // lowest value arg in init must be >= 1
-        assert!(prec >= 1, "precision for histogram construction should range >= 1");
-        let histo = Histogram::configure().max_value(readmaxsize as u64).precision(prec as u32).build().unwrap();
+        let precision : u8;
+        if prec > 5 {
+            log::error!("precision for histogram construction should be in range 1..5, restting to 5");
+            precision = 5;
+        }
+        else {
+            precision = prec;
+        }
+        let histo = Histogram::new_with_bounds(1, readmaxsize as u64, precision).unwrap();
         let array : Array2<f64> = Array2::zeros(d);
         ReadBaseDistribution{readsizehisto : histo, upper_histo : readmaxsize, histo_out : 0,
                              non_acgt : 0 as usize , acgt_distribution : array}
-    }
+    } // end of new
 
     
     /// dump result in file of name name.
@@ -102,17 +110,12 @@ impl ReadBaseDistribution {
     /// abscisses (read length) for j = 0..1000 are computed as first read length greater than maxlen * j / nbpoints
     pub fn ascii_dump_readlen_distribution(&self, name : &str) -> result::Result<(), io::Error> {
         //
-        let nb_entries = self.readsizehisto.entries() as usize;
-        let maxlen : usize;
-        match self.readsizehisto.maximum() {
-           Ok(maxlen_ok ) =>  { 
-                                maxlen = maxlen_ok as usize;
-                                println!("ascii_dump_readlen_distribution nb_entries {}  maxlen {}", nb_entries, maxlen);},
-           Err(str) => {    println!("error : {}", String::from(str)); 
-                            println!("Error : ascii_dump_readlen_distribution nb_entries {}", nb_entries);
-                            return Err(std::io::Error::new(std::io::ErrorKind::Other, "histogram error!"));
-                        }
-        };
+        let nb_entries = self.readsizehisto.len() as usize;
+        if nb_entries <= 0 {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "histogram error!, empty histogram"));          
+        }
+        let maxlen = self.readsizehisto.len();
+        println!("ascii_dump_readlen_distribution nb_entries {}  maxlen {}", nb_entries, maxlen);
         //
         if nb_entries < 100 {
             println!("Error : ascii_dump_readlen_distribution nb_entries too small : {}", nb_entries);
@@ -122,7 +125,7 @@ impl ReadBaseDistribution {
         //
         let mut readsize : Vec<u64> = (0..(nbslot+1)).map(|_| 0u64).collect();
         for i in 0..(nbslot+1) {
-            readsize[i] =  self.readsizehisto.percentile(100. * (i as f64/ nbslot as f64) as f64).unwrap();
+            readsize[i] =  self.readsizehisto.value_at_quantile(i as f64/ nbslot as f64);
         }
         let nb_points = 1000usize;
         let mut nb_read_vec = Vec::<usize>::with_capacity(nb_points);
@@ -132,7 +135,7 @@ impl ReadBaseDistribution {
         let mut current_i = 0;
         for j in 0..nb_points {
             // find first i such that readsize[i] >= maxlen * (j/nbslot) 
-            let threshold = (maxlen * j)/nb_points;
+            let threshold = (maxlen * j as u64)/(nb_points as u64);
             while readsize[current_i]  < (threshold as u64)  && current_i < nbslot {
                 current_i +=1;
             }
@@ -164,7 +167,7 @@ impl ReadBaseDistribution {
     /// record read len in histogram keeping track of number of values outside histogram
     fn record_read_len(&mut self, sz : usize) -> () {
         log::trace!("record_read_len sz : {}", sz);
-        let res = self.readsizehisto.increment(sz as u64);
+        let res = self.readsizehisto.record(sz as u64);
         if !res.is_ok() {
             self.histo_out += 1;
         }
@@ -182,7 +185,7 @@ fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
     println!(" in get_base_count");
     let start_t = std::time::Instant::now();
     //
-    let prec = (maxreadlen as f64).log10() as usize;
+    let prec = 3;
     let v_ref = &seq_array;
     let low = 0;
     let up = v_ref.len();
@@ -202,7 +205,7 @@ fn get_base_count(seq_array : &Vec<Sequence > , maxreadlen:usize) {
 /// to get a significant historgram
 
 
-fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : usize) -> result::Result< Box<ReadBaseDistribution> , ()> {
+fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : u8) -> result::Result< Box<ReadBaseDistribution> , ()> {
     //
     log::trace!(" in get_base_count_by_slice len : {} ", seq_array.len());
     //
@@ -245,7 +248,7 @@ fn get_base_count_by_slice(seq_array : &[Sequence] , maxreadlen : usize, prec : 
 /// maxreadlen is the maximum size we record in histogram. It must be adapted to read length distribution
 /// to get a significant historgram.    
 /// Result is dumped in a file named : "bases.histo"
-pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec : usize) -> Option<Box<ReadBaseDistribution>> {
+pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec : u8) -> Option<Box<ReadBaseDistribution>> {
     //
     log::info!(" in get_base_count_par");
     let nbthreads : usize = 2;
@@ -275,7 +278,7 @@ pub fn get_base_count_par (seq_array : &Vec<Sequence> ,  maxreadlen :usize, prec
     
     for distrib in &distrib_collector {
         let ref_distrib = distrib.as_ref().unwrap();
-        base_distribution.readsizehisto.merge(&ref_distrib.readsizehisto);
+        base_distribution.readsizehisto += &ref_distrib.readsizehisto;
         // CAVEAT should check that upper_histo are coherent (the same) they are all initialized to maxreadlen
         base_distribution.upper_histo = maxreadlen;
         base_distribution.histo_out += ref_distrib.histo_out;

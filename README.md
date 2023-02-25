@@ -1,12 +1,14 @@
 # Some Kmer counting utilities
 
-This package provides the following tools :
+The package is mainly devoted as designed to be library to the crate [gsearch](https://crates.io/crates/gsearch), to classify prokaryotic genomes.
 
-* Simple representation of Kmers with compressed representation on 2 or 4 bits stored in u32 or u64 for simplicity and efficacity.
+It provides the following tools :
+
+* Simple representation of Kmers up to 32 bases with compressed representation on 2 or 4 bits stored in u32 or u64 for simplicity and efficacity.
   
-* Basic Kmer counting tools with Bloom and Cuckoo filters.
+* Basic Kmer threaded counting tools with Bloom and Cuckoo filters.
 
-* Sketching of sequences with up to date sensitive hashing see *module sketching*.  
+* Sketching of sequences with up to date sensitive hashing see *module sketching* and the crate [probminhash](https://crates.io/crates/probminhash)  
 
 * A quality server.
   The binary executable *qualityloader* loads qualities from a Fastq file and runs as a server, answering
@@ -14,7 +16,6 @@ This package provides the following tools :
 
 * some basic statistics dumps  such as base distributions, read length distributions.
 
-The package is mainly devoted to the crate [gsearch](https://crates.io/crates/gsearch), to classify prokaryotic genomes.
 It has a Julia companion providing interactive access to dumped statistics or interactive inspection of sequences
 of bases and qualities.
 
@@ -31,20 +32,19 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 ## Hashing and Sketching of data
 
-Similarity between sequences can be estimated by counting common Kmers between sequences with minhash, superminhash and the probability Jaccard Index.
+Similarity between sequences can be estimated by counting common Kmers between sequences with minhash, superminhash and the probminhash algorithms.
 
-* Estimators of the standard Jaccard index (without taking into account Kmer multiplicity) is provided by the Minhash or Superminhash algorithm.
-
-* A probability Jaccard index taking into account Kmer multiplicity is also provided with the Probminhash family algorithm.
-Probminhash (and Superminhash) are provided by the crate probminhash
-(Cf [probminhash](https://github.com/jean-pierreBoth/probminhash)).
+* A probability Jaccard index taking into account Kmer multiplicity is provided with the Probminhash family algorithm associated with the probability Jaccard index.
+See  [probminhash](https://github.com/jean-pierreBoth/probminhash).  
+For very long sequences where keeping the count of each Kmer costs too much memory it is possible to fallback on the SuperMinHash algorithm also
+provided in the **probminhash** crate using the usual Jaccard metric.
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
 dumped in a file. This file can be reprocessed to examine neighborhood of a read in term of the Probability Jaccard index. see module *seqsketchjaccard.rs* or *seqblocksketch*.  
 For example it takes 51s on a 8 (hyperthreaded i7 @2.3Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
 
 * The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
-  See executable *datasketcher* in this crate and the crate *hnsw_rs*
+  See executable *datasketcher* in this crate and the crate [*hnsw_rs*](https://crates.io/crates/hnsw_rs)
 
 Some others standard tools such :
 
@@ -52,7 +52,7 @@ Some others standard tools such :
      Mohamadi Chu Birol BioInformatics 2016.
 It is implemented on all our compressed kmer types.
 
-## A minimal module rnautils
+## A minimal module aautils
 
 This module provides an uncompressed representation of Amino Acid sequences along with generation of compressed Kmer (up to a size of 25 amino acids).  
 This module is, in present state, minimal. Its main objective is to provide sketching of AA sequences in the same way as DNA sequences.

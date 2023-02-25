@@ -189,7 +189,7 @@ fn main() {
     // for long read data a maxreadlen = 1000000 should be OK.
     let maxreadlen = 1000000;
     log::info!("setting max read length for size histogram to : {}", maxreadlen);
-    let prec = (maxreadlen as f64).log10() as usize;
+    let prec = 3;
     let base_distribution_res= get_base_count_par(&seqvec, maxreadlen, prec);
     match base_distribution_res {
         Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution(&"readlen.histo");

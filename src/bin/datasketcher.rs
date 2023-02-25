@@ -28,7 +28,6 @@ use std::io::prelude::*;
 use kmerutils::base::{sequence::*, kmergenerator::*};
 use kmerutils::sketching::*;
 use kmerutils::sketching::seqblocksketch::{BlockSeqSketcher, BlockSketched, DistBlockSketched};
-
 use needletail::FastxReader;
 
 
@@ -256,7 +255,7 @@ fn main() {
             log::info!("sketching entire sequences with probminhash3a algorithm");
             let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
             let sequencegroup_ref : Vec<&Sequence> = sequencegroup.iter().map(|s| s).collect();
-            let signatures = sketcher.sketch_probminhash3a_kmer32bit(&sequencegroup_ref, kmer_revcomp_hash_fn);
+            let signatures = sketcher.sketch_probminhash3a_compressedkmer(&sequencegroup_ref, kmer_revcomp_hash_fn);
             trace!("got nb signatures vector {} ", signatures.len());
             // dump the signature
             let resd = seqsketchjaccard::dump_signatures_block_u32(&signatures, &mut sigbuf);
