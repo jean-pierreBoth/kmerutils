@@ -39,6 +39,7 @@ use crate::base::{kmer::*, kmergenerator::*, kmergenerator::KmerSeqIteratorT};
 
 use rayon::prelude::*;
 
+use crate::sketcharg::{SketchAlgo};
 
 use probminhash::{probminhasher::*, superminhasher::SuperMinHash};
 use probminhash::jaccard::compute_probminhash_jaccard;
@@ -239,34 +240,37 @@ impl SeqSketcher {
     /// 
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
 
-    pub fn sketch_probminhash3_kmer32bit<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<u32> >
-        where F : Fn(&Kmer32bit) -> u32 + Send + Sync {
+    pub fn sketch_probminhash3<Kmer : CompressedKmerT + KmerBuilder<Kmer>,F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
+        where   F : Fn(&Kmer) -> Kmer::Val + Send + Sync ,
+                Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>  {
         //
-        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<u32>) {
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<Kmer::Val>) {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
-            let mut wb : FnvHashMap::<u32,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seqb);
+            let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
                     Some(kmer) => {
                         let hashval = fhash(&kmer);
-                        *wb.entry(hashval as u32).or_insert(0.) += 1.;
+                        *wb.entry(hashval).or_insert(0) += 1;
                     },
                     None => break,
                 }
             }  // end loop 
-            let mut pminhashb = ProbMinHash3a::<u32,NoHashHasher>::new(self.sketch_size, 0);
+            let mut pminhashb = ProbMinHash3::<Kmer::Val,NoHashHasher>::new(self.sketch_size, 
+                                    <Kmer::Val>::default());
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<u32>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<u32>>::with_capacity(vseq.len());
+        let mut jaccard_vec = Vec::<Vec<Kmer::Val>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
             jaccard_vec.push(Vec::new());
         }
@@ -286,9 +290,8 @@ impl SeqSketcher {
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_superminhash_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F, T>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<f64> >
-        where F : Fn(&Kmer) -> T + Send + Sync,
-              T : std::hash::Hash, 
+    pub fn sketch_superminhash_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<f64> >
+        where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
@@ -299,7 +302,7 @@ impl SeqSketcher {
             log::debug!(" in sketch_superminhash_compressedkmer, closure");
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<T, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
+            let mut sminhash : SuperMinHash<Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -333,8 +336,6 @@ impl SeqSketcher {
         }
         jaccard_vec
     } // end of sketch_superminhash_compressedkmer
-
-
 
 
     /// initialize dump file. Nota we intialize with size of key signature : 4 bytes.  
@@ -371,6 +372,10 @@ impl SeqSketcher {
 }  // end of impl SeqSketcher
 
 
+//======================================================================================================
+
+
+//=========================================================================================================
 
 
 /// Compute jaccard probability index between a sequence and a vector of sequences for all CompressedKmer  with probminhash3a.      
@@ -902,7 +907,8 @@ mod tests {
         debug!("seqa with revcomp hash  {:?}", sig_vec[0]);
         debug!("seqb with revcomp hash  {:?}", sig_vec[1]);
         debug!("seq rev comp with revcomp hash  {:?}", sig_vec[2]);
-        debug!("ditances  with revcomp hash  {:.3e}  {:.3e}", d_01, d_02);
+        info!("ditances  with revcomp hash  {:.3e}  {:.3e}", d_01, d_02);
+        info!("expectiong  {:.3e}   {:.3e}", jac_theo_0, 1.);
         assert!(d_01 >= 0.75 * jac_theo_0);
         assert!(d_02 >= 1.);
         //
