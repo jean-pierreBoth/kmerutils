@@ -14,7 +14,7 @@ pub mod aautils;
 pub mod statutils;
 pub mod io;
 pub mod parsearg;
-
+pub mod sketcharg;
 
 // quality stuff
 pub mod quality;

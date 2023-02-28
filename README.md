@@ -32,11 +32,11 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 ## Hashing and Sketching of data
 
-Similarity between sequences can be estimated by counting common Kmers between sequences with minhash, superminhash and the probminhash algorithms.
+Similarity between sequences can be estimated by counting common Kmers between sequences with superminhash and the probminhash algorithms.
 
 * A probability Jaccard index taking into account Kmer multiplicity is provided with the Probminhash family algorithm associated with the probability Jaccard index.
 See  [probminhash](https://github.com/jean-pierreBoth/probminhash).  
-For very long sequences where keeping the count of each Kmer costs too much memory it is possible to fallback on the SuperMinHash algorithm also
+For very long sequences where keeping the count of large Kmer costs too much memory it is possible to fallback on the SuperMinHash algorithm also
 provided in the **probminhash** crate using the usual Jaccard metric.
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
