@@ -1,7 +1,8 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
 //!    
-//! For long (many Gbytes) sequences it may be useful to split sequences into blocks, see module seqbloocksketch.
+//! For long (many Gbytes) sequences and large Kmers consider using SuperMinHash that needs less memory
+//! (as it does not store Kmer multiplicity), or it try to split sequences into blocks, see module seqbloocksketch.
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
 //! and a jaccard weighted index between sequences is computed. See [Probminhash](https://crates.io/crates/probminhash)
@@ -107,7 +108,9 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 //=======================================================================================================
 
 
-/// This trait gathers interface to all sketcher : SuperMinhash, Probminhash3a, Probminhash3, ...
+/// This trait gathers interface to all sketcher : SuperMinhash, Probminhash3a, Probminhash3, ...  
+/// 
+/// It is useful when we need to send various sketchers in external functionsas as a impl Trait.
 pub trait SeqSketcherT<Kmer> 
     where   Kmer : CompressedKmerT + KmerBuilder<Kmer>,
             KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -122,11 +125,12 @@ pub trait SeqSketcherT<Kmer>
     //
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
                     where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;   
-}
+} // end of SeqSketcherT<Kmer>
 
 
 
-/// This structure describes the kmer size used in computing sketches and the number of sketch we want.
+/// This structure (deprecated, prefer ProbHash3aSketch and SuperHashSketch) describes the kmer size used in computing sketches and the number of sketch we want.
+/// It gathers methods for sketch_superminhash, sketch_probminhash3a and sketch_probminhash3
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SeqSketcher {
     kmer_size : usize,
@@ -206,7 +210,7 @@ impl SeqSketcher {
     /// These are the hash functions that make possible to get back to the original kmers (or at least partially in the case using the min)..
     /// 
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_probminhash3a_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
+    pub fn sketch_probminhash3a<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -313,7 +317,7 @@ impl SeqSketcher {
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_superminhash_compressedkmer<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<f64> >
+    pub fn sketch_superminhash<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<f64> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -397,6 +401,8 @@ impl SeqSketcher {
 
 //========================================================================================================
 
+/// A structure providing ProbMinHash3a sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
+/// 
 pub struct ProbHash3aSketch<Kmer> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -419,7 +425,6 @@ impl <Kmer> ProbHash3aSketch<Kmer> {
 impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
                 Kmer::Val : num::PrimInt + Send + Sync + Debug + Clone + Serialize,
-                hnsw_rs::prelude::DistHamming : hnsw_rs::dist::Distance<Kmer::Val>,
                 KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
 
     type Sig = Kmer::Val;
@@ -484,6 +489,8 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
 
 //=========================================================================================================
 
+///
+///  A structure providing SuperMinHash sketching implementing the generic trait SeqSketcherT\<Kmer\>.
 pub struct SuperHashSketch<Kmer> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -1100,7 +1107,7 @@ mod tests {
         };
         // do a superminhash sketching of sequence with kmer_revcomp_hash_fn
         let sketcher = SeqSketcher::new(kmer_size, sketch_size);
-        let sig_vec = sketcher.sketch_superminhash_compressedkmer(&vecseq,kmer_revcomp_hash_fn);
+        let sig_vec = sketcher.sketch_superminhash(&vecseq,kmer_revcomp_hash_fn);
         // now we can compute jaccard index between sig_vec[0] and the 2 others i.e sig_vec[1] and sig_vec[2]
         let d_01 = compute_superminhash_jaccard(&sig_vec[0], &sig_vec[1]).unwrap();
         let d_02 = compute_superminhash_jaccard(&sig_vec[0], &sig_vec[2]).unwrap();
@@ -1114,7 +1121,7 @@ mod tests {
         //
         // do a superminhash sketching of sequence with kmer_identity
         println!("calling with identity hash");
-        let sig_vec = sketcher.sketch_superminhash_compressedkmer(&vecseq,kmer_identity);
+        let sig_vec = sketcher.sketch_superminhash(&vecseq,kmer_identity);
         let d_01 = compute_superminhash_jaccard(&sig_vec[0], &sig_vec[1]).unwrap();
         let d_02 = compute_superminhash_jaccard(&sig_vec[0], &sig_vec[2]).unwrap();
         debug!("vecsig with identity  {:?}", sig_vec);

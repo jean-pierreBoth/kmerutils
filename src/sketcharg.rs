@@ -1,4 +1,4 @@
-// describe sketching paramaeters
+//! describe sketching paramaters, kmer size, sketching size and sketching algorithms.
 
 
 use std::io::{BufReader, BufWriter };
@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{to_writer};
 
 
-/// Specify of we skecth using the Probminhash or SuperMinHash algorithms
+/// Specify if we sketch using the Probminhash or SuperMinHash algorithms.  
+/// PROB3A is the value for asking ProbMinHashh3a, SUPER for SuperMinHash.
 #[derive(Copy,Clone,Serialize,Deserialize)]
 pub enum SketchAlgo {
     PROB3A,
@@ -20,6 +21,8 @@ pub enum SketchAlgo {
 // This is redundant with struct Sketcher for DNA case and RNA case, but it makes
 // possible the factorization of all parameters
 
+/// describe sketching paramaters, kmer size, sketching size and sketching algorithms.
+/// 
 #[derive(Copy,Clone,Serialize,Deserialize)]
 pub struct SeqSketcherParams {
     kmer_size : usize,

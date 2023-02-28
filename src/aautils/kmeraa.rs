@@ -1,7 +1,8 @@
 //! This file implements KmerAA32bit and KmerAA64bit representing Kmer for Amino Acid.  
-//! We implement compression of bases on 5 bits stored in a u32 or a u64.  
-//! So KmerAA64bit can store up to 12 AA. For less than 6 AA a u32 is sufficient.
-//! as Kmer for DNA bases.  
+//! 
+//! We implement compression of bases on 5 bits stored in a u32 or a u64.
+//! So KmerAA64bit can store up to 12 AA. For less than 6 AA a u32 is sufficient, use KmerAA32bit.  
+//! 
 //! The module provides Kmer generation tools KmerSeqIterator and KmerGenerationPattern
 //! as in module base.
 
@@ -519,103 +520,6 @@ impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
     } // end of set_range
 
 } // end of impl block for KmerSeqIterator
-
-/* 
-
-impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA32bit> {
-    type KmerVal = KmerAA32bit;
-
-    /// iterates...
-    fn next(&mut self) -> Option<Self::KmerVal> {
-        // check for end of iterator
-        if self.base_position >= self.sequence.len().min(self.range.end) {
-            log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
-            return None;
-        }
-        // now we know we are not at end of iterator
-        // if we do not have a previous we have to contruct first kmer
-        // we have to push a base.
-        //
-        if let Some(kmer) = self.previous {
-            // in fact we have the base to push
-            let next_base = self.sequence.get_base(self.base_position);
-            log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
-            self.previous = Some(kmer.push(next_base));
-            self.base_position += 1;
-            return self.previous;
-        }
-        else {
-            // we are at beginning of kmer construction sequence, we must push kmer_size bases
-            let value_mask :u32 = (0b1 << 5*self.nb_base) - 1;
-//            log::debug!("value  mask {:#b}", value_mask);
-            let mut new_kmer = 0u32;
-            let kmer_size = self.nb_base as usize;
-            for _ in 0..kmer_size {
-                let next_base = self.sequence.get_base(self.base_position);
-                log::debug!(" init kmer base : {}", char::from_u32(next_base as u32).unwrap());
-                // contrary to dna sequence base in seq is not encoded, we must encode it!!
-                let encoded_base = self.alphabet_aa.encode(next_base);
-                new_kmer = ((new_kmer << 5) & value_mask) | (encoded_base as u32 & 0b11111);
-                log::debug!("after init {:#b}", new_kmer);
-                self.base_position += 1;
-                if self.base_position >=  self.sequence.size() {
-                    return None;
-                }            
-            }
-            self.previous = Some(KmerAA32bit{aa: new_kmer, nb_base : self.nb_base as u8});
-            return self.previous;
-        }
-    } // end of next
-    
-} // end of impl KmerSeqIteratorT for KmerSeqIterator<'a, KmerAA128bit>
-
-
-
-impl <'a> KmerSeqIteratorT for  KmerSeqIterator<'a, KmerAA64bit> {
-    type KmerVal = KmerAA64bit;
-
-    /// iterates...
-    fn next(&mut self) -> Option<Self::KmerVal> {
-        // check for end of iterator
-        if self.base_position >= self.sequence.len().min(self.range.end) {
-            log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
-            return None;
-        }
-        // now we know we are not at end of iterator
-        // if we do not have a previous we have to contruct first kmer
-        // we have to push a base.
-        //
-        if let Some(kmer) = self.previous {
-            // in fact we have the base to push
-            let next_base = self.sequence.get_base(self.base_position);
-            log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
-            self.previous = Some(kmer.push(next_base));
-            self.base_position += 1;
-            return self.previous;
-        }
-        else {
-            // we are at beginning of kmer construction sequence, we must push kmer_size bases
-            let value_mask :u64 = (0b1 << 5*self.nb_base) - 1;
-//            log::debug!("value  mask {:#b}", value_mask);
-            let mut new_kmer = 0u64;
-            let kmer_size = self.nb_base as usize;
-            for _ in 0..kmer_size {
-                let next_base = self.sequence.get_base(self.base_position);
-                log::debug!(" init kmer base : {}", char::from_u32(next_base as u32).unwrap());
-                // contrary to dna sequence base in seq is not encoded, we must encode it!!
-                let encoded_base = self.alphabet_aa.encode(next_base);
-                new_kmer = ((new_kmer << 5) & value_mask) | (encoded_base as u64 & 0b11111);
-                log::debug!("after init {:#b}", new_kmer);
-                self.base_position += 1;                
-            }
-            self.previous = Some(KmerAA64bit{aa: new_kmer, nb_base : self.nb_base as u8});
-            return self.previous;
-        }
-    } // end of next
-
-} // end of impl KmerSeqIteratorT for KmerSeqIterator<'a, KmerAA64bit>
-
-*/
 
 
 
