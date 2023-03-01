@@ -627,12 +627,12 @@ mod tests {
         //
         for i in 0..seqstr.len()-16+1 {
             let kmer = kmergen32.next().unwrap();
-            println!("kmer i = {}  {:b}  " , i , kmer.0);
+            log::debug!("kmer i = {}  {:b}  " , i , kmer.0);
             let v = kmer.get_uncompressed_kmer();
-            println!("kmer i = {}  {:?}  " , i , v);
+            log::debug!("kmer i = {}  {:?}  " , i , v);
             // recall from_utf8_lossy return a Cow('a,str)
             let str = String::from_utf8_lossy(v.as_slice());
-            println!("kmer i = {}  {}  " , i , str);
+            log::debug!("kmer i = {}  {}  " , i , str);
             assert_eq!(str, seqstr[i..i+16]);
         }
         // check iterator sees the end
@@ -663,12 +663,12 @@ mod tests {
         for i in 3..25-16+1 {
             match kmergen32.next() {
                 Some(kmer) => {
-                    println!("kmer i = {}" , i);
+                    log::debug!("kmer i = {}" , i);
                     let v = kmer.get_uncompressed_kmer();
-                    println!("          kmer =  {:?}  " , v);
+                    log::debug!("          kmer =  {:?}  " , v);
                     // recall from_utf8_lossy return a Cow('a,str)
                     let str = String::from_utf8_lossy(v.as_slice());
-                    println!("          kmer i = {}  {}  " , i , str);
+                    log::debug!("          kmer i = {}  {}  " , i , str);
                     assert_eq!(str, seqstr[i..i+16]);
                 },
                 None => {
@@ -704,12 +704,12 @@ mod tests {
         //
         for i in 0..seqstr.len()-kmer_size+1 {
             let kmer = kmergen_11b.next().unwrap();
-            println!("kmer i = {}  {:b}  " , i , kmer.0);
+            log::debug!("kmer i = {}  {:b}  " , i , kmer.0);
             let v = kmer.get_uncompressed_kmer();
-            println!("kmer i = {}  {:?}  " , i , v);
+            log::debug!("kmer i = {}  {:?}  " , i , v);
             // recall from_utf8_lossy return a Cow('a,str)
             let str = String::from_utf8_lossy(v.as_slice());
-            println!("kmer i = {}  {}  " , i , str);
+            log::debug!("kmer i = {}  {}  " , i , str);
             assert_eq!(str, seqstr[i..i+kmer_size]);
         }
         // check iterator sees the end
@@ -725,45 +725,101 @@ mod tests {
 
 
 /* test_generate_weighted_kmer32bit should output the following with --nocapture
-  but not in this order as we switched from IndexMap to FnvHashMap in indexing Kmers!!!!
+  but not in this order as we insert with FnvHashMap and not indexing Kmers!!!!
 
     kmer [84, 67, 65]  TCA ,   weight 4
     kmer [67, 65, 65]  CAA ,   weight 2
     kmer [65, 65, 65]  AAA ,   weight 4
     kmer [65, 65, 71]  AAG ,   weight 1
+
     kmer [65, 71, 71]  AGG ,   weight 1
     kmer [71, 71, 71]  GGG ,   weight 1
     kmer [71, 71, 65]  GGA ,   weight 1
     kmer [71, 65, 65]  GAA ,   weight 1
+
     kmer [65, 65, 67]  AAC ,   weight 1
     kmer [65, 67, 65]  ACA ,   weight 1
     kmer [67, 65, 84]  CAT ,   weight 1
     kmer [65, 84, 84]  ATT ,   weight 2
+
     kmer [84, 84, 67]  TTC ,   weight 2
     kmer [65, 65, 84]  AAT ,   weight 1
     kmer [65, 84, 67]  ATC ,   weight 1
     kmer [67, 65, 71]  CAG ,   weight 2
+
     kmer [65, 71, 84]  AGT ,   weight 2
     kmer [71, 84, 65]  GTA ,   weight 2
     kmer [84, 65, 84]  TAT ,   weight 2
     kmer [65, 84, 71]  ATG ,   weight 1
+
     kmer [84, 71, 67]  TGC ,   weight 1
     kmer [71, 67, 71]  GCG ,   weight 1
     kmer [67, 71, 67]  CGC ,   weight 1
     kmer [71, 67, 67]  GCC ,   weight 1
+
     kmer [67, 67, 67]  CCC ,   weight 1
     kmer [67, 67, 71]  CCG ,   weight 1
     kmer [67, 71, 84]  CGT ,   weight 2
     kmer [71, 84, 84]  GTT ,   weight 2
+
     kmer [84, 84, 65]  TTA ,   weight 1
     kmer [84, 65, 67]  TAC ,   weight 1
     kmer [65, 67, 71]  ACG ,   weight 1
 */
 
+
+    fn get_weighted_kmer32bit_3bases_res() -> FnvHashMap::<Vec<u8> ,u32> {
+        //
+        let mut k_count : FnvHashMap::<Vec<u8> ,u32> = FnvHashMap::with_capacity_and_hasher(50, FnvBuildHasher::default());
+        k_count.insert(Box::<[u8;3]>::new([84, 67, 65]).to_vec() , 4);
+        k_count.insert(Box::<[u8;3]>::new([67, 65, 65]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([65, 65, 65]).to_vec() , 4);
+        k_count.insert(Box::<[u8;3]>::new([65, 65, 71]).to_vec() , 1);
+
+        k_count.insert(Box::<[u8;3]>::new([65, 71, 71]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([71, 71, 71]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([71, 71, 65]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([71, 65, 65]).to_vec() , 1);
+
+        k_count.insert(Box::<[u8;3]>::new([65, 65, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([65, 67, 65]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([67, 65, 84]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([65, 84, 84]).to_vec() , 2);
+
+        k_count.insert(Box::<[u8;3]>::new([84, 84, 67]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([65, 65, 84]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([65, 84, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([67, 65, 71]).to_vec() , 2);
+
+        k_count.insert(Box::<[u8;3]>::new([65, 71, 84]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([71, 84, 65]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([84, 65, 84]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([65, 84, 71]).to_vec() , 1);
+        
+        k_count.insert(Box::<[u8;3]>::new([84, 71, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([71, 67, 71]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([67, 71, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([71, 67, 67]).to_vec() , 1);
+
+        k_count.insert(Box::<[u8;3]>::new([67, 67, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([67, 67, 71]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([67, 71, 84]).to_vec() , 2);
+        k_count.insert(Box::<[u8;3]>::new([71, 84, 84]).to_vec() , 2);
+
+        k_count.insert(Box::<[u8;3]>::new([84, 84, 65]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([84, 65, 67]).to_vec() , 1);
+        k_count.insert(Box::<[u8;3]>::new([65, 67, 71]).to_vec() , 1);
+
+        return k_count;
+    } // end of get_weighted_kmer32bit_res
+
+
+
     #[test]
     fn test_generate_weighted_kmer32bit() {
         //
         log_init();
+        let k_count_res = get_weighted_kmer32bit_3bases_res();
         println!("test_generate_weighted_kmer32bit");
         // got a string of 48 bases shoud have 66 Kmers OK
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATT");
@@ -775,7 +831,9 @@ mod tests {
         let weighted_kmer = hashmap_count_to_vec_count(&weighted_kmer_h);
         for x in weighted_kmer {
             let ukmer = (x.0).get_uncompressed_kmer();
-            println!("kmer {:?}  {} ,   weight {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1);
+            let exact = k_count_res.get(ukmer.as_slice()).unwrap();
+            log::debug!("kmer {:?}  {} ,   weight {}, exact : {}", ukmer , String::from_utf8_lossy(ukmer.as_slice()), x.1, exact);
+            assert_eq!(*exact, x.1);
         }
     } // end of test_generate_weighted_kmer32bit
     

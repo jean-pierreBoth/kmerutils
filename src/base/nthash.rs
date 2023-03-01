@@ -311,10 +311,21 @@ pub fn nthash_mult_canonical_cycle_8b(ksize : usize, old_base:u8, new_base:u8, f
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+
+    fn log_init_test() {
+        let mut builder = env_logger::Builder::from_default_env();
+        //    builder.filter_level(LevelFilter::Trace);
+        let _ = builder.is_test(true).try_init();
+    }
+
+
     #[test]
     fn test_nthash_simple_16bases() {
-       // got a string 
+        //
+        log_init_test();
+        // got a string 
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
@@ -336,7 +347,9 @@ mod tests {
 
     #[test]   
     fn test_nthash_canonical_16bases() {
-       // got a string 
+        //
+        log_init_test();
+        // got a string 
         let seqstr = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCTAATGAGATGGGCTGGGTACAGAG");
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
@@ -355,7 +368,7 @@ mod tests {
             let mut fhash_check:u64 = 0;
             let mut rhash_check:u64 = 0;
             let hash_cycled = nthash_canonical_init_8b(&kmer, &mut fhash_check, &mut rhash_check);
-            println!(" i kmer hasval hashval_cycle {}  {}  {}  {}", i, String::from_utf8_lossy(kmer) , hval.0, hash_cycled.0);
+            log::info!(" i kmer hasval hashval_cycle {}  {}  {}  {}", i, String::from_utf8_lossy(kmer) , hval.0, hash_cycled.0);
             assert_eq!(hval, hash_cycled);
         }       
     }  // end of test_nthash_canonical_16bases

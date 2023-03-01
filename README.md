@@ -55,7 +55,7 @@ It is implemented on all our compressed kmer types.
 ## A minimal module aautils
 
 This module provides an uncompressed representation of Amino Acid sequences along with generation of compressed Kmer (up to a size of 25 amino acids).  
-This module is, in present state, minimal. Its main objective is to provide sketching of AA sequences in the same way as DNA sequences.
+This module is, in present state, minimal. It provides sketching of AA sequences in the same way as DNA sequences.
 
 ## Some basic statistics on sequences
 

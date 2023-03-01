@@ -329,6 +329,7 @@ impl SeqSketcher {
             log::debug!(" in sketch_superminhash_compressedkmer, closure");
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
+            // generic arg is here type sent to sketching
             let mut sminhash : SuperMinHash<Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
@@ -538,7 +539,7 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<f64>) {
             //
-            log::debug!(" in sketch_superminhash_compressedkmer, closure");
+            log::debug!(" in sketch_compressedkmer, closure");
             let mut nb_kmer_generated : u64 = 0;
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
@@ -579,7 +580,7 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
             jaccard_vec[slot] = sig_with_rank[i].1.clone();
         }
         jaccard_vec
-    } // end of sketch_superminhash_compressedkmer
+    } // end of sketch_compressedkmer
 } // end of SuperHashSketch
 
 //=========================================================================================================
