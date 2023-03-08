@@ -132,9 +132,9 @@ impl Alphabet {
 
 
 //=======================================================================================
-/// A Kmer of amino acids represented on 32 bits, it can store up to 6 AA
-/// See also KmerAA64bit for less than 12 AA
-/// We implement Amino Acid Kmer as packed in a u32 using 5bits by base. So we can go up to 6 bases.
+/// A Kmer of amino acids represented on 32 bits, it can store up to 6 AA.  
+/// See also KmerAA64bit for less than 12 AA.
+/// We implement Amino Acid Kmer as packed in a u32 using 5bits by base, so we can go up to 6 bases.
 
 #[derive(Copy,Clone,Hash)]
 pub struct KmerAA32bit {
@@ -470,6 +470,7 @@ impl FromStr for SequenceAA {
 
 
 // TODO factorize this trait?
+/// A trait for generating Kmer along a sequence
 pub trait KmerSeqIteratorT {
     /// KmerAA128bit 
     type KmerVal;
@@ -477,7 +478,7 @@ pub trait KmerSeqIteratorT {
     fn next(&mut self) -> Option<Self::KmerVal>;
 }
 
-
+/// An iterator that produce Kmer along a sequence
 pub struct KmerSeqIterator<'a, T> where T : CompressedKmerT {
     /// size of kmer
     nb_base: usize,
@@ -578,6 +579,7 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
 //============================================================================
 
 
+/// A trait describing different mode of kmer production
 pub trait KmerGenerationPattern<T:KmerT> {
     /// generate all kmers included in 0..
     fn generate_kmer_pattern(&self, seq : & SequenceAA) -> Vec<T>;

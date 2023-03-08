@@ -1,7 +1,7 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
 //!    
-//! For long (many Gbytes) sequences and large Kmers consider using SuperMinHash that needs less memory
+//! For long (many Gbytes) sequences and large Kmers consider using SuperMinHash algorithm ([SuperHashSketch]) that needs less memory
 //! (as it does not store Kmer multiplicity), or it try to split sequences into blocks, see module seqbloocksketch.
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
@@ -330,7 +330,7 @@ impl SeqSketcher {
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
             // generic arg is here type sent to sketching
-            let mut sminhash : SuperMinHash<Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
+            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -543,7 +543,7 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
             let mut nb_kmer_generated : u64 = 0;
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
+            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();

@@ -21,7 +21,7 @@ pub fn sketch_seqrange_superminhash(seq: &Sequence, range:&Range<usize>, kmer_si
     info!("seqsketcher : entering superminhash_sketch_sequence");
     // default is invertible hash and then superminhash without any hashing
     let bh = BuildHasherDefault::<NoHashHasher>::default();
-    let mut sminhash : SuperMinHash<u32, NoHashHasher>= SuperMinHash::new(sketch_size, &bh);
+    let mut sminhash : SuperMinHash<f64, u32, NoHashHasher>= SuperMinHash::new(sketch_size, &bh);
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     match kmer_size {
