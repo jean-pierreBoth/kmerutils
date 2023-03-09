@@ -34,6 +34,7 @@ use indexmap::{IndexMap};
 use fnv::{FnvHashMap, FnvBuildHasher};
 
 use num;
+use rand_distr::uniform::SampleUniform;
 
 use crate::nohasher::*;
 
@@ -114,22 +115,24 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
 pub trait SeqSketcherT<Kmer> 
     where   Kmer : CompressedKmerT + KmerBuilder<Kmer>,
             KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
-    /// Signature type of the sketch algo, f64 for SuperMinHash, Kmer::Val for ProbMinhashs
+    /// Signature type of the sketch algo, f64 or f32 for SuperMinHash, Kmer::Val for ProbMinhashs
     type Sig : Serialize + Clone + Send + Sync;
     //
     fn get_kmer_size(&self) -> usize;
-    //
+    /// returns the length of the sketch vector we want.
     fn get_sketch_size(&self) -> usize;
     //
     fn get_algo(&self) -> SketchAlgo;
-    //
+    /// F is a hashing function (possibly just extracting Kmer::Val) to apply to kmer before sending to sketcher.
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
                     where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;   
 } // end of SeqSketcherT<Kmer>
 
 
 
-/// This structure (deprecated, prefer ProbHash3aSketch and SuperHashSketch) describes the kmer size used in computing sketches and the number of sketch we want.
+/// This structure (prefer ProbHash3aSketch and SuperHashSketch based upon the trait SeqSketcherT) describes 
+/// the kmer size used in computing sketches and the number of sketch we want.  
+/// 
 /// It gathers methods for sketch_superminhash, sketch_probminhash3a and sketch_probminhash3
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SeqSketcher {
@@ -314,23 +317,25 @@ impl SeqSketcher {
     //  Superminhash
 
     /// a generic implementation of superminhash  against our standard compressed Kmer types.  
-    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
+    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.  
+    /// S is for f32 of f64 depending on the signature we want from SuperMinHash.  
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_superminhash<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<f64> >
+    pub fn sketch_superminhash<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, S, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<S> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
-              KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+              KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+              S : num::Float + SampleUniform + Debug + Send + Sync {
         //
         log::debug!("entering sketch_superminhash_compressedkmer");
         //
-        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<f64>) {
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<S>) {
             //
             log::debug!(" in sketch_superminhash_compressedkmer, closure");
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
             // generic arg is here type sent to sketching
-            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
+            let mut sminhash : SuperMinHash<S, Kmer::Val, fnv::FnvHasher>= SuperMinHash::<S, Kmer::Val, fnv::FnvHasher>::new(self.sketch_size, &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -351,9 +356,9 @@ impl SeqSketcher {
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<f64>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<S>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<f64>>::with_capacity(vseq.len());
+        let mut jaccard_vec = Vec::<Vec<S>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
             jaccard_vec.push(Vec::new());
         }
@@ -491,30 +496,37 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
 //=========================================================================================================
 
 ///
-///  A structure providing SuperMinHash sketching implementing the generic trait SeqSketcherT\<Kmer\>.
-pub struct SuperHashSketch<Kmer> {
+///  A structure providing SuperMinHash sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
+///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
+pub struct SuperHashSketch<Kmer, S: num::Float> {
     //
     _kmer_marker: PhantomData<Kmer>,
+    //
+    _sig_marker: PhantomData<S>,
     //
     params : SeqSketcherParams,
 }
 
 
-impl <Kmer> SuperHashSketch<Kmer> {
+impl <Kmer, S : num::Float> SuperHashSketch<Kmer,S> {
 
 
     pub fn new(params : &SeqSketcherParams) -> Self {
-        SuperHashSketch{_kmer_marker : PhantomData,  params : params.clone()}
+        SuperHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : params.clone()}
     }
 
 } // end of impl ProbHash3aSketch
 
-impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer> 
+
+
+
+impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
                 Kmer::Val : num::PrimInt + Send + Sync + Debug,
-                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                S : num::Float + SampleUniform + Send + Sync + Debug + Serialize  {
 
-    type Sig = f64;
+    type Sig = S;
 
     fn get_kmer_size(&self) -> usize {
         self.params.get_kmer_size()
@@ -537,13 +549,13 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
         //
         log::debug!("entering sketch_superminhash_compressedkmer");
         //
-        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<f64>) {
+        let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<Self::Sig>) {
             //
             log::debug!(" in sketch_compressedkmer, closure");
             let mut nb_kmer_generated : u64 = 0;
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
+            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -568,9 +580,9 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<f64>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<f64>>::with_capacity(vseq.len());
+        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
             jaccard_vec.push(Vec::new());
         }
@@ -582,6 +594,7 @@ impl <Kmer> SeqSketcherT<Kmer> for SuperHashSketch<Kmer>
         jaccard_vec
     } // end of sketch_compressedkmer
 } // end of SuperHashSketch
+
 
 //=========================================================================================================
 

@@ -19,6 +19,7 @@ use fnv::{FnvHashMap, FnvBuildHasher};
 use std::hash::{BuildHasherDefault};
 
 use num;
+use rand_distr::uniform::SampleUniform;
 
 use crate::nohasher::*;
 
@@ -37,11 +38,11 @@ use crate::sketcharg::{SeqSketcherParams, SketchAlgo};
 pub trait SeqSketcherAAT<Kmer> 
     where   Kmer : CompressedKmerT + KmerBuilder<Kmer>,
             KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
-    /// Signature type of the sketch algo, f64 for SuperMinHash, Kmer::Val for ProbMinhashs
+    /// Signature type of the sketch algo, f64 or f32 for SuperMinHash, Kmer::Val for ProbMinhashs
     type Sig : Serialize + Clone + Send + Sync;
     //
     fn get_kmer_size(&self) -> usize;
-    //
+    /// returns the length of the sketch vector we want.
     fn get_sketch_size(&self) -> usize;
     //
     fn get_algo(&self) -> SketchAlgo;
@@ -144,30 +145,34 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
 
 
 
-// A structure providing SuperMinHash sketching for SequenceAA by implementing the generic trait SeqSketcherAAT<Kmer>
-pub struct SuperHashSketch<Kmer> {
+/// A structure providing SuperMinHash sketching for SequenceAA by implementing the generic trait SeqSketcherAAT\<Kmer\>.  
+///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
+pub struct SuperHashSketch<Kmer, S : num::Float> {
     //
     _kmer_marker: PhantomData<Kmer>,
+    //
+    _sig_marker : PhantomData<S>,
     //
     params : SeqSketcherParams,
 }
 
 
-impl <Kmer> SuperHashSketch<Kmer> {
+impl <Kmer, S : num::Float> SuperHashSketch<Kmer, S> {
 
 
     pub fn new(params : &SeqSketcherParams) -> Self {
-        SuperHashSketch{_kmer_marker : PhantomData,  params : params.clone()}
+        SuperHashSketch{_kmer_marker : PhantomData, _sig_marker : PhantomData,  params : params.clone()}
     }
 
 } // end of impl ProbHash3aSketch
 
-impl <Kmer> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer> 
+impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
                 Kmer::Val : num::PrimInt + Send + Sync + Debug,
-                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                S : num::Float + SampleUniform + Send + Sync + Debug + Serialize {
 
-    type Sig = f64;
+    type Sig = S;
 
     fn get_kmer_size(&self) -> usize {
         self.params.get_kmer_size()
@@ -190,13 +195,13 @@ impl <Kmer> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer>
         //
         log::debug!("entering sketch_superminhash_compressedkmer");
         //
-        let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<f64>) {
+        let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<Self::Sig>) {
             //
-            log::debug!(" in sketch_compressedkmeraa (SuperMinHash), closure");
+            log::trace!(" in sketch_compressedkmeraa (SuperMinHash), closure");
             let mut nb_kmer_generated : u64 = 0;
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
+            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -221,9 +226,9 @@ impl <Kmer> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer>
             return (i,sigb.clone());
         };
         //
-        let sig_with_rank : Vec::<(usize,Vec<f64>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<f64>>::with_capacity(vseq.len());
+        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
         for _ in 0..vseq.len() {
             jaccard_vec.push(Vec::new());
         }
@@ -233,7 +238,8 @@ impl <Kmer> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer>
             jaccard_vec[slot] = sig_with_rank[i].1.clone();
         }
         jaccard_vec
-    } // end of sketch_superminhash_compressedkmer
+    } // end of sketch_compressedkmeraa
+
 } // end of SuperHashSketch
 
 
@@ -525,26 +531,39 @@ use std::str::FromStr;
         let kmer_size = 5;
         let sketch_size = 800;
         let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A);
-        let sketcher = SuperHashSketch::<KmerAA64bit>::new(&sketch_args);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        log::debug!("mask = {:b}", mask);
+        //
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA64bit | -> <KmerAA64bit as CompressedKmerT>::Val {
             let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
             let hashval = kmer.get_compressed_value() & mask;
             hashval
         };
-        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
-        log::debug!("mask = {:b}", mask);
-        //
-        log::info!("calling sketch_compressedkmeraa for SuperHashSketch::<KmerAA64bit>");
-        let signatures = sketcher.sketch_compressedkmeraa(&vseq, kmer_hash_fn); 
+        // first we sketch with SuperHashSketch<f64>
+        log::info!("calling sketch_compressedkmeraa for SuperHashSketch::<KmerAA64bit, f64>");
+        let sketcher_f64 = SuperHashSketch::<KmerAA64bit, f64>::new(&sketch_args);
+        let signatures = sketcher_f64.sketch_compressedkmeraa(&vseq, kmer_hash_fn); 
         // get distance between the 2 strings  
         let sig1 = &signatures[0];
         let sig2 = &signatures[1];
         //
         let inter : u64 = sig1.iter().zip(sig2.iter()).map(|(a,b)| if a==b {1} else {0}).sum();
         let dist = inter as f64/sig1.len() as f64;
-        log::info!("inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
+        log::info!("SuperHashSketch::<KmerAA64bit, f64> inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
+        assert!( (dist-0.5).abs() < 1./10.);
+        //
+        // now we sketch with SuperHashSketch<f32>
+        let sketcher_f32 = SuperHashSketch::<KmerAA64bit, f32>::new(&sketch_args);
+        let signatures = sketcher_f32.sketch_compressedkmeraa(&vseq, kmer_hash_fn); 
+        // get distance between the 2 strings  
+        let sig1 = &signatures[0];
+        let sig2 = &signatures[1];
+        //
+        let inter : u64 = sig1.iter().zip(sig2.iter()).map(|(a,b)| if a==b {1} else {0}).sum();
+        let dist = inter as f64/sig1.len() as f64;
+        log::info!("SuperHashSketch::<KmerAA64bit, f32> inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
         assert!( (dist-0.5).abs() < 1./10.);
     } // end of test_seqaa_superminhash_trait_64bit
 

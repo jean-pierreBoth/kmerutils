@@ -169,7 +169,7 @@ impl KmerT for KmerAA32bit {
         // contrary to dna sequence base in seq is not encoded, we must encode it!!
         let encoded_base = Alphabet::new().encode(c);
         let new_kmer = ((self.aa << 5) & value_mask) | (encoded_base as u32 & 0b11111);
-        log::debug!("after push {:#b}", new_kmer);
+        log::trace!("after push {:#b}", new_kmer);
         KmerAA32bit{aa:new_kmer, nb_base:self.nb_base}
     }  // end of push
 
@@ -308,7 +308,7 @@ impl KmerT for KmerAA64bit {
         // contrary to dna sequence base in seq is not encoded, we must encode it!!
         let encoded_base = Alphabet::new().encode(c);
         let new_kmer = ((self.aa << 5) & value_mask) | (encoded_base as u64 & 0b11111);
-        log::debug!("after push {:#b}", new_kmer);
+        log::trace!("after push {:#b}", new_kmer);
         KmerAA64bit{aa:new_kmer, nb_base:self.nb_base}
     }  // end of push
 
@@ -533,7 +533,7 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
         fn next(&mut self) -> Option<Self::KmerVal> {
             // check for end of iterator
             if self.base_position >= self.sequence.len().min(self.range.end) {
-                log::debug!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
+                log::trace!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
                 return None;
             }
             // now we know we are not at end of iterator
@@ -543,7 +543,7 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
             if let Some(kmer) = self.previous {
                 // in fact we have the base to push
                 let next_base = self.sequence.get_base(self.base_position);
-                log::debug!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
+                log::trace!(" next pushing base : {}", char::from_u32(next_base as u32).unwrap());
                 self.previous = Some(kmer.push(next_base));
                 self.base_position += 1;
                 return self.previous;
@@ -556,11 +556,11 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
                 let next_base = self.sequence.get_base(self.base_position);
                 let encoded_base = self.alphabet_aa.encode(next_base);
                 self.base_position += 1;                
-                log::debug!(" init kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
+                log::trace!(" init kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
                 let mut new_kmer_val = <Kmer as CompressedKmerT>::Val::from(encoded_base) << pos;
                 for i in 0..(kmer_size-1) {
                     let next_base = self.sequence.get_base(self.base_position);
-                    log::debug!(" next kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
+                    log::trace!(" next kmerAA base : {}", char::from_u32(next_base as u32).unwrap());
                     let encoded_base = self.alphabet_aa.encode(next_base);
                     let base_val = <Kmer as CompressedKmerT>::Val::from(encoded_base) << (pos - nb_base_bits - nb_base_bits*i);
                     new_kmer_val = new_kmer_val | base_val;
