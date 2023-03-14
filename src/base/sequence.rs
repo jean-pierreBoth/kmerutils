@@ -370,6 +370,8 @@ impl  Sequence {
 pub struct IterSequence<'a> {
     /// the sequence i am an iterator of
     myseq : &'a Sequence,
+    /// mask to extract a base
+    mask : u8,
     /// specifies if iterator must send decoded base if sequence is compressed or send base
     /// as it is encoded in sequence
     must_decode : bool,
@@ -395,6 +397,14 @@ impl<'a> IterSequence<'a> {
         let nb_bases_by_byte = 8 / (seqarg.nb_bits_by_base() as usize);
         let mut last_byte = (seqarg.size() / nb_bases_by_byte) - 1;
         let mut last_bit = 8;
+        //
+        let nb_bits = seqarg.nb_bits_by_base();
+        let mask : u8 = if nb_bits < 8 {
+            (1 << nb_bits) - 1
+        }
+        else {
+            0xFF
+        };
         // could use seqarg.description[1] instead of seqarg.size() % nb_bases_by_byte
         if seqarg.size() % nb_bases_by_byte > 0 {
             last_byte +=1;
@@ -406,6 +416,7 @@ impl<'a> IterSequence<'a> {
         //
         IterSequence {
             myseq: seqarg,
+            mask : mask,
             must_decode: must_decode_arg,
             decoder: seqarg.get_decoder(),
             byte:0,
@@ -463,17 +474,17 @@ impl<'a> Iterator for IterSequence<'a> {
     fn next(&mut self) -> Option<u8> {
 //        log::trace!("IterSequence entering next state : byte bit  = {} {} ", self.byte , self.bit);
         //
-        let mut endbit:u8 = 8;
-        //
         if self.byte > self.last_byte  || (self.byte == self.last_byte && self.bit >= self.last_bit) {
 //            log::trace!("IterSequence end of iterator {} {} ", self.byte , self.myseq.description[1]);
             return None;
         }
         //
-        if self.byte == self.last_byte  && self.myseq.description[1] > 0 {
+        let endbit = if self.byte == self.last_byte  && self.myseq.description[1] > 0 {
            // case where endbit is different from 8
-            endbit = self.last_bit;
+           self.last_bit
         }
+        else { 8
+        };
         //
         if self.bit >= endbit {
 //            log::trace!("IterSequence end of iterator byte, bit, tail : {} {} {} ", self.byte , self.bit, self.myseq.description[1]);
@@ -482,17 +493,11 @@ impl<'a> Iterator for IterSequence<'a> {
         //
         // now we know we have a next !!!
         //
-        let nb_bits = self.myseq.nb_bits_by_base();
-        let mask = if nb_bits < 8 {
-            (1 << nb_bits) - 1
-        }
-        else {
-            0xFF
-        };
         // log::trace!("IterSequence next : byte bit endbit  = {} {} {} ", self.byte , self.bit, endbit);
         // we must check consistency : endbit - bit >= nb_bits. moreover we could check parity of bit
+        let nb_bits = self.myseq.nb_bits_by_base();
         assert!(endbit - self.bit >= nb_bits);
-        let base = mask & (self.myseq.seq[self.byte as usize] >>  8 - self.bit - nb_bits) as u8;
+        let base = self.mask & (self.myseq.seq[self.byte as usize] >>  8 - self.bit - nb_bits) as u8;
         // adjust state
         self.bit += nb_bits;
         if self.bit == endbit {
