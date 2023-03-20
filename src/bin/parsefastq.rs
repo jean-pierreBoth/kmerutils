@@ -91,7 +91,7 @@ fn main() {
                          .long("csize")
                          .short('c')
                          .takes_value(true)
-                         .help(" to tell size of counter to use in bloom filter, -s n"))                    
+                         .help(" to tell size in bits (8 or 16) of counter to use in bloom filter, -s n"))                    
                     .arg(Arg::with_name("unique")
                          .long("unique")
                          .short('u')
@@ -207,7 +207,7 @@ fn main() {
             println!("dumping multiple kmers in file : {} ", multi_kmer_file_name);
             //
             if parse_args.kmer_args.kmer_size <= 32 && parse_args.kmer_args.kmer_size > 16 {
-                let kmer_counter : KmerCounterPool<Kmer16b32bit> = count_kmer_threaded_one_to_many(&seqvec,
+                let kmer_counter : KmerCounterPool<Kmer64bit> = count_kmer_threaded_one_to_many(&seqvec,
                                                                                                    parse_args.kmer_args.nb_threads,
                                                                                                    parse_args.kmer_args.counter_size,
                                                                                                    parse_args.kmer_args.kmer_size);

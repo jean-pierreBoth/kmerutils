@@ -109,10 +109,10 @@ impl <Kmer> KmerCounter<Kmer> where Kmer: CompressedKmerT
     pub fn eliminate_once_kmer(&mut self) {
         let occupied_size = self.cuckoo_f.memory_usage();
         let nbitems = self.cuckoo_f.len();
-        println!(" once kmer counter : size = {} , nbitems = {}",  occupied_size, nbitems);
+        log::info!(" once kmer counter : size = {} , nbitems = {}",  occupied_size, nbitems);
         // purge
         self.cuckoo_f = CuckooFilter::with_capacity(0 as usize);
-        println!(" after purging size = {}", self.cuckoo_f.memory_usage());       
+        log::info!(" after purging size = {}", self.cuckoo_f.memory_usage());       
     }
 
     /// returns number of bits used for a count
@@ -207,14 +207,14 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
                     };                
                     nb_kmer_dumped += 1;
                     if nb_kmer_dumped % 100_000_000 == 0 {
-                        println!("dump_kmer_counter, number of kmer dumped : {} ", nb_kmer_dumped);
+                        log::info!("dump_kmer_counter, number of kmer dumped : {} ", nb_kmer_dumped);
                     }
                 } // end count >= 2
             } // end if new         
         } // end of for on kmer
     } // end of for on  seq
     //
-    println!("dump_kmer_counter, number of kmer to dump, number of kmer dumped : {}  {} ", nb_kmer_to_dump, nb_kmer_dumped);
+    log::info!("dump_kmer_counter, number of kmer to dump, number of kmer dumped : {}  {} ", nb_kmer_to_dump, nb_kmer_dumped);
     //
     Ok(nb_kmer_dumped)
 }  // end of dump_in_file
@@ -285,7 +285,8 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
      where Kmer: CompressedKmerT ,
            KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>
 {
-    println!(" in counting kmer ...");
+    let fpr = 0.03;
+    log::info!(" in counting kmer<Kmer> , using fpr : {:.3e}", fpr);
     let start_t = SystemTime::now();
 
     let mut nb_kmer : u64 = 0;
@@ -294,8 +295,8 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
     let nb_bits = 8;
     let mut nbseq = 0u64;
     //
-    let mut kmer_counter  = KmerCounter::new(0.03, capacity, nb_bits);
-    println!("space occupied by cuckoo filter {}", kmer_counter.cuckoo_f.memory_usage());
+    let mut kmer_counter  = KmerCounter::new(fpr, capacity, nb_bits);
+    log::info!("space occupied by cuckoo filter {}", kmer_counter.cuckoo_f.memory_usage());
     //
     for seq in seqvec {
         let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
@@ -306,8 +307,8 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
         nb_kmer += vkmer.len() as u64;
         nbseq += 1;
         if nbseq % 100_000 == 0 {
-            println!(" nb  read treated = {} ", nbseq);
-            println!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.cuckoo_f.len(), kmer_counter.nb_distinct, nb_kmer);
+            log::info!(" nb  read treated = {} ", nbseq);
+            log::info!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.cuckoo_f.len(), kmer_counter.nb_distinct, nb_kmer);
         }        
     }
     let elapsed_t = start_t.elapsed().unwrap().as_secs();
@@ -771,10 +772,12 @@ pub fn count_kmer_thread_independant<Kmer>(seqvec : &Vec<Sequence>, nb_threads:u
 where Kmer: CompressedKmerT+DispatchableT+Send,
       KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>
 {
-    println!(" in counting kmer ... : count_kmer_thread_independant");
     //
     let capacity = 1_000_000_000;
     let nb_bits = 8;
+    let fpr = 0.03;
+    //
+    log::info!(" in count_kmer_thread_independant; nb_bits counter : {}, fpr : {:.3e}, nb_threads : {}", nb_bits, fpr, nb_threads);
     //
     // as kmer generation seems to be (very fast) and all time is spent in counting
     // each thread generates the whole set of kmers but we associate to each thread a filter to select
@@ -790,7 +793,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             let mut nbseq_i = 0;
             // can generate thread
             let handle = scope.spawn(move |_| {
-                let mut kmer_counter_i  = KmerCounter::new(0.03, capacity/(nb_threads as usize), nb_bits);
+                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/(nb_threads as usize), nb_bits);
                 let kmer_generator = KmerGenerator::new(kmer_size as u8);
                 for seq in seqvec {
                     let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
@@ -853,10 +856,11 @@ pub fn count_kmer_threaded_one_to_many<Kmer>(seqvec : &Vec<Sequence>, nb_threads
 where Kmer: CompressedKmerT+DispatchableT+Send,
       KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>
 {
-    println!(" in counting kmer ... : count_kmer_threaded_one_to_many, kmer size : {}", kmer_size);
+    log::info!(" in counting kmer ... : count_kmer_threaded_one_to_many, kmer size : {}, nb_thread = {}", kmer_size, nb_threads);
     //
-    let capacity = 1_000_000_000;
+    let capacity = 10_000_000_000;
     let nb_bits = count_size;
+    let fpr = 0.03;
     //
     // In this counting function one thread generates all kmers and dispatch to a counter thread.
     // At the end of all threads we must gather results.
@@ -878,13 +882,13 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             // can generate thread
             let receiver = channel.1;
             let receptor_handle = scope.spawn( move |_| {
-                let mut kmer_counter_i  = KmerCounter::new(0.03, capacity/(nb_threads as usize), nb_bits);
+                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/(nb_threads as usize), nb_bits);
                 let mut nb_received = 0u64;
                 receiver.into_iter().for_each(|msg| { // just insert
                     kmer_counter_i.insert_kmer(msg);
                     nb_received += 1;
                     if nb_received % 500_000_000 == 0 {
-                        println!(" nb  kmer treated  by thread i = {} {} ", i, nb_received);
+                        log::info!(" nb  kmer treated  by thread i = {} {} ", i, nb_received);
                     }
                 }); // end for_each
                 println!(" nb  read kmer by thread i = {} {} ", i, nb_received);

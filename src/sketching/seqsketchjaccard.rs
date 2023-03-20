@@ -658,8 +658,8 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S>
             log::debug!(" in sketch_compressedkmer, closure");
             let mut nb_kmer_generated : u64 = 0;
             //
-            let bh = BuildHasherDefault::<NoHashHasher>::default();
-            let mut sminhash : SuperMinHash2<Self::Sig, Kmer::Val, NoHashHasher>= SuperMinHash2::new(self.get_sketch_size(), &bh);
+            let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
+            let mut sminhash : SuperMinHash2<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash2::new(self.get_sketch_size(), &bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
