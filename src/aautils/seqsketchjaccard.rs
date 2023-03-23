@@ -201,7 +201,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
             let mut nb_kmer_generated : u64 = 0;
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), &bh);
+            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -382,7 +382,7 @@ impl SeqSketcher {
             //
             let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
             // generic arg is here type sent to sketching
-            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, &bh);
+            let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();

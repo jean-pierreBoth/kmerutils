@@ -11,15 +11,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::{to_writer};
 
 
-/// Specify if we sketch using the Probminhash or SuperMinHash algorithms.  
+/// Specify which algo we use for sketching :  Probminhash or SuperMinHash or Hyperloglog (SetSketch) algorithms.  
 /// - PROB3A is the value for asking ProbMinHashh3a, 
 /// - SUPER for first version SuperMinHash.(f64 signature)
 /// - SUPER2 for second version of superminhash (u64 signature)
+/// - HLL for SetSketch based on hyperloglog (u16, u32 or more signature)
 #[derive(Copy,Clone,Serialize,Deserialize)]
 pub enum SketchAlgo {
     PROB3A,
     SUPER,
     SUPER2,
+    HLL,
 }
 // This is redundant with struct Sketcher for DNA case and RNA case, but it makes
 // possible the factorization of all parameters
