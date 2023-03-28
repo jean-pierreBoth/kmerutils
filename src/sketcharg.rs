@@ -11,6 +11,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{to_writer};
 
 
+/// specify if we process DNA sequence or AA sequences
+#[derive(Copy,Clone,Serialize,Deserialize)]
+pub enum DataType {
+    DNA,
+    AA,
+}
+
 /// Specify which algo we use for sketching :  Probminhash or SuperMinHash or Hyperloglog (SetSketch) algorithms.  
 /// - PROB3A is the value for asking ProbMinHashh3a, 
 /// - SUPER for first version SuperMinHash.(f64 signature)
@@ -32,14 +39,15 @@ pub enum SketchAlgo {
 pub struct SeqSketcherParams {
     kmer_size : usize,
     sketch_size : usize,
-    algo : SketchAlgo,  
+    algo : SketchAlgo, 
+    data_t : DataType
 }
 
 
 impl SeqSketcherParams {
     /// 
-    pub fn new(kmer_size: usize, sketch_size : usize, algo : SketchAlgo) -> Self {
-        SeqSketcherParams{kmer_size, sketch_size, algo}
+    pub fn new(kmer_size: usize, sketch_size : usize, algo : SketchAlgo, data_t: DataType) -> Self {
+        SeqSketcherParams{kmer_size, sketch_size, algo, data_t}
     }
 
     /// returns kmer size
@@ -57,6 +65,10 @@ impl SeqSketcherParams {
         self.algo
     }
 
+    /// returns AA or DNA type for data
+    pub fn get_data_t(&self) -> DataType {
+        self.data_t
+    }
 
     /// serialized dump
     pub fn dump_json(&self, filename : &String) -> Result<(), String> {

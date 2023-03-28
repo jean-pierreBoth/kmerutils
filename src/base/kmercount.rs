@@ -858,7 +858,12 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
 {
     log::info!(" in counting kmer ... : count_kmer_threaded_one_to_many, kmer size : {}, nb_thread = {}", kmer_size, nb_threads);
     //
-    let capacity = 10_000_000_000;
+
+    let capacity = if kmer_size <= 16 {
+        1_000_000_000
+    } else {
+        3_000_000_000
+    };
     let nb_bits = count_size;
     let fpr = 0.03;
     //

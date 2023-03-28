@@ -428,6 +428,9 @@ impl SeqSketcher {
 mod tests {
 
 use super::*;
+
+use crate::sketcharg::{SeqSketcherParams, SketchAlgo, DataType};
+
 use std::str::FromStr;
 
     fn log_init_test() {
@@ -490,7 +493,7 @@ use std::str::FromStr;
         let vseq = vec![&seq1, &seq2];
         let kmer_size = 5;
         let sketch_size = 800;
-        let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A);
+        let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A, DataType::AA);
         let sketcher = ProbHash3aSketch::<KmerAA64bit>::new(&sketch_args);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
@@ -530,7 +533,7 @@ use std::str::FromStr;
         let vseq = vec![&seq1, &seq2];
         let kmer_size = 5;
         let sketch_size = 800;
-        let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A);
+        let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A, DataType::AA);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
         log::debug!("mask = {:b}", mask);

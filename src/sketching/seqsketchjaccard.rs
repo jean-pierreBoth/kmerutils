@@ -563,8 +563,8 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
             log::debug!(" in sketch_compressedkmer, closure");
             let mut nb_kmer_generated : u64 = 0;
             //
-            let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.get_sketch_size(), bh);
+            let bh = BuildHasherDefault::<NoHashHasher>::default();
+            let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, NoHashHasher>= SuperMinHash::new(self.get_sketch_size(), bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
@@ -665,8 +665,8 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
             log::debug!(" in sketch_compressedkmer, closure");
             let mut nb_kmer_generated : u64 = 0;
             //
-            let bh = BuildHasherDefault::<fnv::FnvHasher>::default();
-            let mut setsketch : SetSketcher<Self::Sig, Kmer::Val, fnv::FnvHasher>= SetSketcher::new(self.hll_params, bh);
+            let bh = BuildHasherDefault::<NoHashHasher>::default();
+            let mut setsketch : SetSketcher<Self::Sig, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seqb);
             kmergen.set_range(0, seqb.size()).unwrap();

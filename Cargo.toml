@@ -90,9 +90,9 @@ fnv = {version= "1.0"}
 
 ##
 
-#probminhash = {version = "0.1.7"}
-# probminhash =  {git = "https://github.com/jean-pierreBoth/probminhash"}
-probminhash = {path = "../probminhash"}
+#probminhash = {version = "0.1.8"}
+probminhash =  {git = "https://github.com/jean-pierreBoth/probminhash"}
+# probminhash = {path = "../probminhash"}
 #
 # hnsw_rs =  {version = "0.1.19"}
 hnsw_rs = {path = "../hnswlib-rs"}
@@ -110,10 +110,12 @@ env_logger = { version = "0.9"}
 
 [features]
 
-default = []
+default = ["sminhash2"]
 
 # This feature requires libzmq (and libsodium). It enables loadind of quality as a service in the target qualityloader
 withzmq = ["zmq"]
 
 simdeez_f = ["hnsw_rs/simdeez_f"]
+
+sminhash2 = ["probminhash/sminhash2"]
 
