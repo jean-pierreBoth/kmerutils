@@ -94,8 +94,8 @@ fnv = {version= "1.0"}
 probminhash =  {git = "https://github.com/jean-pierreBoth/probminhash"}
 # probminhash = {path = "../probminhash"}
 #
-# hnsw_rs =  {version = "0.1.19"}
-hnsw_rs = {path = "../hnswlib-rs"}
+hnsw_rs =  {version = "0.1.19"}
+#hnsw_rs = {path = "../hnswlib-rs"}
 
 
 lazy_static = { version = "1.4"}
