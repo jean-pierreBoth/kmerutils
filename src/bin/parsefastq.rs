@@ -8,7 +8,7 @@
 
 
 
-use clap::{App, Arg, SubCommand};
+use clap::{Arg, Command, ArgAction};
 
 
 
@@ -51,75 +51,80 @@ fn main() {
     let mut ret_times_args:ReturnTimesArgs = Default::default();
     let mut kmer_count_args:KmerArgs = Default::default();
     
-    let matches = App::new("parsefastq")
-        .arg(Arg::with_name("bits")
-             .long("bits")
-             .short('b')
-             .takes_value(true)
-             .default_value("8")
-             .help("nb bits by base : can be 2 , 4 or 8 (compression 4 , 2 , 1)"))
-        .arg(Arg::with_name("file")
-             .long("file")
-             .short('f')
-             .takes_value(true)
-             .help("expecting a fastq file"))
-        .subcommand(SubCommand::with_name("ret")
-                    .about("return times option")
-                    .arg(Arg::with_name("base")
-                         .takes_value(true)
-                         .long("base")
-                         .short('b')
-                         .help("ask for return times for a given base AT/CG"))
+    let matches = Command::new("parsefastq")
+        .arg(Arg::new("bits")
+            .long("bits")
+            .short('b')
+            .value_parser(clap::value_parser!(u8))
+            .action(ArgAction::Set)
+            .default_missing_value("8")
+            .help("nb bits by base : can be 2 , 4 or 8 (compression 4 , 2 , 1)"))
+        .arg(Arg::new("file")
+            .long("file")
+            .short('f')
+            .required(true)
+            .value_parser(clap::value_parser!(String))
+            .action(ArgAction::Set)
+            .help("expecting a fastq file"))
+        .subcommand(Command::new("ret")
+                .about("return times option")
+                .arg(Arg::new("base")
+                    .long("base")
+                    .short('b')
+                    .value_parser(clap::value_parser!(char))
+                    .action(ArgAction::Set)
+                    .help("ask for return times for a given base AT/CG"))
         )
-        .subcommand(SubCommand::with_name("kmer")
-                    .about("kmer options")
-                    .arg(Arg::with_name("count")
-                         .long("count")
-                         .short('c')
-                         .takes_value(false)
-                         .help("kmer subcommand : option to count kmer"))
-                    .arg(Arg::with_name("thread")
-                         .short('t')
-                         .takes_value(true)
-                         .help(" to tell number of thread to be used, -t n"))
-                    .arg(Arg::with_name("ksize")
-                         .long("ksize")
-                         .short('s')
-                         .takes_value(true)
-                         .help(" to tell size of kmer to generate, -s n"))
-                    .arg(Arg::with_name("csize")
-                         .long("csize")
-                         .short('c')
-                         .takes_value(true)
-                         .help(" to tell size in bits (8 or 16) of counter to use in bloom filter, -s n"))                    
-                    .arg(Arg::with_name("unique")
-                         .long("unique")
-                         .short('u')
-                         .takes_value(false)
-                         .help("kmer subcommand : option to determine unique kmer"))
-        )
-        .get_matches();
+        .subcommand(Command::new("kmer")
+            .about("kmer options")
+            .arg(Arg::new("count")
+                    .long("count")
+                    .short('c')
+                    .help("kmer subcommand : option to count kmer"))
+            .arg(Arg::new("thread")
+                    .short('t')
+                    .value_parser(clap::value_parser!(usize))
+                    .action(ArgAction::Set)
+                    .help(" to tell number of thread to be used, -t n"))
+            .arg(Arg::new("ksize")
+                    .long("ksize")
+                    .short('s')
+                    .value_parser(clap::value_parser!(usize))
+                    .action(ArgAction::Set)
+                    .help(" to tell size of kmer to generate, -s n"))
+            .arg(Arg::new("csize")
+                    .long("csize")
+                    .short('c')
+                    .value_parser(clap::value_parser!(usize))
+                    .action(ArgAction::Set)
+                    .help(" to tell size in bits (8 or 16) of counter to use in bloom filter, -s n"))                    
+            .arg(Arg::new("unique")
+                    .long("unique")
+                    .short('u')
+                    .help("kmer subcommand : option to determine unique kmer"))
+    )
+    .get_matches();
     //
 
-    let mut nb_bits: u8 = 8;
-    parse_args.nb_bits_by_base = nb_bits;
-    let fname;
+    parse_args.nb_bits_by_base = 8;
 
-    if matches.is_present("bits") {
+    if matches.contains_id("bits") {
         println!("got bits option");
-        nb_bits = matches.value_of("bits").ok_or("bad value").unwrap().parse::<u8>().unwrap_or(8 as u8);
+        let nb_bits = *matches.get_one::<u8>("bits").unwrap_or(&8u8);
         match nb_bits {
             2 | 4 | 8 => println!("setting nb_bits to {}", nb_bits),
-            _  => println!("setting nb_bits to : possible values : 2, 4 or 8"),
+            _  => { println!("setting nb_bits to  possible values : 2, 4 or 8");
+                    std::panic!(" bad value for nb_bitssetting nb_bits to  possible values : 2, 4 or 8");
+                  },
         }
         println!("got comp option , comp = {}", nb_bits);
         parse_args.nb_bits_by_base = nb_bits;
     }
-    if matches.is_present("file") {
+    if matches.contains_id("file") {
         println!("file option");
-        fname = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
+        let fname = matches.get_one::<String>("file").unwrap();
         println!("got filename , {}", fname);
-        parse_args.filename = fname;
+        parse_args.filename = fname.clone();
     }
     else {
         println!("-f filename is mandatory");
@@ -128,23 +133,23 @@ fn main() {
 
     if let Some(kmer_match) = matches.subcommand_matches("kmer") {
         println!("got kmer subcommand");
-        if kmer_match.is_present("count") {
+        if kmer_match.contains_id("count") {
             println!(" got subcommand count option");
             kmer_count_args.kmer_task = KmerProcessing::Counting;
         }
-        if kmer_match.is_present("thread") {
-            let nb_threads = kmer_match.value_of("thread").unwrap().parse::<usize>().unwrap();
+        if kmer_match.contains_id("thread") {
+            let nb_threads = *kmer_match.get_one::<usize>("thread").unwrap();
             kmer_count_args.nb_threads = nb_threads;
         }
-        if kmer_match.is_present("ksize") {
-            let k_size = kmer_match.value_of("ksize").unwrap().parse::<usize>().unwrap();
+        if kmer_match.contains_id("ksize") {
+            let k_size = *kmer_match.get_one::<usize>("ksize").expect("expecting kmer size");
             kmer_count_args.kmer_size = k_size;
         }                        
-        if kmer_match.is_present("csize") {
-            let c_size = kmer_match.value_of("csize").unwrap().parse::<usize>().unwrap();
+        if kmer_match.contains_id("csize") {
+            let c_size = *kmer_match.get_one::<usize>("csize").expect("expect nb bits for bloom counter");
             kmer_count_args.counter_size = c_size;
         }
-        if kmer_match.is_present("unique") {
+        if kmer_match.contains_id("unique") {
             println!(" got subcommand unicity option");
             kmer_count_args.kmer_task = KmerProcessing::Unicity;
         }
@@ -154,9 +159,9 @@ fn main() {
     if let Some(ret_match) =  matches.subcommand_matches("ret") { 
         println!("got ret subcommand");
         ret_times_args.to_do = true;
-        if ret_match.is_present("base") {
+        if ret_match.contains_id("base") {
             println!(" got subcommand ret base affectation");
-            let base_char = ret_match.value_of("base").unwrap().parse::<char>().unwrap();
+            let base_char = *ret_match.get_one::<char>("base").expect("base A or C");
             let base = get_ac_from_tg(base_char as u8);
             if base != b'A' && base != b'C' {
                 println!(" bad base for return times analyze : {} ", base as char);

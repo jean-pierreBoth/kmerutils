@@ -7,7 +7,7 @@ use env_logger::{Builder};
 
 // for logging (debug mostly, switched at compile time in cargo.toml)
 
-use clap::{App, Arg};
+use clap::{Arg, Command, ArgAction};
 
 use std::path::Path;
 
@@ -41,28 +41,22 @@ fn main() {
         println!(" LOG = {:?}", *LOG);
     }
     //
-    let filename;
-    //
-    let matches = App::new("reloadkmermulti")
-        .arg(Arg::with_name("file")
-             .long("file")
-             .short('f')
-             .takes_value(true)
-             .help("expecting dumped file .bin"))
+    let matches = Command::new("reloadkmermulti")
+        .arg(Arg::new("file")
+            .long("file")
+            .short('f')
+            .required(true)
+            .action(ArgAction::Set)
+            .value_parser(clap::value_parser!(String))
+            .help("expecting dumped file .bin"))
         .get_matches();
 
 
-    if matches.is_present("file") {
-        filename = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
-        println!("got filename , {}", filename);
-    }
-    else {
-        println!("-f filename is mandatory");
-        println!(" usage qualityloade -f name");
-        process::exit(1);
-    }
+    let filename = matches.get_one::<String>("file").unwrap();
+    println!("got filename , {}", filename);
+
     {
-        let path = Path::new(&filename);
+        let path = Path::new(filename);
         let f_info_res = path.metadata();
         let _filesize:u64;
         match f_info_res {
@@ -75,5 +69,5 @@ fn main() {
             },
         }
     }
-    let _res = KmerCountReload::load_multiple_kmers_from_file(&String::from(filename));
+    let _res = KmerCountReload::load_multiple_kmers_from_file(filename);
 }

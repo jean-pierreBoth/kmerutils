@@ -18,7 +18,7 @@ use log::*;
 #[allow(unused_imports)]
 use log::Level::{Debug,Trace, Info};
 
-use clap::{App, Arg, SubCommand};
+use clap::{Arg,Command, ArgAction};
 use std::time::*;
 use ::std::process;
 use std::path::Path;
@@ -56,109 +56,86 @@ fn main() {
     let _ = init_log();
     debug!("entering data sketcher, checking log trace");
 
-    let matches = Box::new(App::new("datasketcher")       
-                    .arg(Arg::with_name("file")
+
+    let matches = Box::new(Command::new("datasketcher")       
+                    .arg(Arg::new("file")
                         .long("file")
                         .short('f')
-                        .takes_value(true)
+                        .required(true)
+                        .action(ArgAction::Set)
+                        .value_parser(clap::value_parser!(String))
                         .help("expecting a fastq file"))
-                    .arg(Arg::with_name("sketch_size")
+                    .arg(Arg::new("sketch_size")
                         .long("sketch")
                         .short('s')
-                        .takes_value(true)
+                        .required(true)
+                        .action(ArgAction::Set)
+                        .value_parser(clap::value_parser!(usize))
                         .help("expecting sketch size as usize"))
-                    .arg(Arg::with_name("kmer_size")
+                    .arg(Arg::new("kmer_size")
                         .long("kmer")
                         .short('k')
-                        .takes_value(true)
+                        .required(true)
+                        .action(ArgAction::Set)
+                        .value_parser(clap::value_parser!(usize))
                         .help("expecting a kmer size"))
-                    .arg(Arg::with_name("dumpfile")
+                    .arg(Arg::new("dumpfile")
                         .long("dumpfile")
                         .short('d')
-                        .takes_value(true)
+                        .required(true)
+                        .action(ArgAction::Set)
+                        .value_parser(clap::value_parser!(String))
                         .help("expecting name of dumpfile for signature"))
-                    .arg(Arg::with_name("block_size")
+                    .arg(Arg::new("block_size")
                         .long("block_size")
                         .short('b')
-                        .takes_value(true)
+                        .action(ArgAction::Set)
+                        .value_parser(clap::value_parser!(usize))
                         .help("-b for blocksize if sketching by block"))
-                    .subcommand(SubCommand::with_name("ann")
+                    .subcommand(Command::new("ann")
                         .about("ann parameters")
-                        .arg(Arg::with_name("nbng")
-                                .long("nb")
-                                .short('n')
-                                .takes_value(true)
-                                .help("expecting number of neighbours"))
+                        .arg(Arg::new("nbng")
+                            .long("nb")
+                            .short('n')
+                            .required(true)
+                            .action(ArgAction::Set)
+                            .value_parser(clap::value_parser!(usize))
+                            .help("expecting number of neighbours"))
                     )
-                ) 
-                .get_matches();
+                ).get_matches();
 
-    let fname;       // fasta filename
-    let kmer_size;
-    let sketch_size;
-    let dumpfname;   // for dump of sketches
     //
     let mut do_ann = false;
     let mut block_size : usize = 0;
     let mut sketch_block = false;
     let mut nbng = 0;        // for number of neighbours
     // check for all necessary args
-    if matches.is_present("file") {
-        fname = matches.value_of("file").ok_or("bad value").unwrap().parse::<String>().unwrap();
-        println!("got filename , {}", fname);
-    }
-    else {
-        println!("-f filename is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
-        process::exit(1);
-    }
+    let  fname = matches.get_one::<String>("file").unwrap();
+    println!("got filename , {}", fname);
     //
-    if matches.is_present("sketch_size") {
-        sketch_size = matches.value_of("sketch_size").ok_or("bad value").unwrap().parse::<usize>().unwrap();
-        println!("got sketch_size , {}", sketch_size);
-    }
-    else {
-        println!("--sketch is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size  --block (-b) b_size");
-        process::exit(1);
-    } 
+    let sketch_size = *matches.get_one::<usize>("sketch_size").unwrap();
+    println!("got sketch_size , {}", sketch_size);
+
     // block size
-    if matches.is_present("block_size") {
+    if matches.contains_id("block_size") {
         sketch_block = true;
-        block_size = matches.value_of("block_size").ok_or("bad value").unwrap().parse::<usize>().unwrap();
+        block_size = *matches.get_one::<usize>("block_size").expect("expecting block size");
         println!("got block_size , {}", block_size);
     }
     // kmer options
-    if matches.is_present("kmer_size") {
-        kmer_size = matches.value_of("kmer_size").ok_or("bad value").unwrap().parse::<u8>().unwrap();
-        println!("got kmer_size , {}", kmer_size);
-    }
-    else {
-        println!("--kmer is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size");
-        process::exit(1
-        );
-    }  
+    let kmer_size = *matches.get_one::<usize>("kmer_size").expect("expecting kmer size");
+    println!("got kmer_size , {}", kmer_size);
     // dumpfile optins
-    if matches.is_present("dumpfile") {
-        dumpfname = matches.value_of("dumpfile").ok_or("bad value").unwrap().parse::<String>().unwrap();
-        println!("got dumpfile  , {}", dumpfname);
-    }
-    else {
-        println!("--dumpfile is mandatory");
-        println!(" usage : seqsketcher -f name --sketch (or -s)  s_size --kmer (-k) k_size --dumfile (-d) fname");
-        process::exit(1);
-    }
+    let dumpfname = matches.get_one::<String>("dumpfile").unwrap();
+    println!("got dumpfile  , {}", dumpfname);
+ 
     // ann asked for
     if let Some(ann_match) = matches.subcommand_matches("ann") {
         println!("got ann command");
         do_ann = true;
-        if ann_match.is_present("nbng") {
-            println!("got nbng arg");
-            let nbng_decoded = ann_match.value_of("nbng").unwrap().parse::<usize>().unwrap();
-            nbng = nbng_decoded as u8;
-            println!("got nbng {}", nbng);
-        }      
+        let nbng_decoded = *ann_match.get_one::<usize>("nbng").unwrap();
+        nbng = nbng_decoded as u8;
+        println!("got nbng {}", nbng);    
     }
     if !matches.args_present() {
         println!(" got no subcommand!");
