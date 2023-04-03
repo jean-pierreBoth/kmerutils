@@ -143,10 +143,8 @@ impl KmerT for Kmer32bit {
         let mut revcomp = self.0;
         revcomp = !revcomp;
         // the now we have to swap groups of 2 bits
-        revcomp = (revcomp & 0x33333333)  <<   2 | (revcomp & 0xCCCCCCCC) >>  2;
-        revcomp = (revcomp & 0x0F0F0F0F)  <<   4 | (revcomp & 0xF0F0F0F0) >>  4;
-        revcomp = (revcomp & 0x00FF00FF)  <<   8 | (revcomp & 0xFF00FF00) >>  8;
-        revcomp = (revcomp & 0x0000FFFF)  <<  16 | (revcomp & 0xFFFF0000) >> 16;
+        revcomp = revcomp.reverse_bits();
+        revcomp = (revcomp & 0x55555555) << 1 | (revcomp & 0xAAAAAAAA) >> 1;
         // We have to shift to the right 32-2*nb_bases
         revcomp = revcomp >> (32 - 2 * nb_bases_mask.rotate_left(4));
         // and enforce nb_bases in upper 4 bits
@@ -240,14 +238,14 @@ impl KmerBuilder<Kmer32bit> for Kmer32bit {
 
 //===================================================================================================
 
-
+#[cfg(test)]
 mod tests {
 
     #[allow(unused)]
     use super::*;
 
     #[test]
-    fn test_reverse_complement_kmer32bit() {
+    fn test_reverse_complement_12b_kmer32bit() {
         //
         let to_reverse : Vec<&'static str> = vec![
             // TACG_AGTA_GGAT
@@ -269,6 +267,36 @@ mod tests {
             if revcomp.0  !=  should_be.0 {
                 println!(" i  kmer reversed complement  : {} {:b}", i, revcomp.0);
             }
+            assert_eq!(should_be.get_nb_base(), Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base());
+            assert!(revcomp.0 == should_be.0 );
+        }
+    } // end of test_reverse_complement_kmer32bit
+
+
+#[test]
+    fn test_reverse_complement_11b_kmer32bit() {
+        //
+        let to_reverse : Vec<&'static str> = vec![
+            // TACG_AGTA_GGA
+            "TACGAGTAGGA",
+            // ACTT_GGAA_CGT
+            "ACTTGGAACGT"
+        ];
+        //
+        let reversedcomp : Vec<&'static str> = vec! [
+            // TCC_TACT_CGTA
+            "TCCTACTCGTA",
+            // ACG_TTCC_AAGT
+            "ACGTTCCAAGT"
+        ];
+        
+        for i in 0..to_reverse.len() {
+            let revcomp: Kmer32bit = Kmer32bit::from_str(to_reverse[i]).unwrap().reverse_complement();
+            let should_be: Kmer32bit = Kmer32bit::from_str(reversedcomp[i]).unwrap();
+            if revcomp.0  !=  should_be.0 {
+                println!(" i  kmer reversed complement  : {} {:b}", i, revcomp.0);
+            }
+            assert_eq!(should_be.get_nb_base(), Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base());
             assert!(revcomp.0 == should_be.0 );
         }
     } // end of test_reverse_complement_kmer32bit

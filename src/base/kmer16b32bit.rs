@@ -41,17 +41,14 @@ impl KmerT for Kmer16b32bit {
     }
     /// just returns the reversed complement 16 bases kmer in 2bit encoding. Ch Hacker's delight.
     fn reverse_complement(&self) ->  Kmer16b32bit {
-        // we do a symetry as explained in Hacker's delight and complement.
-        // Note that we skip the swap between 2 adjacent bits as base are encoded in blocks of 2 bits
         // This depends on our choice for encoding ACGT as respectiveley  00  01 10 11 !!!
-        //
+        // we use the reverse instruction which simplifies the previous impl based on  Hacker's delight 
+        // we keep Hacker's delight trick to permut groups of 2bits to restore bases after reverse
         let mut revcomp = self.0 as u32;
         revcomp = !revcomp;
-        // the now we have to swap groups of 2 bits
-        revcomp = (revcomp & 0x33333333)  <<   2 | (revcomp & 0xCCCCCCCC) >>  2;
-        revcomp = (revcomp & 0x0F0F0F0F)  <<   4 | (revcomp & 0xF0F0F0F0) >>  4;
-        revcomp = (revcomp & 0x00FF00FF)  <<   8 | (revcomp & 0xFF00FF00) >>  8;
-        revcomp = (revcomp & 0x0000FFFF)  <<  16 | (revcomp & 0xFFFF0000) >> 16;
+        //
+        revcomp = revcomp.reverse_bits();
+        revcomp = (revcomp & 0x55555555) << 1 | (revcomp & 0xAAAAAAAA) >> 1;
         // we complement
         Kmer16b32bit(revcomp)
     }
@@ -140,7 +137,7 @@ impl FromStr for Kmer16b32bit {
 
 //========================================================
 
-
+#[cfg(test)]
 mod tests {
 
 #[allow(unused)]

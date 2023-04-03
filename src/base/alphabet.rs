@@ -244,6 +244,7 @@ impl BaseCompress for Alphabet4b {
             b'G' => 0b0100,
             b'T' => 0b1000,
             b'N' => 0b1111,
+            b'Z' => 0b0000,  // when if part of a byte is not initialized by a base we set to Z
             _    => panic!("char not in alpahabet4b"),
         }
     } // end of function encode
@@ -255,8 +256,8 @@ impl BaseCompress for Alphabet4b {
             0b0010 => b'C',
             0b0100 => b'G',
             0b1000 => b'T',
-            0b1111 => b'N',   // just to fill up slices
-            _    => panic!("pattern not a code in alpahabet_4b"),
+            0b1111 => b'N',   // 
+              _    => b'Z',   // see above for encoding
         }
     }
 

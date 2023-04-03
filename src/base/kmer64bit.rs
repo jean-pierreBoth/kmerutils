@@ -91,18 +91,15 @@ impl KmerT for Kmer64bit {
 
     /// just returns the reversed complement 16 bases kmer in 2bit encoding. Ch Hacker's delight.
     fn reverse_complement(&self) ->  Kmer64bit {
+        // we use the reverse instruction and 
         // we do a symetry as explained in Hacker's delight and complement.
-        // Note that we skip the swap between 2 adjacent bits as base are encoded in blocks of 2 bits
         // This depends on our choice for encoding ACGT as respectiveley  00  01 10 11 !!!
         //
         let mut revcomp = self.0 as u64;
         revcomp = !revcomp;
         // then now we have to swap groups of 2 bits
-        revcomp = (revcomp & 0x33333333_33333333)  <<   2 | (revcomp & 0xCCCCCCCC_CCCCCCCC) >>  2;
-        revcomp = (revcomp & 0x0F0F0F0F_0F0F0F0F)  <<   4 | (revcomp & 0xF0F0F0F0_F0F0F0F0) >>  4;
-        revcomp = (revcomp & 0x00FF00FF_00FF00FF)  <<   8 | (revcomp & 0xFF00FF00_FF00FF00) >>  8;
-        revcomp = (revcomp & 0x0000FFFF_0000FFFF)  <<  16 | (revcomp & 0xFFFF0000_FFFF0000) >> 16;
-        revcomp = (revcomp & 0x00000000_FFFFFFFF)  <<  32 | (revcomp & 0xFFFFFFFF_00000000) >> 32;
+        revcomp = revcomp.reverse_bits();
+        revcomp = (revcomp & 0x55555555_55555555) << 1 | (revcomp & 0xAAAAAAAA_AAAAAAAA) >> 1;
         // We have to shift to the right 64-2*nb_bases as useful values are aligned right
         revcomp = revcomp >> (64 - 2 * self.1);
         Kmer64bit(revcomp, self.1)
@@ -192,13 +189,14 @@ impl FromStr for Kmer64bit {
 
 //==================================================
 
+#[cfg(test)]
 mod tests {
 
 #[allow(unused)]
 use super::*;
 
     #[test]
-    fn test_reverse_complement_kmer64bit() {
+    fn test_reverse_complement_12b_kmer64bit() {
         //
         let to_reverse : Vec<&'static str> = vec![
             // TACG_AGTA_GGAT
@@ -224,4 +222,32 @@ use super::*;
         }
     } // end of test_reverse_complement_kmer64bit  
 
+
+#[test]
+    fn test_reverse_complement_11b_kmer64bit() {
+        //
+        let to_reverse : Vec<&'static str> = vec![
+            // TACG_AGTA_GGA
+            "TACGAGTAGGA",
+            // ACTT_GGAA_CGT
+            "ACTTGGAACGT"
+        ];
+        //
+        let reversedcomp : Vec<&'static str> = vec! [
+            // TCC_TACT_CGTA
+            "TCCTACTCGTA",
+            // ACG_TTCC_AAGT
+            "ACGTTCCAAGT"
+        ];
+        
+        for i in 0..to_reverse.len() {
+            let revcomp: Kmer64bit = Kmer64bit::from_str(to_reverse[i]).unwrap().reverse_complement();
+            let should_be: Kmer64bit = Kmer64bit::from_str(reversedcomp[i]).unwrap();
+            if revcomp.0  !=  should_be.0 {
+                println!(" i  kmer reversed complement  : {} {:b}", i, revcomp.0);
+            }
+            assert_eq!(should_be.get_nb_base(), Kmer64bit::from_str(to_reverse[i]).unwrap().get_nb_base());
+            assert!(revcomp.0 == should_be.0 );
+        }
+    } // end of test_reverse_complement_kmer32bit
 }

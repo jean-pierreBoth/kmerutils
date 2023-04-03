@@ -23,6 +23,8 @@ pub struct Sequence {
 
 
 impl  Sequence {
+    /// This constructor is adapted to small sequences. For large sequence that concatenated the whole file
+    /// prefer the function [`Self::with_capacity()`] and [Self::encode_and_add()]
     pub fn new(raw : &[u8], nb_bits: u8) -> Sequence {
         let nb_bases = raw.len();
         let nb_bases_by_byte = 8 / nb_bits as usize;
@@ -83,7 +85,7 @@ impl  Sequence {
                     // to match the last part of byte.
                     let mut last_to_encode = [0u8;2];
                     last_to_encode[0] = raw[2* nb_full_bytes];
-                    last_to_encode[1] = b'N';
+                    last_to_encode[1] = b'Z';
                     let encoded2b = alfa4b.base_pack(&last_to_encode);
                     seq.push(encoded2b);
                 }
@@ -358,7 +360,86 @@ impl  Sequence {
         return nb_bad;
     }  // end of base_count
 
+
+    /// allocate a Seq with capacity to store  nb_base encoded in nb_bits by base
+    pub fn with_capacity(nb_bits : u8, nb_base : usize ) -> Self {
+        //
+        assert!(nb_bits == 2 || nb_bits == 4 || nb_bits == 8);
+        //
+        let vec: Vec<u8> = Vec::with_capacity(2 + (nb_base * nb_bits as usize / 8) );
+        let description = [nb_bits, 0];
+        Sequence{seq : vec, description}
+    }  // end of with_capacity
+
+
+    /// This function parse buffer to_add , filters out non ACGT, encode in alpabet associated to sequence and store in sequence
+    /// The argument alphabet must correspond to the number of bits / base declared in Sequence initialization
+    pub fn encode_and_add(&mut self, to_add : &[u8], alphabet : & dyn  BaseCompress) {
+        //
+        log::debug!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
+        log::debug!(" to_add : {:?}", to_add);
+        //
+        let nb_bits : usize =  self.nb_bits_by_base() as usize;
+        // do we need to grow self.vec ?
+        if to_add.len() >=  (self.seq.capacity() - self.seq.len()) / nb_bits {
+            // we allocate nb_bits times more what we need
+            let grow = 1 + (self.seq.capacity() - self.seq.len()) / nb_bits; 
+            log::debug!("allocating nb new bytes : {:?}",  grow);
+            self.seq.try_reserve(grow).unwrap();
+            log::debug!("encode_and_add  after growing,  len {}, allocated : {} ", self.seq.len(), self.seq.capacity());
+        }
+        let seqlen = self.seq.len();
+        // do we have an incomplete byte in sequence ?
+        let mut nb_scanned: usize = 0;
+        let mut already = self.description[1] as usize;
+        let mut to_encode : u8;         // the byte we work on
+        // if we had a last incomplete byte we fill it
+        if already > 0 {
+            to_encode = self.seq[self.seq.len() - 1];
+            nb_scanned += update_byte(&mut to_encode, &mut already, alphabet, &to_add[nb_scanned..]);
+            self.seq[seqlen - 1] = to_encode;
+        }
+        // now we loop storing new encoded bytes in self.seq, we store 4 bases at each update until we encounter end of to_add
+        // and we possibly fill an incomplete byte at end.
+        while nb_scanned < to_add.len() {
+            to_encode = 0;
+            nb_scanned += update_byte(&mut to_encode, &mut already, alphabet, &to_add[nb_scanned..]);
+            self.seq.push(to_encode);
+        }
+        // now we must reset correct info in self.description to know how many bases we have in possibly incomplete last byte
+        self.description[1] = already as u8;
+    } // end of encode_and_add
+
+
 }  // end impl Sequence
+
+
+
+
+// update a byte which has inside already base in it, encoding is done by alphabet
+// return number of base in examined in to_add.
+#[inline]
+fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompress, to_add : &[u8]) -> usize {
+    let nb_bits = alphabet.get_nb_bits() as usize;
+    // the number of base we can add is the number of bases in to_add limited by left space in byte
+    // nb_max will return the number of bases examined in to_add and so the amount of advance the caller will have to use in subsequent calls in to_add 
+    let nb_max = ((8 / nb_bits - *already)).min(to_add.len());
+    let mut shift = 0;
+    for i in 0..nb_max {
+        if ['A','C', 'T', 'G'].contains(&(to_add[i] as char))  {
+            let encoded = alphabet.encode(to_add[i]);
+            log::debug!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
+            *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
+            log::debug!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
+            *already += 1;
+        }
+        shift += 1;
+    }
+    if *already == (8/nb_bits) {  // if byte is full we reset to 0
+        *already = 0;
+    }
+    return shift;
+} // end of update_byte
 
 
 //=======================================
@@ -630,17 +711,19 @@ mod tests {
         assert_eq!(alphabet2.encode(b'G') , 0b10);
         assert_eq!(alphabet2.decode(0b10) , b'G');
     }
+
+
     #[test]
-    fn encode4b_4bases() {
+    fn encode4b_4bases_new() {
         log_init_test();
         //
         let v = vec![b'A', b'C', b'G', b'T'];
         let seq = Sequence::new(&v, 4);
         assert!(seq.seq.len() == 2);
         // test encoding
-        println!("seq[0] = {}", seq.seq[0]);
+        println!("seq[0] = {:x}", seq.seq[0]);
         assert!(seq.seq[0] == 0x12);
-        println!("seq[1] = {}", seq.seq[1]);
+        println!("seq[1] = {:x}", seq.seq[1]);
         assert!(seq.seq[1] == 0x48);
         assert!(seq.seq.len() == 2);
         assert!(seq.nb_bases_in_last_byte() == 0);
@@ -649,8 +732,8 @@ mod tests {
         println!("decompressed.len() = {} ", decompressed.len());
         assert!(decompressed.len() == 4);
         //
-        println!("seq[0] = {}", seq.seq[0]);
-        println!("seq[1] = {}", seq.seq[1]);
+        println!("seq[0] = {:x}", seq.seq[0]);
+        println!("seq[1] = {:x}", seq.seq[1]);
         //
         assert!(decompressed[0] == b'A');
         //
@@ -662,19 +745,20 @@ mod tests {
         //
     }
 
+
     #[test]
-    fn encode4b_5bases() {
+    fn encode4b_5bases_new() {
         log_init_test();
         //
         let v = vec![b'A', b'C', b'G', b'T', b'A'];
         let seq = Sequence::new(&v, 4);
         // test encoding
-        println!("seq[0] = {}", seq.seq[0]);
+        println!("seq[0] = 0x{:x}", seq.seq[0]);
         assert!(seq.seq[0] == 0x12);
-        println!("seq[1] = {}", seq.seq[1]);
+        println!("seq[1] = 0x{:x}", seq.seq[1]);
         assert!(seq.seq[1] == 0x48);
         // only upper part of byte is encoded
-        println!("seq[2] = {}", seq.seq[2]);
+        println!("seq[2] = 0x{:x}", seq.seq[2]);
         assert!(seq.seq[2] & 0xF0 == 0x10);
         assert!(seq.seq.len() == 3);
         assert!(seq.nb_bases_in_last_byte() == 1);
@@ -682,9 +766,9 @@ mod tests {
         let decompressed = seq.decompress();
         //
         assert!(decompressed.len() == 5);
-        println!("seq[0] = {}", seq.seq[0]);
-        println!("seq[1] = {}", seq.seq[1]);
-        println!("seq[2] = {}", seq.seq[2]);
+        println!("seq[0] = 0x{:x}", seq.seq[0]);
+        println!("seq[1] = 0x{:x}", seq.seq[1]);
+        println!("seq[2] = 0x{:x}", seq.seq[2]);
         //
         assert!(decompressed[0] == b'A');
         //
@@ -698,7 +782,7 @@ mod tests {
         //
         let mut ibase = 0;
         for b in &seq {
-            println!(" ibase base = {} {} ", ibase, b);
+            log::info!(" ibase base = {} {} ", ibase, b);
             assert!(b == decompressed[ibase]);
             ibase += 1;
         }
@@ -823,6 +907,7 @@ mod tests {
         assert_eq!(reverse_str, String::from("ATCCTACTCGTA"));
     } // end of test_reverse_complement_sequence_8
 
+
     #[test]
     // this test also reverse iteration
     fn test_reverse_complement_sequence_2_12bases () {
@@ -838,6 +923,8 @@ mod tests {
         let reverse_str = String::from_utf8(reverse).unwrap();
         assert_eq!(reverse_str, String::from("ATCCTACTCGTA"));
     } // end of test_reverse_complement_sequence_2_12bases
+
+
 
     #[test]
     // this test also reverse iteration
@@ -855,4 +942,140 @@ mod tests {
         assert_eq!(reverse_str, String::from("GGATCCTACTCGTA"));
     } // end of test_reverse_complement_sequence_2_14bases
     
+
+    #[test]
+    fn test_incremental_alpha2_14bases_seq_init() {
+        log_init_test();
+        // a 14 base sequence
+        let mut seqstr = String::from("TACGAGTAGGATCC");
+        let to_add = seqstr.as_bytes();
+        // initialize with not enough!
+        let mut seq_tocheck = Sequence::with_capacity(2, 4);
+        //
+        let alpha2b = Alphabet2b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we compare with normal initialization, check also for last byte
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, seqstr);
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 2);
+        // now we test adding once more ...
+        let seqstr2 = String::from("AAAGG");
+        let to_add = seqstr2.as_bytes();
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we add 5 bases 
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 3);
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        seqstr.push_str(&seqstr2);
+        assert_eq!(restored_str, seqstr);
+    } // end of test_incremental_14b_seq_init
+
+
+
+    #[test]
+    fn test_incremental_alpha2_15bases_seq_init() {
+        log_init_test();
+        // a 14 base sequence
+        let mut seqstr = String::from("TACGAGTAGGATCCC");
+        let to_add = seqstr.as_bytes();
+        // initialize with not enough!
+        let mut seq_tocheck = Sequence::with_capacity(2, 4);
+        //
+        let alpha2b = Alphabet2b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we compare with normal initialization, check also for last byte, last byte contains 3
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, seqstr);
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 3);
+        // now we test adding once more ...
+        let seqstr2 = String::from("AAAGG");
+        let to_add = seqstr2.as_bytes();
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we add 5 bases we get a 20 base sequence, the last byte is full
+        log::info!("adding {:?}", seqstr2);
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 0);
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        seqstr.push_str(&seqstr2);
+        assert_eq!(restored_str, seqstr);
+    } // end of test_incremental_15b_seq_init
+
+
+    #[test]
+    fn encode4b_5bases_incr() {
+        log_init_test();
+        //        
+        let v = vec![b'A', b'C', b'G', b'T', b'A'];
+        let mut seq = Sequence::with_capacity(4, 4);
+        let alpha4b = Alphabet4b::new();
+        seq.encode_and_add(&v, &alpha4b);
+        // test encoding
+        println!("seq[0] = 0x{:x}", seq.seq[0]);
+        assert!(seq.seq[0] == 0x12);
+        println!("seq[1] = 0x{:x}", seq.seq[1]);
+        assert!(seq.seq[1] == 0x48);
+        // only upper part of byte is encoded
+        println!("seq[2] = 0x{:x}", seq.seq[2]);
+        assert!(seq.seq[2] & 0xF0 == 0x10);
+        assert!(seq.seq.len() == 3);
+        assert!(seq.nb_bases_in_last_byte() == 1);
+        // decoding test
+        let decompressed = seq.decompress();
+        //
+        assert!(decompressed.len() == 5);
+        println!("seq[0] = {:0x}", seq.seq[0]);
+        println!("seq[1] = 0x{:x}", seq.seq[1]);
+        println!("seq[2] = 0x{:x}", seq.seq[2]);
+        //
+        assert!(decompressed[0] == b'A');
+        //
+        assert!(decompressed[1] == b'C');
+        //
+        assert!(decompressed[2] == b'G');
+        //
+        assert!(decompressed[3] == b'T');
+        //
+        assert!(decompressed[4] == b'A');
+        //
+        let mut ibase = 0;
+        for b in &seq {
+            log::info!(" ibase base = {} {} ", ibase, b);
+            assert!(b == decompressed[ibase]);
+            ibase += 1;
+        }
+        assert!(ibase == seq.size());
+    }  // end of encode4b_5bases
+
+
+    // a test for Alphabet4b although we do not use it
+    #[test]
+    fn test_incremental_alpha4_15bases_seq_init() {
+        log_init_test();
+        // a 15 base sequence
+        let mut seqstr = String::from("TACGAGTAGGATCCC");
+        let to_add = seqstr.as_bytes();
+        // 
+        let mut seq_tocheck = Sequence::with_capacity(4, 4);
+        //
+        let alpha4b = Alphabet4b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha4b);
+        // we compare with normal initialization, check also for last byte, last byte contains 3
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, seqstr);
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 1);
+        // now we test adding once more ...
+        let seqstr2 = String::from("AAAGG");
+        let to_add = seqstr2.as_bytes();
+        seq_tocheck.encode_and_add(to_add, &alpha4b);
+        // we add 5 bases we get a 20 base sequence, the last byte is full
+        log::info!("adding {:?}", seqstr2);
+        assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 0);
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        seqstr.push_str(&seqstr2);
+        assert_eq!(restored_str, seqstr);
+    } // end of test_incremental_15b_seq_init
+
 } // end module test
+
+
