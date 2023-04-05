@@ -366,7 +366,9 @@ impl  Sequence {
         //
         assert!(nb_bits == 2 || nb_bits == 4 || nb_bits == 8);
         //
-        let vec: Vec<u8> = Vec::with_capacity(2 + (nb_base * nb_bits as usize / 8) );
+        let alloc_len = 2 + (nb_base * nb_bits as usize) / 8;
+        log::debug!("Sequence with_capacity, nb bytes allocated : {}", alloc_len);
+        let vec: Vec<u8> = Vec::with_capacity(alloc_len);
         let description = [nb_bits, 0];
         Sequence{seq : vec, description}
     }  // end of with_capacity
@@ -376,17 +378,17 @@ impl  Sequence {
     /// The argument alphabet must correspond to the number of bits / base declared in Sequence initialization
     pub fn encode_and_add(&mut self, to_add : &[u8], alphabet : & dyn  BaseCompress) {
         //
-        log::debug!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
-        log::debug!(" to_add : {:?}", to_add);
+//        log::trace!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
+//        log::trace!(" to_add : {:?}", to_add);
         //
         let nb_bits : usize =  self.nb_bits_by_base() as usize;
         // do we need to grow self.vec ?
         if to_add.len() >=  (self.seq.capacity() - self.seq.len()) / nb_bits {
             // we allocate nb_bits times more what we need
             let grow = 1 + (self.seq.capacity() - self.seq.len()) / nb_bits; 
-            log::debug!("allocating nb new bytes : {:?}",  grow);
+//            log::trace!("allocating nb new bytes : {:?}",  grow);
             self.seq.try_reserve(grow).unwrap();
-            log::debug!("encode_and_add  after growing,  len {}, allocated : {} ", self.seq.len(), self.seq.capacity());
+//            log::trace!("encode_and_add  after growing,  len {}, allocated : {} ", self.seq.len(), self.seq.capacity());
         }
         let seqlen = self.seq.len();
         // do we have an incomplete byte in sequence ?
@@ -428,9 +430,9 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
     for i in 0..nb_max {
         if ['A','C', 'T', 'G'].contains(&(to_add[i] as char))  {
             let encoded = alphabet.encode(to_add[i]);
-            log::debug!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
+            log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
             *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
-            log::debug!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
+            log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
             *already += 1;
         }
         shift += 1;
