@@ -707,6 +707,9 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
 
 } // end of impl for HyperLogLogSketch
 
+
+
+
 //=====================================================================================
 ///
 ///  A structure providing SuperMinHash2 sketching implementing the generic trait SeqSketcherT\<Kmer\>.  

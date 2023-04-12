@@ -32,10 +32,10 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 ## Hashing and Sketching of data
 
-Similarity between sequences can be estimated by counting common Kmers between sequences with superminhash and the probminhash algorithms.
+Similarity between sequences can be estimated by counting common Kmers between sequences with superminhash, probminhash and hyperloglog algorithms
+as described in Ertl's papers and implemented in [probminhash](https://github.com/jean-pierreBoth/probminhash).
 
 * A probability Jaccard index taking into account Kmer multiplicity is provided with the Probminhash family algorithm associated with the probability Jaccard index.
-See  [probminhash](https://github.com/jean-pierreBoth/probminhash).  
 For very long sequences where keeping the count of large Kmer costs too much memory it is possible to fallback on the SuperMinHash algorithm also
 provided in the **probminhash** crate using the usual Jaccard metric.
 
@@ -54,7 +54,7 @@ It is implemented on all our compressed kmer types.
 
 ## A minimal module aautils
 
-This module provides an uncompressed representation of Amino Acid sequences along with generation of compressed Kmer (up to a size of 25 amino acids).  
+This module provides an uncompressed representation of Amino Acid sequences along with generation of compressed Kmer (up to a size of 12 amino acids, 5 bits bases encoded in a u64).  
 This module is, in present state, minimal. It provides sketching of AA sequences in the same way as DNA sequences.
 
 ## Some basic statistics on sequences
