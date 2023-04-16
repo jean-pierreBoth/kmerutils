@@ -12,7 +12,7 @@ use serde_json::{to_writer};
 
 
 /// specify if we process DNA sequence or AA sequences
-#[derive(Copy,Clone,Serialize,Deserialize)]
+#[derive(Copy,Clone,Serialize,Deserialize,Debug)]
 pub enum DataType {
     DNA,
     AA,
@@ -23,7 +23,7 @@ pub enum DataType {
 /// - SUPER for first version SuperMinHash.(f64 signature)
 /// - SUPER2 for second version of superminhash (u64 signature)
 /// - HLL for SetSketch based on hyperloglog (u16, u32 or more signature)
-#[derive(Copy,Clone,Serialize,Deserialize)]
+#[derive(Copy,Clone,Serialize,Deserialize,Debug)]
 pub enum SketchAlgo {
     PROB3A,
     SUPER,
@@ -35,7 +35,7 @@ pub enum SketchAlgo {
 
 /// describe sketching paramaters, kmer size, sketching size and sketching algorithms.
 /// 
-#[derive(Copy,Clone,Serialize,Deserialize)]
+#[derive(Copy,Clone,Serialize,Deserialize,Debug)]
 pub struct SeqSketcherParams {
     kmer_size : usize,
     sketch_size : usize,

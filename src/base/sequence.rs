@@ -374,6 +374,11 @@ impl  Sequence {
     }  // end of with_capacity
 
 
+    /// shrink in case the call to with_capacity was too generous
+    pub fn shrink_to_fit(&mut self) {
+        self.seq.shrink_to_fit();
+    }
+
     /// This function parse buffer to_add , filters out non ACGT, encode in alpabet associated to sequence and store in sequence
     /// The argument alphabet must correspond to the number of bits / base declared in Sequence initialization
     pub fn encode_and_add(&mut self, to_add : &[u8], alphabet : & dyn  BaseCompress) {
@@ -428,13 +433,16 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
     let nb_max = ((8 / nb_bits - *already)).min(to_add.len());
     let mut shift = 0;
     for i in 0..nb_max {
-        if ['A','C', 'T', 'G'].contains(&(to_add[i] as char))  {
-            let encoded = alphabet.encode(to_add[i]);
-            log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
-            *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
-            log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
-            *already += 1;
-        }
+        match to_add[i] as char {
+            'A' | 'C' | 'T' | 'G' => {
+                let encoded = alphabet.encode(to_add[i]);
+                log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
+                *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
+                log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
+                *already += 1;
+            },
+            _                     => {},
+        };
         shift += 1;
     }
     if *already == (8/nb_bits) {  // if byte is full we reset to 0
