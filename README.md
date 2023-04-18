@@ -36,7 +36,7 @@ Similarity between sequences can be estimated by counting common Kmers between s
 as described in Ertl's papers and implemented in [probminhash](https://github.com/jean-pierreBoth/probminhash).
 
 * A probability Jaccard index taking into account Kmer multiplicity is provided with the Probminhash family algorithm associated with the probability Jaccard index.
-For very long sequences where keeping the count of large Kmer costs too much memory it is possible to fallback on the SuperMinHash algorithm also
+For very long sequences where keeping the count of large Kmer costs too much memory it is possible to fallback on the SetSketch (based on HyperLogLog) sketcher or SuperMinHash algorithms also
 provided in the **probminhash** crate using the usual Jaccard metric.
 
 * The probminhash algorithm is used to provide a complete sketching of a datafile where each sequence has its signature
@@ -44,7 +44,7 @@ dumped in a file. This file can be reprocessed to examine neighborhood of a read
 For example it takes 51s on a 8 (hyperthreaded i7 @2.3Ghz) core laptop, to read , generate 8 base kmers and sketch 746333 long reads from a 4.38 Gbases ONT fastq file (Cf [FAB49164_rel3](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md)), asking for 200 sketches by read.
 
 * The signatures obtained can be sent in an Ann to study read proximity according to the Jaccard Probability metric.
-  See executable *datasketcher* in this crate and the crate [*hnsw_rs*](https://crates.io/crates/hnsw_rs)
+  See the (minimal) executable *datasketcher* in this crate and the crate [*hnsw_rs*](https://crates.io/crates/hnsw_rs)
 
 Some others standard tools such :
 
