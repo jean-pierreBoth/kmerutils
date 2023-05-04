@@ -418,6 +418,7 @@ impl SeqSketcher {
 
 /// A structure providing ProbMinHash3a sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 /// 
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct ProbHash3aSketch<Kmer> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -507,6 +508,7 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
 ///
 ///  A structure providing SuperMinHash sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 ///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SuperHashSketch<Kmer, S: num::Float> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -615,6 +617,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
 
 // TODO : sketch size in both arguments!
 
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
     //
     params : SeqSketcherParams,
@@ -715,6 +718,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
 ///  A structure providing SuperMinHash2 sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 ///  The type argument S encodes for u32 or u64 as the SuperMinHash2 can sketch to u32 or u64
 #[cfg(feature="sminhash2")]
+#[derive(Clone)]
 pub struct SuperHash2Sketch<Kmer, S: Integer  + Unsigned, H : Hasher + Default> {
     //
     _kmer_marker: PhantomData<Kmer>,
