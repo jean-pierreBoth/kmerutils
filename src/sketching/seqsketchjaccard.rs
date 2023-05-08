@@ -12,7 +12,10 @@
 //! 
 //! 
 
+/* 
+    TODO:
 
+ */
 
 use log::*;
 use std::marker::PhantomData;
@@ -134,7 +137,11 @@ pub trait SeqSketcherT<Kmer>
     fn get_algo(&self) -> SketchAlgo;
     /// F is a hashing function (possibly just extracting Kmer::Val) to apply to kmer before sending to sketcher.
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
-                    where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;   
+                    where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;
+    // This functin implement the sketching a File of Sequences, 
+    // (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
+    fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
+                    where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;                
 } // end of SeqSketcherT<Kmer>
 
 
@@ -500,6 +507,14 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
         jaccard_vec
     }
 
+    // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
+    fn sketch_compressedkmer_seqs<F>(&self, _vseq : &Vec<&Sequence>, _fhash : F) -> Vec<Vec<Self::Sig> > {
+        //
+        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        //        
+        std::panic!("not yet implemented")
+    } // end of sketch_compressedkmer_seqs
+
 }  // end of impl SeqSketcherT for ProHash3aSketch
 
 
@@ -604,6 +619,16 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
         }
         jaccard_vec
     } // end of sketch_compressedkmer
+
+    // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
+    fn sketch_compressedkmer_seqs<F>(&self, _vseq : &Vec<&Sequence>, _fhash : F) -> Vec<Vec<Self::Sig> > {
+        //
+        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        //
+        std::panic!("not yet implemented")
+    } // end of sketch_compressedkmer_seqs
+
+
 } // end of SuperHashSketch
 
 
@@ -635,6 +660,48 @@ impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
     pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams) -> Self {
         HyperLogLogSketch{params : seq_params.clone(), hll_params, _kmer_marker : PhantomData, _sig_marker: PhantomData}
     }
+
+    // building block for sketch_compressedkmer_seqs. sketch a list of sequence and return a sketch to merge!
+    pub fn sketch_compressedkmer_seqs_block<F>(&self, vseq : &[&Sequence], fhash : F) -> Vec<S> 
+            where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                    F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                    Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                    KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                    S : Integer + Bounded + Copy + Clone + FromPrimitive + ToPrimitive + Send + Sync + Debug + Serialize {
+        //
+        log::debug!("entering  sketch_compressedkmer_seqs_block for HyperLogLogSketch");
+        //
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut setsketch : SetSketcher<S, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        if setsketch.sketch(&hashval).is_err() {
+                            log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                            std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                        }
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        // we get one sig vector for the whole list of sequences
+        let sig = setsketch.get_signature();
+        //
+        return sig.clone();
+
+    }
 } // en of impl HyperLogLogSketch
 
 
@@ -658,6 +725,8 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         SketchAlgo::HLL
     }
 
+    // This funtions sketch a list of of Sequence and returns a Sketch vector for each one.
+    // In fact each sequence is a file that was concatenated in a sequence.
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync {
         //
@@ -707,6 +776,51 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         }
         jaccard_vec
     } // end of sketch_compressedkmer
+
+
+    // This function implement the sketching a File of Sequences, 
+    // The sequence are not concatenated, so we have many sequences. We dispatch sequences to sketch_compressedkmer_seqs_block
+    // by parallelizing and merge sketch Vector 
+    fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
+        where F : Fn(&Kmer) -> Kmer::Val + Send + Sync  {
+        //
+        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        // Now we will try to dispatch work. We use hll for large sequence (>= 10^7) otherwise we propably should use probminhash
+        const MIN_SIZE : usize = 10_000_000;
+        let total_size = vseq.iter().fold(0, |acc, s| acc + s.size() );
+        if total_size <= MIN_SIZE {
+            let sketch =  self.sketch_compressedkmer_seqs_block(vseq, fhash);
+            let mut v_sketch = Vec::<Vec<Self::Sig>>::new();
+            v_sketch.push(sketch);
+            return v_sketch;
+        }
+        // TODO : we must split work in equal parts.  At most 4 , we do not have so many threads 
+        let nb_blocks : usize = 4usize.min((total_size / MIN_SIZE).ilog10() as usize);
+        let block_size = total_size / nb_blocks;
+        log::debug!("total_size , block_size : {}", block_size);
+        let mut frontiers = Vec::<usize>::with_capacity(nb_blocks+1);
+        for i in 0..nb_blocks {
+            if i == 0 {
+                frontiers.push(0);
+            }
+            else {
+                frontiers.push(total_size.min(i * block_size));
+            }
+        }
+        frontiers.push(total_size);
+        //
+        let vsig : Vec<Vec<Self::Sig> > = (0..nb_blocks).into_iter().map(|i| self.sketch_compressedkmer_seqs_block(&vseq[frontiers[i]..frontiers[i+1]], &fhash)).collect();
+        // we allocate a sketcher that will contain the union. Signature is initialized to 0.
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut _setsketch : SetSketcher<S, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
+        // now we can merge signatures
+        for _sig in vsig {
+            
+        }
+        //
+        std::panic!("not yet implemented")
+    } // end of sketch_compressedkmer_seqs
+
 
 } // end of impl for HyperLogLogSketch
 
@@ -815,6 +929,17 @@ impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H>
         }
         jaccard_vec
     } // end of sketch_compressedkmer
+
+
+    // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
+    fn sketch_compressedkmer_seqs<F>(&self, _vseq : &Vec<&Sequence>, _fhash : F) -> Vec<Vec<Self::Sig> > {
+        //
+        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        //
+        std::panic!("not yet implemented")
+    } // end of sketch_compressedkmer_seqs
+
+
 } // end of SuperHash2Sketch
 
 

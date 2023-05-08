@@ -467,7 +467,7 @@ pub struct IterSequence<'a> {
     /// as it is encoded in sequence
     must_decode : bool,
     /// The function to use for decoding a a bit group to a u8 base
-    decoder : Box<dyn Fn(u8)->u8>,
+    decoder : Option<Box<dyn Fn(u8)->u8>>,
     /// The current byte numbered from 0 to seq.len() - 1
     byte : usize,
     /// The bit inside current byte numbered from 0 to 7
@@ -501,15 +501,18 @@ impl<'a> IterSequence<'a> {
             last_byte +=1;
             last_bit = seqarg.nb_bits_by_base() * (seqarg.size() % nb_bases_by_byte) as u8;
         }
-        if cfg!(feature = "verbose_1") {
-            println!("IterSequence constructor seq size last byte, last bit =  {} {} {} ", seqarg.size(), last_byte , last_bit);
-        }
+        log::trace!("IterSequence constructor seq size last byte, last bit =  {} {} {} ", seqarg.size(), last_byte , last_bit);
+        //
+        let decoder = match must_decode_arg {
+            true => Some(seqarg.get_decoder()),
+            _    => None,
+        };
         //
         IterSequence {
             myseq: seqarg,
             mask : mask,
             must_decode: must_decode_arg,
-            decoder: seqarg.get_decoder(),
+            decoder: decoder,
             byte:0,
             bit:0,
             last_byte: last_byte,
@@ -601,7 +604,7 @@ impl<'a> Iterator for IterSequence<'a> {
         }
         // return decoded or not
         match self.must_decode {          
-            true =>  { return Some((*(self.decoder))(base)); }
+            true =>  { return Some((*(self.decoder.as_ref().unwrap()))(base)); }
             false => { return Some(base); }
         }
     }  // end of next        
@@ -680,7 +683,7 @@ impl<'a> DoubleEndedIterator for IterSequence<'a> {
         // return decoded or not
 //        println!("next_back returning {}",  (*(self.decoder))(base) );
         match self.must_decode {          
-            true =>  { return Some((*(self.decoder))(base)); }
+            true =>  { return Some((*(self.decoder.as_ref().unwrap()))(base)); }
             false => { return Some(base); }
         }
     }  // end of next        
