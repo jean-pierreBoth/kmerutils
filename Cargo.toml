@@ -1,6 +1,6 @@
 [package]
 name = "kmerutils"
-version = "0.0.8"
+version = "0.0.9"
 authors = ["jeanpierre.both@gmail.com"]
 repository = "https://github.com/jean-pierreBoth/kmerutils"
 documentation = "https://docs.rs/kmerutils"
@@ -65,13 +65,13 @@ xdr-codec= {version = "0.2.5"}
 crossbeam = {version = "0.8"}
 
 parking_lot ={version="0.12"}
-rayon = {version = "1.6"}
+rayon = {version = "1.7"}
 num_cpus = {version = "1.13"}
 
 ndarray = {version = "0.15"}
 needletail = {version = "0.5"}
 wavelet-matrix = { version = "0.4.7"}
-clap = {version = "4.1"}
+clap = {version = "4.2"}
 
 #  for hashing 
 wyhash = {version = "0.5"}
