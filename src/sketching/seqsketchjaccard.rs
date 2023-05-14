@@ -1,8 +1,8 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
 //!    
-//! For long (many Gbytes) sequences and large Kmers consider using SuperMinHash algorithm ([SuperHashSketch]) that needs less memory
-//! (as it does not store Kmer multiplicity), or it try to split sequences into blocks, see module seqbloocksketch.
+//! For long (many Gbytes) sequences and large Kmers consider using SetSketcher ([HyperLogLogSketch]) or SuperMinHash algorithm ([SuperHashSketch]) that needs less memory
+//! (as it does not store Kmer multiplicity).
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
 //! and a jaccard weighted index between sequences is computed. See [Probminhash](https://crates.io/crates/probminhash)
@@ -12,8 +12,10 @@
 //! 
 //! 
 
-/* 
-    TODO:
+/* TODOS:
+    
+    - TODO:   in sketch_compressedkmer_seqs compute frontiers when sequences do not have equal length
+    - TODO:   In SuperMinHas::sketch_compressedkmer_seqs we could // with a mutex on setsketcher.
 
  */
 
@@ -631,7 +633,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
                     Kmer::Val : num::PrimInt + Send + Sync + Debug,
                     KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
-        log::debug!("entering  sketch_compressedkmer_seqs_block for HyperLogLogSketch");
+        log::debug!("entering  sketch_compressedkmer_seqs_block for SuperMinHashSketch");
         //
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         let mut setsketch : SuperMinHash<Self::Sig, Kmer::Val, NoHashHasher> = SuperMinHash::new(self.get_sketch_size(), bh);
@@ -837,21 +839,23 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         }
         // we must split work in equal parts.  At most 4 , we do not have so many threads. The threading must be treated at a higher level 
         // to correctly dispatch tasks.
-        let nb_blocks : usize = 4usize.min((total_size / MIN_SIZE).ilog10() as usize);
-        let block_size = total_size / nb_blocks;
+        let nb_sequences = vseq.len();
+        let nb_blocks : usize = 4usize.min((total_size / MIN_SIZE).ilog2() as usize);
+        let block_size = nb_sequences / nb_blocks;
         log::debug!("total_size , block_size : {}", block_size);
+        // TODO: compute frontiers when sequences do not have equal length
         let mut frontiers = Vec::<usize>::with_capacity(nb_blocks+1);
         for i in 0..nb_blocks {
             if i == 0 {
                 frontiers.push(0);
             }
             else {
-                frontiers.push(total_size.min(i * block_size));
+                frontiers.push(nb_sequences.min(i * block_size));
             }
         }
-        frontiers.push(total_size);
+        frontiers.push(nb_sequences);
         //
-        let v_sketch : Vec<SetSketcher<S, Kmer::Val, NoHashHasher> > = (0..nb_blocks).into_iter().map(|i| self.sketch_compressedkmer_seqs_block(&vseq[frontiers[i]..frontiers[i+1]], &fhash)).collect();
+        let v_sketch : Vec<SetSketcher<S, Kmer::Val, NoHashHasher> > = (0..nb_blocks).into_par_iter().map(|i| self.sketch_compressedkmer_seqs_block(&vseq[frontiers[i]..frontiers[i+1]], &fhash)).collect();
         // we allocate a sketcher that will contain the union. Signature is initialized to 0.
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         let mut setsketch : SetSketcher<S, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
