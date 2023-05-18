@@ -147,7 +147,7 @@ impl  Sequence {
                 let alfa4b = Alphabet4b::new();
                 let nb_full_bytes = if self.nb_bases_in_last_byte() > 0 { self.seq.len()-1 } else { self.seq.len() };
                 let seqlen = nb_full_bytes * (2 as usize) + self.nb_bases_in_last_byte() as usize;
-                println!("seqlen = {} ", seqlen);
+                log::trace!("seqlen = {} ", seqlen);
                 seqvec = (0..seqlen).map(|_| 0).collect();
                 // get a slice of 2 u8
                 let small_slice_ref : &mut [u8] = &mut [0;2]; //  slice of length initilized by 0
@@ -367,7 +367,7 @@ impl  Sequence {
         assert!(nb_bits == 2 || nb_bits == 4 || nb_bits == 8);
         //
         let alloc_len = 2 + (nb_base * nb_bits as usize) / 8;
-        log::debug!("Sequence with_capacity, nb bytes allocated : {}", alloc_len);
+        log::trace!("Sequence with_capacity, nb bytes allocated : {}", alloc_len);
         let vec: Vec<u8> = Vec::with_capacity(alloc_len);
         let description = [nb_bits, 0];
         Sequence{seq : vec, description}
