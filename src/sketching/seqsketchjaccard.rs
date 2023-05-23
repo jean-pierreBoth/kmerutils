@@ -143,8 +143,8 @@ pub trait SeqSketcherT<Kmer>
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
                     where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;
     /// This function implements the sketching a File of Sequences, 
-    /// (The sequence are not concatenated, so we have many sequences) and make one sketch Vector for the sequence collection.
-    /// It returns the same signature as sketch_compressedkmer for interface homogeneity (msg system for //) but
+    /// (The sequence are not concatenated, so we have many sequences) and make one sketch Vector for the sequence collection.  
+    /// It returns the same signature as sketch_compressedkmer for interface homogeneity (same msg system for //)
     /// but the returned vec has size 1!
     fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
                     where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;                
