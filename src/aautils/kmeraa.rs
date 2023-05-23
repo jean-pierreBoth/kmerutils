@@ -446,6 +446,17 @@ impl SequenceAA {
         }
     } // end of get_base
 
+    /// allocated a new sequence filtering out non valid bases
+    pub fn new_filtered(buf : &[u8], alphabet : &Alphabet) -> Self {
+        let nb_bases = buf.len();
+        let mut seq = Vec::<u8>::with_capacity(nb_bases);
+        for b in buf {
+            if alphabet.is_valid_base(*b) {
+                seq.push(*b);
+            }
+        }
+        SequenceAA{seq : seq.to_vec()}
+    }
 }  // end of SequenceAA
 
 
@@ -660,6 +671,15 @@ pub(super) fn get_nbkmer_guess(seq : &SequenceAA) -> usize {
     let nb_kmer = seq.len().min(nb);
     return nb_kmer;
 } // end of get_nbkmer_guess
+
+
+// We need a guess to allocate HashMap used with Kmer Generation
+// for vector of sequenc coming from a non concatnated file, we must avoid nb_kmer to sequence length! Find a  good heuristic
+pub(super) fn get_nbkmer_guess_seqs(vseq : &Vec<&SequenceAA>) -> usize {
+    let total_nb_base = vseq.iter().fold(0, |acc, seq | acc+seq.size());
+    let nb_kmer = 10_000_000 * (1usize + total_nb_base.ilog2() as usize);
+    nb_kmer
+}  // end of get_nbkmer_guess_seqs
 
 
 
