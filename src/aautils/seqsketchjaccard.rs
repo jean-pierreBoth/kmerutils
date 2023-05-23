@@ -66,6 +66,7 @@ pub trait SeqSketcherAAT<Kmer>
 
 
 // A structure providing ProbMinHash3a sketching for SequenceAA by implementing the generic trait SeqSketcherAAT<Kmer>
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct ProbHash3aSketch<Kmer> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -203,6 +204,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
 
 /// A structure providing SuperMinHash sketching for SequenceAA by implementing the generic trait SeqSketcherAAT\<Kmer\>.  
 ///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SuperHashSketch<Kmer, S : num::Float> {
     //
     _kmer_marker: PhantomData<Kmer>,
@@ -349,6 +351,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
 ///  The type argument S encodes for u16 or u32 but u16 should be sufficient for hyperloglog. 
 /// 
 
+#[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct HyperLogLogSketch<Kmer, S : num::Integer> {
     //
     params : SeqSketcherParams,
