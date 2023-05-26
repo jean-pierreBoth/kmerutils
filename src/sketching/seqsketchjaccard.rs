@@ -72,6 +72,15 @@ fn get_nbkmer_guess(seq : &Sequence) -> usize {
 
 
 
+// We need a guess to allocate HashMap used with Kmer Generation
+// for vector of sequenc coming from a non concatnated file, we must avoid nb_kmer to sequence length! Find a  good heuristic
+pub fn get_nbkmer_guess_seqs(vseq : &Vec<&Sequence>) -> usize {
+    let total_nb_base = vseq.iter().fold(0, |acc, seq | acc+seq.size());
+    let nb_kmer = 10_000_000 * (1usize + total_nb_base.ilog2() as usize);
+    nb_kmer
+}  // end of get_nbkmer_guess_seqs
+
+
 /// given 2 weighted set given as IndexMap, compute weighted jaccard index and return common objects if any or None
 pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, idxb: &IndexMap<D, f64, Hidx>, 
                                                         sketch_size : usize, return_object: bool)  -> (f64, Option<Vec<D>>)
@@ -513,12 +522,51 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
         jaccard_vec
     }
 
+
+
     // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
-    fn sketch_compressedkmer_seqs<F>(&self, _vseq : &Vec<&Sequence>, _fhash : F) -> Vec<Vec<Self::Sig> > {
+    fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
+        where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
         log::debug!("entering sketch_compressedkmer_seqs for ProHash3aSketch");
-        //        
-        std::panic!("not yet implemented")
+        //
+        // we must estimate nb kmer to avoid reallocation in FnvHashMap
+        let nb_kmer = get_nbkmer_guess_seqs(vseq);
+        //
+        let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        *wb.entry(hashval).or_insert(0) += 1;
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        let mut pminhashb : ProbMinHash3a<Kmer::Val, NoHashHasher> = ProbMinHash3a::<Kmer::Val,NoHashHasher>::new(self.get_sketch_size(),
+                    <Kmer::Val>::default());
+        //
+        pminhashb.hash_weigthed_hashmap(&wb);
+        let sigb = pminhashb.get_signature();
+        //
+        let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
+        v.push(sigb.clone());
+        //
+        return v;        
     } // end of sketch_compressedkmer_seqs
 
 }  // end of impl SeqSketcherT for ProHash3aSketch
@@ -633,7 +681,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
                     Kmer::Val : num::PrimInt + Send + Sync + Debug,
                     KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
-        log::debug!("entering  sketch_compressedkmer_seqs_block for SuperMinHashSketch");
+        log::debug!("entering  sketch_compressedkmer_seqs for SuperMinHashSketch");
         //
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         let mut setsketch : SuperMinHash<Self::Sig, Kmer::Val, NoHashHasher> = SuperMinHash::new(self.get_sketch_size(), bh);
