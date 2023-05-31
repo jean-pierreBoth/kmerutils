@@ -383,17 +383,17 @@ impl  Sequence {
     /// The argument alphabet must correspond to the number of bits / base declared in Sequence initialization
     pub fn encode_and_add(&mut self, to_add : &[u8], alphabet : & dyn  BaseCompress) {
         //
-//        log::trace!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
-//        log::trace!(" to_add : {:?}", to_add);
+        log::trace!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
+        log::trace!(" to_add : {:?}", to_add);
         //
         let nb_bits : usize =  self.nb_bits_by_base() as usize;
         // do we need to grow self.vec ?
-        if to_add.len() >=  (self.seq.capacity() - self.seq.len()) / nb_bits {
+        if to_add.len() >=  8 * (self.seq.capacity() - self.seq.len()) / nb_bits {
             // we allocate nb_bits times more what we need
-            let grow = 1 + (self.seq.capacity() - self.seq.len()) / nb_bits; 
-//            log::trace!("allocating nb new bytes : {:?}",  grow);
+            let grow = to_add.len() - 8 * (self.seq.capacity() - self.seq.len()) / nb_bits; 
+            log::trace!("allocating nb new bytes : {:?}",  grow);
             self.seq.try_reserve(grow).unwrap();
-//            log::trace!("encode_and_add  after growing,  len {}, allocated : {} ", self.seq.len(), self.seq.capacity());
+            log::trace!("encode_and_add  after growing,  len {}, allocated : {} ", self.seq.len(), self.seq.capacity());
         }
         let seqlen = self.seq.len();
         // do we have an incomplete byte in sequence ?
@@ -432,14 +432,17 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
     // nb_max will return the number of bases examined in to_add and so the amount of advance the caller will have to use in subsequent calls in to_add 
     let nb_max = ((8 / nb_bits - *already)).min(to_add.len());
     let mut shift = 0;
-    for i in 0..nb_max {
-        match to_add[i] as char {
+    let mut inserted = 0;
+    // special care for N and non ACTG. We must fill byte so we loop until byte is filled or we are at end of to_add! Nasty bug
+    while shift < to_add.len() && inserted < nb_max {
+        match to_add[shift] as char {
             'A' | 'C' | 'T' | 'G' => {
-                let encoded = alphabet.encode(to_add[i]);
-                log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[i] as char,encoded, byte);
+                let encoded = alphabet.encode(to_add[shift]);
+                log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[shift] as char,encoded, byte);
                 *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
-                log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[i] as char,encoded, byte);
+                log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[shift] as char,encoded, byte);
                 *already += 1;
+                inserted += 1;
             },
             _                     => {},
         };
@@ -984,6 +987,24 @@ mod tests {
     } // end of test_incremental_14b_seq_init
 
 
+    #[test]
+    fn test_encode_and_add_with_n() {
+        log_init_test();
+       // a 14 base sequence
+        let seqstr = String::from("TCNGCAGTTGGATCCC");
+        let to_add = seqstr.as_bytes();
+        let mut seq_tocheck = Sequence::with_capacity(2, 4);
+        //
+        let alpha2b = Alphabet2b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we compare with normal initialization, check also for last byte, last byte contains 3
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, String::from("TCGCAGTTGGATCCC"));
+    } // end of test_encode_and_add_with_n
+
+
+
 
     #[test]
     fn test_incremental_alpha2_15bases_seq_init() {
@@ -1001,6 +1022,7 @@ mod tests {
         let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
         assert_eq!(restored_str, seqstr);
         assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 3);
+        assert_eq!(seq_tocheck.size(), seqstr.len());
         // now we test adding once more ...
         let seqstr2 = String::from("AAAGG");
         let to_add = seqstr2.as_bytes();
@@ -1008,6 +1030,7 @@ mod tests {
         // we add 5 bases we get a 20 base sequence, the last byte is full
         log::info!("adding {:?}", seqstr2);
         assert_eq!(seq_tocheck.nb_bases_in_last_byte(), 0);
+        assert_eq!(seq_tocheck.size(), seqstr.len() + seqstr2.len() );
         let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
         seqstr.push_str(&seqstr2);
         assert_eq!(restored_str, seqstr);

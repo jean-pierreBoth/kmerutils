@@ -499,8 +499,9 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
         log::debug!("entering  sketch_compressedkmeraa_seqs for AA setskecth");
         // Now we will try to dispatch work. We use hll for large sequence (>= 10^7) otherwise we propably should use probminhash
         const MIN_SIZE : usize = 10_000_000;
+        const BASE_LOG : usize = 3;
         let total_size = vseq.iter().fold(0, |acc, s| acc + s.size() );
-        if total_size <= 2 * MIN_SIZE {
+        if total_size <= BASE_LOG * MIN_SIZE {
             let sketch =  self.sketch_compressedkmer_seqs_block(vseq, fhash);
             let mut v_sketch = Vec::<Vec<Self::Sig>>::new();
             v_sketch.push(sketch.get_signature().clone());
@@ -510,7 +511,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
         // to correctly dispatch tasks.
         let nb_sequences = vseq.len();
         // we are sure that nb_blocks will be greater than 1.
-        let nb_blocks : usize = 4usize.min((total_size / MIN_SIZE).ilog2() as usize);
+        let nb_blocks : usize = 5usize.min((total_size / MIN_SIZE).ilog(BASE_LOG) as usize);
         let block_size = nb_sequences / nb_blocks;
         log::debug!("total_size , block_size : {}", block_size);
         // TODO: compute frontiers when sequences do not have equal length
