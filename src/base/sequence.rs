@@ -410,8 +410,18 @@ impl  Sequence {
         // and we possibly fill an incomplete byte at end.
         while nb_scanned < to_add.len() {
             to_encode = 0;
+            already = 0;
             nb_scanned += update_byte(&mut to_encode, &mut already, alphabet, &to_add[nb_scanned..]);
-            self.seq.push(to_encode);
+            if already > 0 {
+                // we push only if sthing was inserted.
+                // (ex : if a bad base arrive at beginning of byte and at end of record we must not push the byte
+                self.seq.push(to_encode);
+                // and if byte is full we reset already
+                if already == (8/nb_bits) {  // if byte is full we reset to 0
+                    already = 0;
+                }
+            }
+
         }
         // now we must reset correct info in self.description to know how many bases we have in possibly incomplete last byte
         self.description[1] = already as u8;
@@ -424,14 +434,14 @@ impl  Sequence {
 
 
 // update a byte which has inside already base in it, encoding is done by alphabet
-// return number of base in examined in to_add.
+// return (number of base in examined in to_add, nb_inserted in byte)
 #[inline]
 fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompress, to_add : &[u8]) -> usize {
     let nb_bits = alphabet.get_nb_bits() as usize;
     // the number of base we can add is the number of bases in to_add limited by left space in byte
     // nb_max will return the number of bases examined in to_add and so the amount of advance the caller will have to use in subsequent calls in to_add 
     let nb_max = ((8 / nb_bits - *already)).min(to_add.len());
-    let mut shift = 0;
+    let mut shift = 0usize;
     let mut inserted = 0;
     // special care for N and non ACTG. We must fill byte so we loop until byte is filled or we are at end of to_add! Nasty bug
     while shift < to_add.len() && inserted < nb_max {
@@ -447,9 +457,6 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
             _                     => {},
         };
         shift += 1;
-    }
-    if *already == (8/nb_bits) {  // if byte is full we reset to 0
-        *already = 0;
     }
     return shift;
 } // end of update_byte
