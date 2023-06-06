@@ -519,6 +519,7 @@ impl <Kmer> SeqSketcherT<Kmer> for ProbHash3aSketch<Kmer>
             let slot = sig_with_rank[i].0;
             jaccard_vec[slot] = sig_with_rank[i].1.clone();
         }
+        log::debug!("exiting sketch_probminhash3a_compressedkmer");
         jaccard_vec
     }
 
@@ -921,6 +922,8 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         let sig = setsketch.get_signature();
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
         v.push(sig.clone());
+        //
+        log::debug!("exiting sketch_compressedkmer_seqs for HyperLogLogSketch");
         //
         return v;
     } // end of sketch_compressedkmer_seqs

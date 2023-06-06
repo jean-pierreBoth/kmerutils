@@ -771,44 +771,44 @@ mod tests {
     fn get_weighted_kmer32bit_3bases_res() -> FnvHashMap::<Vec<u8> ,u32> {
         //
         let mut k_count : FnvHashMap::<Vec<u8> ,u32> = FnvHashMap::with_capacity_and_hasher(50, FnvBuildHasher::default());
-        k_count.insert(Box::<[u8;3]>::new([84, 67, 65]).to_vec() , 4);
-        k_count.insert(Box::<[u8;3]>::new([67, 65, 65]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([65, 65, 65]).to_vec() , 4);
-        k_count.insert(Box::<[u8;3]>::new([65, 65, 71]).to_vec() , 1);
+        k_count.insert([84, 67, 65].to_vec() , 4);
+        k_count.insert([67, 65, 65].to_vec() , 2);
+        k_count.insert([65, 65, 65].to_vec() , 4);
+        k_count.insert([65, 65, 71].to_vec() , 1);
 
-        k_count.insert(Box::<[u8;3]>::new([65, 71, 71]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([71, 71, 71]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([71, 71, 65]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([71, 65, 65]).to_vec() , 1);
+        k_count.insert([65, 71, 71].to_vec() , 1);
+        k_count.insert([71, 71, 71].to_vec() , 1);
+        k_count.insert([71, 71, 65].to_vec() , 1);
+        k_count.insert([71, 65, 65].to_vec() , 1);
 
-        k_count.insert(Box::<[u8;3]>::new([65, 65, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([65, 67, 65]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([67, 65, 84]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([65, 84, 84]).to_vec() , 2);
+        k_count.insert([65, 65, 67].to_vec() , 1);
+        k_count.insert([65, 67, 65].to_vec() , 1);
+        k_count.insert([67, 65, 84].to_vec() , 1);
+        k_count.insert([65, 84, 84].to_vec() , 2);
 
-        k_count.insert(Box::<[u8;3]>::new([84, 84, 67]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([65, 65, 84]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([65, 84, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([67, 65, 71]).to_vec() , 2);
+        k_count.insert([84, 84, 67].to_vec() , 2);
+        k_count.insert([65, 65, 84].to_vec() , 1);
+        k_count.insert([65, 84, 67].to_vec() , 1);
+        k_count.insert([67, 65, 71].to_vec() , 2);
 
-        k_count.insert(Box::<[u8;3]>::new([65, 71, 84]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([71, 84, 65]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([84, 65, 84]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([65, 84, 71]).to_vec() , 1);
+        k_count.insert([65, 71, 84].to_vec() , 2);
+        k_count.insert([71, 84, 65].to_vec() , 2);
+        k_count.insert([84, 65, 84].to_vec() , 2);
+        k_count.insert([65, 84, 71].to_vec() , 1);
         
-        k_count.insert(Box::<[u8;3]>::new([84, 71, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([71, 67, 71]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([67, 71, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([71, 67, 67]).to_vec() , 1);
+        k_count.insert([84, 71, 67].to_vec() , 1);
+        k_count.insert([71, 67, 71].to_vec() , 1);
+        k_count.insert([67, 71, 67].to_vec() , 1);
+        k_count.insert([71, 67, 67].to_vec() , 1);
 
-        k_count.insert(Box::<[u8;3]>::new([67, 67, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([67, 67, 71]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([67, 71, 84]).to_vec() , 2);
-        k_count.insert(Box::<[u8;3]>::new([71, 84, 84]).to_vec() , 2);
+        k_count.insert([67, 67, 67].to_vec() , 1);
+        k_count.insert([67, 67, 71].to_vec() , 1);
+        k_count.insert([67, 71, 84].to_vec() , 2);
+        k_count.insert([71, 84, 84].to_vec() , 2);
 
-        k_count.insert(Box::<[u8;3]>::new([84, 84, 65]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([84, 65, 67]).to_vec() , 1);
-        k_count.insert(Box::<[u8;3]>::new([65, 67, 71]).to_vec() , 1);
+        k_count.insert([84, 84, 65].to_vec() , 1);
+        k_count.insert([84, 65, 67].to_vec() , 1);
+        k_count.insert([65, 67, 71].to_vec() , 1);
 
         return k_count;
     } // end of get_weighted_kmer32bit_res
