@@ -15,6 +15,7 @@
 /* TODOS:
     
     - TODO:   in sketch_compressedkmer_seqs compute frontiers when sequences do not have equal length
+    - TODO:    in sketch_compressedkmer_seqs , HllSeqThreqding must be accessible to final user (for us gsearch)
     - TODO:   In SuperMinHas::sketch_compressedkmer_seqs we could // with a mutex on setsketcher.
 
  */
@@ -146,13 +147,13 @@ pub trait SeqSketcherT<Kmer>
     fn get_sketch_size(&self) -> usize;
     //
     fn get_algo(&self) -> SketchAlgo;
-    /// This function receive a vector of concatenated sequences and returns for each sequence a sketch.
-    /// So the function returns a vector of Sketches.
+    /// This function receive a vector of (possibly concatenated) sequences and returns for each sequence a sketch.  
+    /// The function returns a vector of Sketches (one for each sequence).
     /// F is a hashing function (possibly just extracting Kmer::Val) to apply to kmer before sending to sketcher.
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
                     where F : Fn(&Kmer) -> Kmer::Val + Send + Sync;
-    /// This function implements the sketching a File of Sequences, 
-    /// (The sequence are not concatenated, so we have many sequences) and make one sketch Vector for the sequence collection.  
+    /// This function implements the sketching a file of Sequences, 
+    /// (The sequence are not concatenated, so we have many sequences) and make one sketch Vector for the sequence collection (for the file).  
     /// It returns the same signature as sketch_compressedkmer for interface homogeneity (same msg system for //)
     /// but the returned vec has size 1!
     fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> > 
@@ -724,13 +725,42 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
 
 //=====================================================================================
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+struct HllSeqsThreading {
+    /// number of threads in iterator
+    nb_iter_thread : usize,
+    /// number of bases above which we use threading in // iterators
+    thread_threshold : usize,
+}
+
+
+impl  HllSeqsThreading {
+    pub fn get_nb_iter_threads(&self) -> usize {
+        self.nb_iter_thread
+    }
+    //
+    pub fn get_thread_threshold(&self) -> usize {
+        self.thread_threshold
+    }
+} // end impl HllSeqsThreading
+
+
+impl Default for HllSeqsThreading {
+    fn default() -> Self {
+        HllSeqsThreading{ nb_iter_thread : 4, thread_threshold : 10_000_000}
+    }
+}
+
 //
 ///  A structure providing SetSketcher (HyperLogLog) sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 ///  The type argument S encodes for u16 , u32 or u64 as the SetSketcher can sketch to u16,  u32 or u64
 /// 
-/// 
-
-// TODO : sketch size in both arguments!
+///  Currently HyperLogLogSketch uses rayon parallel iterator in sketch_compressedkmer_seqs to dispatch
+///  the sketching of sequences into threads and the use a merge strategy.  
+///  **Now the number of internal thtreads is hardcoded and goes up to 4 as the number of sequences increases above 10_000_000**.  
+///  **The number of threads is defined by (nb_bases / 10_000_000).ilog(3).max(4).min(1)**
+///  so for more than 800_000_000 parallel iterator will consume 4 threads.
+///  This is to be taken into account if the caller use also multithreading.  
 
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
@@ -738,6 +768,8 @@ pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
     params : SeqSketcherParams,
     // this sketcher needs its particular parameters
     hll_params : SetSketchParams,
+    //
+    hll_threads : HllSeqsThreading,
     //
     _kmer_marker: PhantomData<Kmer>,
     //
@@ -748,7 +780,8 @@ pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
 
 impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
     pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams) -> Self {
-        HyperLogLogSketch{params : seq_params.clone(), hll_params, _kmer_marker : PhantomData, _sig_marker: PhantomData}
+        HyperLogLogSketch{params : seq_params.clone(), hll_params, hll_threads : HllSeqsThreading::default(), 
+                _kmer_marker :  PhantomData, _sig_marker: PhantomData}
     }
 
     // building block for sketch_compressedkmer_seqs. sketch a list of sequence and return a sketch to merge!
@@ -759,7 +792,7 @@ impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
                     KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
                     S : Integer + Bounded + Copy + Clone + FromPrimitive + ToPrimitive + Send + Sync + Debug + Serialize {
         //
-        log::debug!("entering  sketch_compressedkmer_seqs_block for HyperLogLogSketch");
+        log::trace!("entering  sketch_compressedkmer_seqs_block for HyperLogLogSketch");
         //
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         let mut setsketch : SetSketcher<S, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
@@ -878,10 +911,10 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         //
         log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
         // Now we will try to dispatch work. We use hll for large sequence (>= 10^7) otherwise we propably should use probminhash
-        const MIN_SIZE : usize = 10_000_000;
+        let thread_threshold = self.hll_threads.get_thread_threshold();
         const BASE_LOG : usize = 3;
         let total_size = vseq.iter().fold(0, |acc, s| acc + s.size() );
-        if total_size <= BASE_LOG * MIN_SIZE {
+        if total_size <= BASE_LOG * thread_threshold {
             let sketch =  self.sketch_compressedkmer_seqs_block(vseq, fhash);
             let mut v_sketch = Vec::<Vec<Self::Sig>>::new();
             v_sketch.push(sketch.get_signature().clone());
@@ -891,9 +924,11 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         // to correctly dispatch tasks.
         let nb_sequences = vseq.len();
         // now we are sure that nb_blocks is >= 1 !!! 
-        let nb_blocks : usize = 5usize.min((total_size / MIN_SIZE).ilog(BASE_LOG) as usize);
-        let block_size = nb_sequences / nb_blocks;
-        log::debug!("total_size , block_size : {}", block_size);
+        let nb_thread_max = self.hll_threads.get_nb_iter_threads();
+        let nb_blocks : usize = nb_thread_max.min((total_size / thread_threshold).ilog(BASE_LOG) as usize);
+        // we want blocks to be the same size as far as possible
+        let block_size = (nb_sequences as f64 / nb_blocks as f64).round() as usize;
+        log::debug!("nb_base : {}, nb_seq {}, block_size (nb_seq/thread): {}, nb_blocks : {}", total_size, nb_sequences, block_size, nb_blocks);
         // TODO: compute frontiers when sequences do not have equal length
         let mut frontiers = Vec::<usize>::with_capacity(nb_blocks+1);
         for i in 0..nb_blocks {
