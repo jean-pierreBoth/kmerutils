@@ -726,7 +726,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
 //=====================================================================================
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-struct HllSeqsThreading {
+pub struct HllSeqsThreading {
     /// number of threads in iterator
     nb_iter_thread : usize,
     /// number of bases above which we use threading in // iterators
@@ -735,10 +735,16 @@ struct HllSeqsThreading {
 
 
 impl  HllSeqsThreading {
+    pub fn new(nb_iter_thread : usize, thread_threshold : usize) -> Self {
+        HllSeqsThreading{nb_iter_thread, thread_threshold}
+    }
+
+    // returns the number of intern iterator threads
     pub fn get_nb_iter_threads(&self) -> usize {
         self.nb_iter_thread
     }
-    //
+
+    // return the number of base (in a list of sequences) above wich the is threading)
     pub fn get_thread_threshold(&self) -> usize {
         self.thread_threshold
     }
@@ -779,8 +785,8 @@ pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
 
 
 impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
-    pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams) -> Self {
-        HyperLogLogSketch{params : seq_params.clone(), hll_params, hll_threads : HllSeqsThreading::default(), 
+    pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams, hll_threads : HllSeqsThreading) -> Self {
+        HyperLogLogSketch{params : seq_params.clone(), hll_params, hll_threads, 
                 _kmer_marker :  PhantomData, _sig_marker: PhantomData}
     }
 
