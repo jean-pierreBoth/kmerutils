@@ -5,3 +5,5 @@ pub mod seqsketchjaccard;
 pub mod seqblocksketch;
 pub mod seqminhash;
 
+pub mod nbkmerguess;
+pub mod setsketchert;
