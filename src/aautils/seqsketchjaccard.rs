@@ -347,9 +347,51 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
 //=========================================================================================================================
 
 
+
+
+/// Defines the maximum number of threads to use in // iteratos in [HyperLogLogSketch]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct HllSeqsThreading {
+    /// max number of threads in iterator
+    nb_iter_thread : usize,
+    /// number of bases above which we use threading in // iterators
+    thread_threshold : usize,
+}
+
+
+impl  HllSeqsThreading {
+    pub fn new(nb_iter_thread : usize, thread_threshold : usize) -> Self {
+        HllSeqsThreading{nb_iter_thread, thread_threshold}
+    }
+
+    // returns the number of intern iterator threads
+    pub fn get_nb_iter_threads(&self) -> usize {
+        self.nb_iter_thread
+    }
+
+    // return the number of base (in a list of sequences) above wich the is threading)
+    pub fn get_thread_threshold(&self) -> usize {
+        self.thread_threshold
+    }
+} // end impl HllSeqsThreading
+
+
+impl Default for HllSeqsThreading {
+    fn default() -> Self {
+        HllSeqsThreading{ nb_iter_thread : 4, thread_threshold : 10_000_000}
+    }
+}
+
+//===========================================
+
 /// A structure providing HyperLogLog sketching for SequenceAA by implementing the generic trait SeqSketcherAAT\<Kmer\>.  
 ///  The type argument S encodes for u16 or u32 but u16 should be sufficient for hyperloglog. 
+///  Currently HyperLogLogSketch uses rayon parallel iterator in sketch_compressedkmer_seqs to dispatch
+///  the sketching of sequences into threads and the use a merge strategy.  
 /// 
+///  **The number of internal thtreads can be bounded by the structure HllSeqsThreading which defines the maximum number of threads blocks in // iterator**.   
+///  **The number of threads is defined by (nb_bases/thread_threshold).ilog(3).min(HllSeqsThreading::nb_iter_thread).max(1).**  
+///  This is useful if the caller use also multithreading.  
 
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct HyperLogLogSketch<Kmer, S : num::Integer> {
@@ -357,6 +399,8 @@ pub struct HyperLogLogSketch<Kmer, S : num::Integer> {
     params : SeqSketcherParams,
     // this sketcher needs its particular parameters
     hll_params : SetSketchParams,
+    //
+    hll_threads : HllSeqsThreading,
     //
     _kmer_marker: PhantomData<Kmer>,
     //
@@ -366,8 +410,8 @@ pub struct HyperLogLogSketch<Kmer, S : num::Integer> {
 
 
 impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
-    pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams) -> Self {
-        HyperLogLogSketch{params : seq_params.clone(), hll_params, _kmer_marker : PhantomData, _sig_marker: PhantomData}
+    pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams, hll_threads : HllSeqsThreading) -> Self {
+        HyperLogLogSketch{params : seq_params.clone(), hll_params, hll_threads, _kmer_marker : PhantomData, _sig_marker: PhantomData}
     }
 
         // building block for sketch_compressedkmer_seqs. sketch a list of sequence and return a sketch to merge!
@@ -498,10 +542,10 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
         //
         log::debug!("entering  sketch_compressedkmeraa_seqs for AA setskecth");
         // Now we will try to dispatch work. We use hll for large sequence (>= 10^7) otherwise we propably should use probminhash
-        const MIN_SIZE : usize = 10_000_000;
+        let thread_threshold = self.hll_threads.get_thread_threshold();
         const BASE_LOG : usize = 3;
         let total_size = vseq.iter().fold(0, |acc, s| acc + s.size() );
-        if total_size <= BASE_LOG * MIN_SIZE {
+        if total_size <= BASE_LOG * thread_threshold {
             let sketch =  self.sketch_compressedkmer_seqs_block(vseq, fhash);
             let mut v_sketch = Vec::<Vec<Self::Sig>>::new();
             v_sketch.push(sketch.get_signature().clone());
@@ -511,7 +555,8 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
         // to correctly dispatch tasks.
         let nb_sequences = vseq.len();
         // we are sure that nb_blocks will be greater than 1.
-        let nb_blocks : usize = 5usize.min((total_size / MIN_SIZE).ilog(BASE_LOG) as usize);
+        let nb_thread_max = self.hll_threads.get_nb_iter_threads();
+        let nb_blocks : usize = nb_thread_max.min((total_size / thread_threshold).ilog(BASE_LOG) as usize).max(1);
         let block_size = nb_sequences / nb_blocks;
         log::debug!("total_size , block_size : {}", block_size);
         // TODO: compute frontiers when sequences do not have equal length

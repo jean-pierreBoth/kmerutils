@@ -725,9 +725,10 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
 
 //=====================================================================================
 
+/// Defines the maximum number of threads to use in // iteratos in [HyperLogLogSketch]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct HllSeqsThreading {
-    /// number of threads in iterator
+    /// max number of threads in iterator
     nb_iter_thread : usize,
     /// number of bases above which we use threading in // iterators
     thread_threshold : usize,
@@ -763,10 +764,9 @@ impl Default for HllSeqsThreading {
 /// 
 ///  Currently HyperLogLogSketch uses rayon parallel iterator in sketch_compressedkmer_seqs to dispatch
 ///  the sketching of sequences into threads and the use a merge strategy.  
-///  **Now the number of internal thtreads is hardcoded and goes up to 4 as the number of sequences increases above 10_000_000**.  
-///  **The number of threads is defined by (nb_bases / 10_000_000).ilog(3).max(4).min(1)**
-///  so for more than 800_000_000 parallel iterator will consume 4 threads.
-///  This is to be taken into account if the caller use also multithreading.  
+///  **The number of internal thtreads can be bounded by the structure HllSeqsThreading which defines the maximum number of threads blocks in // iterator**.   
+///  **The number of threads is defined by (nb_bases/thread_threshold).ilog(3).min(HllSeqsThreading::nb_iter_thread).max(1).**  
+///  This is useful if the caller use also multithreading.  
 
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct HyperLogLogSketch<Kmer, S: num::Integer> {
