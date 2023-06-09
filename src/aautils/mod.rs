@@ -3,4 +3,4 @@
 
 pub mod kmeraa;
 
-pub mod seqsketchjaccard;
+pub mod setsketchert;

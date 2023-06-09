@@ -14,9 +14,6 @@
 
 /* TODOS:
     
-    - TODO:   in sketch_compressedkmer_seqs compute frontiers when sequences do not have equal length
-    - TODO:    in sketch_compressedkmer_seqs , HllSeqThreqding must be accessible to final user (for us gsearch)
-    - TODO:   In SuperMinHas::sketch_compressedkmer_seqs we could // with a mutex on setsketcher.
 
  */
 
