@@ -1,4 +1,4 @@
-/// module defining trait SeqSketcherT and implementers
+//! module defining trait SeqSketcherT and implementers for probminhash3a and hyperloglog skecther
 
 /* 
 - TODO:   in sketch_compressedkmer_seqs compute frontiers when sequences do not have equal length

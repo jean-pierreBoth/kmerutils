@@ -1,7 +1,7 @@
 //! This module provides sequence signature computation and Jaccard probability index using the probminhash crate.  
 //! The Jaccard probability index is a Jaccard index between sequences taking into account multiplicity of kmers. 
 //!    
-//! For long (many Gbytes) sequences and large Kmers consider using SetSketcher ([HyperLogLogSketch]) or SuperMinHash algorithm ([SuperHashSketch]) that needs less memory
+//! For long (many Gbytes) sequences and large Kmers consider using SetSketcherT ([super::setsketchert::HyperLogLogSketch]) or SuperMinHash algorithm ([super::setsketchert::SuperHashSketch]) that needs less memory
 //! (as it does not store Kmer multiplicity).
 //! 
 //! The kmers of a given size are generated for each sequence, kmers lists are hashed by the probminhash algorithm 
