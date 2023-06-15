@@ -440,7 +440,9 @@ impl SequenceAA {
     pub fn get_base(&self, pos : usize) -> u8 {
         if pos >= self.seq.len() {
             log::error!("\n pos : {}", pos);
-            log::error!("\n sequence is : {:?} \n", self.seq);
+            log::error!("\n sequence(bytes) is : {:?} \n", self.seq);
+            let str = String::from_utf8(self.seq.clone()).unwrap();
+            log::error!("\n sequence(ascii) is  : {:?} \n", str);
             panic!("base position after end of sequence");
         }
         else {
