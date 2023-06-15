@@ -584,13 +584,15 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         let mut setsketch : SetSketcher<S, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
         // now we can merge signatures
-        for sketch in v_sketch {
+        for sketch in &v_sketch {
             let res = setsketch.merge(&sketch);
             if res.is_err() {
                 log::error!("an error occurred in merging signatures");
                 std::panic!("an error occurred in merging signatures");
             }
         }
+        //
+        drop(v_sketch);
         //
         let sig = setsketch.get_signature();
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
@@ -603,6 +605,53 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
 
 
 } // end of impl for HyperLogLogSketch
+
+
+// TODO: use an optimization solution instead of naive ordering base (as we can permut if vec<&Sequence> is mutable)
+/// contiguously group blocks of size blocks_size so that each group as approximatively equal size
+/// returns frontiers so that group i has in itself blocks index in range [frontiers[i]..frontiers[i+1] [
+/// so that last frontier must be equal to blocks_size.len()
+pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
+    //
+    log::trace!("blocks_size : {:?}", blocks_size);
+    //
+    let total_size = blocks_size.iter().fold(0, |acc, s | acc + s);
+    let equal_group = (total_size as f64 / nbgroup as f64).round() as i64;
+    log::trace!("equal_group : {}", equal_group);
+    let mut frontiers = Vec::with_capacity(nbgroup + 1);
+    //
+    frontiers.push(0);
+    let nb_blocks = blocks_size.len();
+    //
+    let mut b = 0;
+    let mut current_group_sum : i64 = 0;
+    //
+    while b < nb_blocks {
+        if current_group_sum <= equal_group {
+            // block is in current group, we go on
+            current_group_sum += blocks_size[b] as i64;
+            b = b + 1;
+        }
+        else { // current_group_sum > equal_group
+            let next_gap = current_group_sum + blocks_size[b] as i64 - equal_group;
+            if  next_gap.abs() < equal_group - current_group_sum {
+                // we have interest to put b in current group even if we have a little excess over equal_group, 
+                // but group is finished. Next else will begin another group
+                current_group_sum += blocks_size[b] as i64;
+                b = b + 1;
+            }
+            frontiers.push(b);
+            let start: usize = frontiers[frontiers.len() - 2];
+            let end : usize = frontiers[frontiers.len() - 1];
+            log::trace!("cloded group , [start : {}, end : {}[, group sum : {}", start , end, current_group_sum);
+            current_group_sum = 0;
+        }   
+    } // end while
+    assert_eq!(frontiers[frontiers.len() - 1], blocks_size.len());
+    //
+    return frontiers;
+} // equal_groups
+
 
 
 
@@ -722,3 +771,44 @@ impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H>
 
 } // end of SuperHash2Sketch
 
+
+#[cfg(test)]
+mod tests {
+    use rand::thread_rng;
+
+    use super::*;
+    use rand_distr::{Distribution, Uniform};
+
+    #[allow(dead_code)]
+    fn log_init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    #[test]
+    fn test_equal_groups() {
+        //
+        log_init();
+        //
+        let mut rng = thread_rng();
+        // generate random blocks
+        let nb_test = 10;
+
+        for test in 0..nb_test {
+            // generate size
+            let nb_blocks = 1000;
+            let nb_groups = nb_blocks / 10;
+            let between = Uniform::from(std::ops::Range{start : 0, end : nb_blocks});        
+            let blocks_size = (0..nb_blocks).into_iter().map(|_| between.sample(&mut rng)).collect::<Vec<usize>>();
+            let frontiers = make_equal_groups(&blocks_size, nb_groups);
+            log::info!(" test_eqal_groups. test n° : {}",test);
+            // check partial sums
+            for i in 0..frontiers.len() -1 {
+                let start = frontiers[i];
+                let end = frontiers[i+1]-1;
+                let block_sum : usize = blocks_size[start..end].iter().sum();
+                log::info!("block : {}, start : {}, end : {}, sum : {}", i, start, end, block_sum);
+            }
+            //
+        }
+    }  // end of test_eqal_groups
+} // end of mod test
