@@ -439,6 +439,8 @@ impl SequenceAA {
 
     pub fn get_base(&self, pos : usize) -> u8 {
         if pos >= self.seq.len() {
+            log::error!("\n pos : {}", pos);
+            log::error!("\n sequence is : {:?} \n", self.seq);
             panic!("base position after end of sequence");
         }
         else {
