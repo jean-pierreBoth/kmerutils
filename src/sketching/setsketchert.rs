@@ -637,17 +637,20 @@ pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
             if  next_gap.abs() < equal_group - current_group_sum {
                 // we have interest to put b in current group even if we have a little excess over equal_group, 
                 // but group is finished. Next else will begin another group
-                current_group_sum += blocks_size[b] as i64;
-                b = b + 1;
+                frontiers.push(b+1);
             }
-            frontiers.push(b);
+            else {
+                frontiers.push(b);
+            }
+            b = b + 1;
             let start: usize = frontiers[frontiers.len() - 2];
             let end : usize = frontiers[frontiers.len() - 1];
-            log::trace!("cloded group , [start : {}, end : {}[, group sum : {}", start , end, current_group_sum);
+            log::trace!("cloded group , [start : {}, end : {}[", start , end);
             current_group_sum = 0;
         }   
     } // end while
-    assert_eq!(frontiers[frontiers.len() - 1], blocks_size.len());
+    // last block is residual and can be less important than preceding
+    frontiers.push(blocks_size.len());
     //
     return frontiers;
 } // equal_groups
@@ -795,16 +798,19 @@ mod tests {
 
         for test in 0..nb_test {
             // generate size
-            let nb_blocks = 1000;
-            let nb_groups = nb_blocks / 10;
-            let between = Uniform::from(std::ops::Range{start : 0, end : nb_blocks});        
-            let blocks_size = (0..nb_blocks).into_iter().map(|_| between.sample(&mut rng)).collect::<Vec<usize>>();
+            let maxval = 100;
+            let nbval = 100;
+            let groupsize = 10;
+            let nb_groups = nbval / groupsize;
+            let groupmean = groupsize * maxval / 2;
+            let between = Uniform::from(std::ops::Range{start : 0, end : maxval});        
+            let blocks_size = (0..nbval).into_iter().map(|_| between.sample(&mut rng)).collect::<Vec<usize>>();
             let frontiers = make_equal_groups(&blocks_size, nb_groups);
-            log::info!(" test_eqal_groups. test n° : {}",test);
+            log::info!(" test_eqal_groups. test n° : {}, groupmean : {}",test, groupmean);
             // check partial sums
             for i in 0..frontiers.len() -1 {
                 let start = frontiers[i];
-                let end = frontiers[i+1]-1;
+                let end = frontiers[i+1] -1 ;
                 let block_sum : usize = blocks_size[start..end].iter().sum();
                 log::info!("block : {}, start : {}, end : {}, sum : {}", i, start, end, block_sum);
             }
