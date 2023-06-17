@@ -518,9 +518,11 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             }  // end loop 
-            let sigb = setsketch.get_signature();
+            let sigb = setsketch.get_signature().clone();
+            // closure in function in // iter, we drop explicitly
+            drop(setsketch);
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            return (i,sigb);
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -553,9 +555,11 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         const BASE_LOG : usize = 3;
         let total_size = vseq.iter().fold(0, |acc, s| acc + s.size() );
         if total_size <= BASE_LOG * thread_threshold {
+            log::debug!("  calling directly sketch_compressedkmer_seqs_block, total size : {}", total_size);
             let sketch =  self.sketch_compressedkmer_seqs_block(vseq, fhash);
-            let mut v_sketch = Vec::<Vec<Self::Sig>>::new();
+            let mut v_sketch = Vec::<Vec<Self::Sig>>::with_capacity(1);
             v_sketch.push(sketch.get_signature().clone());
+            drop(sketch);
             return v_sketch;
         }
         // we must split work in equal parts.  A few threads , we do not have so many threads. The threading must be treated at a higher level 
@@ -592,11 +596,11 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
             }
         }
         //
+        let sig = setsketch.get_signature().clone();
         drop(v_sketch);
-        //
-        let sig = setsketch.get_signature();
+        drop(setsketch);
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
-        v.push(sig.clone());
+        v.push(sig);
         //
         log::debug!("exiting sketch_compressedkmer_seqs for HyperLogLogSketch");
         //

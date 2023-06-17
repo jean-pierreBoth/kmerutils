@@ -551,6 +551,10 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
                 log::trace!("iterator exiting at base pos {} range.end {} ", self.base_position, self.range.end);
                 return None;
             }
+            // check for too small seq
+            if self.sequence.len() < self.nb_base as usize {
+                return None;
+            }
             // now we know we are not at end of iterator
             // if we do not have a previous we have to contruct first kmer
             // we have to push a base.
