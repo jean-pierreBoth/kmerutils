@@ -685,7 +685,7 @@ pub(super) fn get_nbkmer_guess(seq : &SequenceAA) -> usize {
 // for vector of sequenc coming from a non concatnated file, we must avoid nb_kmer to sequence length! Find a  good heuristic
 pub(super) fn get_nbkmer_guess_seqs(vseq : &Vec<&SequenceAA>) -> usize {
     let total_nb_base = vseq.iter().fold(0, |acc, seq | acc+seq.size());
-    let nb_kmer = 10_000_000 * (1usize + total_nb_base.ilog2() as usize);
+    let nb_kmer = total_nb_base.min(10_000_000 * (1usize + total_nb_base.ilog2() as usize));
     nb_kmer
 }  // end of get_nbkmer_guess_seqs
 
