@@ -641,8 +641,6 @@ impl <Kmer, S :  Integer  + Unsigned,  H : Hasher + Default> SuperHash2Sketch<Km
     }
 
 } // end of impl ProbHash3aSketch
-
-
 #[cfg(feature="sminhash2")]
 impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
@@ -719,13 +717,49 @@ impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H>
     } // end of sketch_compressedkmer
 
 
-    // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector 
-    fn sketch_compressedkmer_seqs<F>(&self, _vseq : &Vec<&Sequence>, _fhash : F) -> Vec<Vec<Self::Sig> > {
+
+
+    #[cfg(feature="sminhash2")]
+    fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> >
+            where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                    F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                    Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                    KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
         //
-        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        log::debug!("entering  sketch_compressedkmer_seqs for SuperHash2Sketch");
         //
-        std::panic!("not yet implemented")
-    } // end of sketch_compressedkmer_seqs
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut setsketch : SuperMinHash2<Self::Sig, Kmer::Val, NoHashHasher> = SuperMinHash2::new(self.get_sketch_size(), bh);
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size() as u8, &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        if setsketch.sketch(&hashval).is_err() {
+                            log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                            std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                        }
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        //
+        let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
+        let sig = setsketch.get_hsketch();
+        v.push(sig.clone());
+        //
+        return v;
+    }
 
 
 } // end of SuperHash2Sketch
