@@ -549,7 +549,10 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
     fn sketch_compressedkmer_seqs<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig>>
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync  {
         //
-        log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("entering sketch_compressedkmer_seqs for HyperLogLogSketch");
+            log::debug!("memory  : {:?}", memory_stats::memory_stats().unwrap());
+        }
         // Now we will try to dispatch work. We use hll for large sequence (>= 10^7) otherwise we propably should use probminhash
         let thread_threshold = self.hll_threads.get_thread_threshold();
         const BASE_LOG : usize = 3;
@@ -560,6 +563,10 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
             let mut v_sketch = Vec::<Vec<Self::Sig>>::with_capacity(1);
             v_sketch.push(sketch.get_signature().clone());
             drop(sketch);
+            if log::log_enabled!(log::Level::Debug) {
+                log::debug!("exiting sketch_compressedkmer_seqs for HyperLogLogSketch");
+                log::debug!("memory  : {:?}", memory_stats::memory_stats().unwrap());
+            }
             return v_sketch;
         }
         // we must split work in equal parts.  A few threads , we do not have so many threads. The threading must be treated at a higher level 
@@ -597,12 +604,15 @@ impl <Kmer,S> SeqSketcherT<Kmer> for HyperLogLogSketch<Kmer, S>
         }
         //
         let sig = setsketch.get_signature().clone();
-        drop(v_sketch);
-        drop(setsketch);
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
         v.push(sig);
-        //
-        log::debug!("exiting sketch_compressedkmer_seqs for HyperLogLogSketch");
+        // explicit drop to monitor memory
+        drop(v_sketch);
+        drop(setsketch);
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("exiting sketch_compressedkmer_seqs for HyperLogLogSketch");
+            log::debug!("memory  : {:?}", memory_stats::memory_stats().unwrap());
+        }
         //
         return v;
     } // end of sketch_compressedkmer_seqs
