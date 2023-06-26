@@ -481,6 +481,17 @@ impl FromStr for SequenceAA {
 
 }  // end of FromStr
 
+
+impl ToString for SequenceAA {
+    fn to_string(&self) -> String {
+        //
+        let stru8 : Vec<u8> = self.seq.iter().map(|c| *c).collect();
+        return std::string::String::from_utf8(stru8).unwrap();
+    }  // end of to_string
+
+}  //  end of ToString
+
+
 //=========================================================================
 
 
@@ -914,7 +925,7 @@ fn log_init_test() {
         } // end match
     } // end of test_seqaa_iterator_range 
 
-    #[test]
+#[test]
     fn test_seqaa_64bit_iterator_range() {
         log_init_test();
         //
@@ -977,5 +988,21 @@ fn log_init_test() {
             panic!("test_seqaa_iterator_end did not get the correct last_kmer");
         }
     }  // end of test_seqaa_iterator_end
+
+
+#[test]
+    fn test_aastr_conversion() {
+       //
+       log_init_test();
+       log::debug!("in test_seqaa_iterator_end");
+       //
+       let str = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPD";
+       let seqaa = SequenceAA::from_str(str).unwrap();
+       //
+       let orig = seqaa.to_string();
+       assert_eq!(orig, String::from(str));
+    }
+
+
 
 }  // end of mod tests

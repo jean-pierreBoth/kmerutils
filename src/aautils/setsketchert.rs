@@ -88,7 +88,6 @@ impl <Kmer> ProbHash3aSketch<Kmer> {
 impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
                 Kmer::Val : num::PrimInt + Send + Sync + Debug + Clone + Serialize,
-//                hnsw_rs::prelude::DistHamming : hnsw_rs::dist::Distance<Kmer::Val>,
                 KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
 
     type Sig = Kmer::Val;
