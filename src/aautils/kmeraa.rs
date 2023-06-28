@@ -540,7 +540,8 @@ impl<'a, T> KmerSeqIterator<'a, T> where T:CompressedKmerT  {
     /// All bases in kmer generated must be between in first..last last excluded!
     pub fn set_range(&mut self, first: usize, last:usize) -> std::result::Result<(),()> { 
         if last <= first || last > self.sequence.len() {
-            log::error!("KmerSeqIterator set_range first : {}, last : {}, seq is : {:?}", first, last, self.sequence.to_string());
+            log::error!("KmerSeqIterator set_range first : {}, last : {}, length : {}, seq is : {:?}", 
+                            first, last, self.sequence.len(), self.sequence.to_string());
             return Err(());
         }
         else {
