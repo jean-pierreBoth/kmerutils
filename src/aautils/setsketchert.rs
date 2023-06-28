@@ -165,7 +165,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
         let mut nb_kmer_generated : u64 = 0;
         // we loop on sequences and generate kmer. TODO // on sequences
         for seq in vseq {
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
             kmergen.set_range(0, seq.size()).unwrap();
             loop {
                 match kmergen.next() {
