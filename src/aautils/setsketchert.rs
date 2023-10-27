@@ -13,10 +13,10 @@ use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{to_writer};
+use serde_json::to_writer;
 
 use fnv::{FnvHashMap, FnvBuildHasher};
-use std::hash::{BuildHasherDefault};
+use std::hash::BuildHasherDefault;
 
 use num;
 use num::{Integer,ToPrimitive, FromPrimitive, Bounded};
@@ -25,8 +25,8 @@ use rand_distr::uniform::SampleUniform;
 
 use crate::nohasher::*;
 
-use crate::base::{kmertraits::*};
-use crate::aautils::{kmeraa::*};
+use crate::base::kmertraits::*;
+use crate::aautils::kmeraa::*;
 
 use rayon::prelude::*;
 

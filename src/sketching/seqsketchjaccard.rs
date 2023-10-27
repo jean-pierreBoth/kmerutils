@@ -24,15 +24,15 @@ use std::io::{Write,Read,ErrorKind, BufReader, BufWriter };
 
 use std::fs;
 use std::fs::OpenOptions;
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 use std::hash::{BuildHasherDefault, Hasher, Hash};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{to_writer};
+use serde_json::to_writer;
 
-use indexmap::{IndexMap};
+use indexmap::IndexMap;
 use fnv::{FnvHashMap, FnvBuildHasher};
 
 use num;

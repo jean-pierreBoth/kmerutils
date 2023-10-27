@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 
 use serde::{Deserialize, Serialize};
-use serde_json::{to_writer};
+use serde_json::to_writer;
 
 
 /// specify if we process DNA sequence or AA sequences
@@ -22,12 +22,16 @@ pub enum DataType {
 /// - PROB3A is the value for asking ProbMinHashh3a, 
 /// - SUPER for first version SuperMinHash.(f64 signature)
 /// - SUPER2 for second version of superminhash (u64 signature)
+/// - OPTDENS for optimal densification  (u43, u64 , f32 or f64 signature)
+/// - REVOPTDENS for optimal densification with small variance in case where there can many sequences smaller than size of sketching. (u43, u64 , f32 or f64 signature)
 /// - HLL for SetSketch based on hyperloglog (u16, u32 or more signature)
 #[derive(Copy,Clone,Serialize,Deserialize,Debug)]
 pub enum SketchAlgo {
     PROB3A,
     SUPER,
     SUPER2,
+    OPTDENS,
+    REVOPTDENS,
     HLL,
 }
 // This is redundant with struct Sketcher for DNA case and RNA case, but it makes
