@@ -5,7 +5,7 @@
 
 // TODO: use an optimization solution instead of naive ordering base (as we can permut if vec<&Sequence> is mutable)
 /// contiguously group blocks of size blocks_size so that each group as approximatively equal size
-/// returns frontiers so that group i has in itself blocks index in range [frontiers[i]..frontiers[i+1] [
+/// returns frontiers so that group i has in itself blocks index in range [frontiers\[i\]..frontiers\[i+1\] [
 /// so that last frontier must be equal to blocks_size.len()
 pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
     //

@@ -1,4 +1,4 @@
-//! module defining trait SeqSketcherT and implementers for probminhash3a and hyperloglog skecther
+//! module defining trait SeqSketcherT and implementers for probminhash3a optdensminhash and hyperloglog skecther
 
 /* 
 - TODO:   in sketch_compressedkmer_seqs compute frontiers when sequences do not have equal length
@@ -358,7 +358,7 @@ impl <Kmer,S> SeqSketcherT<Kmer> for SuperHashSketch<Kmer, S>
 
 
 ///  A structure providing Optimal Densification MinHash (OptDensMinHash in probminhash crate) sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
-///  The type argument S encodes for f32 or f64 but the  OptDensMinHashcan sketch to u32 or u64 vectors
+///  The type argument S encodes for f32 or f64 as for SuperMinHash
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct OptDensHashSketch<Kmer, S: num::Float> {
     //

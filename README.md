@@ -8,7 +8,7 @@ It provides the following tools :
   
 * Basic Kmer threaded counting tools with Bloom and Cuckoo filters.
 
-* Sketching of sequences with up to date sensitive hashing see *module sketching* and the crate [probminhash](https://crates.io/crates/probminhash)  
+* Sketching of sequences with up to date various sensitive hashing see *module sketching* and the crate [probminhash](https://crates.io/crates/probminhash)  
 
 * A quality server.
   The binary executable *qualityloader* loads qualities from a Fastq file and runs as a server, answering
