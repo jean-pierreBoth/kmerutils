@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 
 use std::cmp::Ordering;
-use std::ops::{Range};
+use std::ops::Range;
 
 use fnv::{FnvHashMap,FnvBuildHasher};
 

@@ -30,7 +30,7 @@ use crate::aautils::kmeraa::*;
 
 use rayon::prelude::*;
 
-use probminhash::{probminhasher::*, superminhasher::SuperMinHash, setsketcher::SetSketcher, setsketcher::SetSketchParams};
+use probminhash::{probminhasher::*, superminhasher::SuperMinHash, densminhash::*, setsketcher::SetSketcher, setsketcher::SetSketchParams};
 
 use crate::sketcharg::{SeqSketcherParams, SketchAlgo};
 
@@ -221,7 +221,7 @@ impl <Kmer, S : num::Float> SuperHashSketch<Kmer, S> {
         SuperHashSketch{_kmer_marker : PhantomData, _sig_marker : PhantomData,  params : params.clone()}
     }
 
-} // end of impl ProbHash3aSketch
+} // end of impl SuperHashSketch
 
 impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
@@ -341,6 +341,147 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
     }
 
 } // end of SuperHashSketch
+
+
+//=======================================================================================================
+
+///  A structure providing Optimal Densification MinHash (OptDensMinHash in probminhash crate) sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
+///  The type argument S encodes for f32 or f64 as for SuperMinHash
+#[derive(Serialize,Deserialize,Copy,Clone)]
+pub struct OptDensHashSketch<Kmer, S : num::Float> {
+    //
+    _kmer_marker: PhantomData<Kmer>,
+    //
+    _sig_marker : PhantomData<S>,
+    //
+    params : SeqSketcherParams,
+}
+
+
+impl <Kmer, S : num::Float> OptDensHashSketch<Kmer,S> {
+    pub fn new(params : &SeqSketcherParams) -> Self {
+        OptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : params.clone()}
+    }
+}  // end of OptDensMinHashSketch
+
+
+impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S> 
+        where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                S : num::Float + SampleUniform + Send + Sync + Debug + Serialize  {
+
+    type Sig = S;
+
+    fn get_kmer_size(&self) -> usize {
+        self.params.get_kmer_size()
+    }
+
+    fn get_sketch_size(&self) -> usize {
+        self.params.get_sketch_size()
+    }
+
+    fn get_algo(&self) -> SketchAlgo {
+        SketchAlgo::OPTDENS
+    }
+
+        /// a generic implementation of superminhash  against our standard compressed Kmer types.  
+    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
+    /// F is a hash function returning morally a u32, usize or u64.  
+    /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
+    fn sketch_compressedkmeraa<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+        where F : Fn(&Kmer) -> Kmer::Val + Send + Sync {
+        //
+        log::debug!("entering sketch_compressedkmeraa for superminhash");
+        //
+        let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<Self::Sig>) {
+            //
+            log::trace!(" in sketch_compressedkmeraa (OptDensHashSketch), closure");
+            let mut nb_kmer_generated : u64 = 0;
+            //
+            let bh = BuildHasherDefault::<NoHashHasher>::default();
+            let mut sminhash : OptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher>= OptDensMinHash::new(self.get_sketch_size(), bh);
+
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        sminhash.sketch(&hashval);
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+            // DO NOT forget to call end_sketch as OptDensMinHash needs to be told we got end of stream
+            sminhash.end_sketch();
+            let sigb = sminhash.get_hsketch();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    } // end of sketch_compressedkmeraa
+
+
+
+    fn sketch_compressedkmeraa_seqs<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+            where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                    F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                    Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                    KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+        //
+        log::debug!("entering  OptDensHashSketch::sketch_compressedkmer_seqs");
+        //
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut setsketch : OptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> = OptDensMinHash::new(self.get_sketch_size(), bh);
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        setsketch.sketch(&hashval);
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        //
+        let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
+        // do not forget to close sketching (it calls densification!)
+        setsketch.end_sketch();
+        let sig = setsketch.get_hsketch();
+        v.push(sig.clone());
+        //
+        return v;
+    } // end of sketch_compressedkmer_seqs
+
+} // end impl block of SeqSketcherT for SeqSketcherAAT
+
 
 
 //=========================================================================================================================
@@ -919,6 +1060,61 @@ use std::str::FromStr;
         log::info!("SuperHashSketch::<KmerAA64bit, f32> inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
         assert!( (dist-0.5).abs() < 1./10.);
     } // end of test_seqaa_superminhash_trait_64bit
+
+
+
+    #[test]
+    fn test_seqaa_optdensminhash_trait_32bit() {
+        log_init_test();
+        //
+        log::debug!("test_seqaa_optdensminhash_trait_32bit");
+        //
+        let str1 = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVTVDVIMQNGKITFDGFEVLAPASEYKNRHASILLSLDATAEACASIAAQNSA";
+        // The second string is the first half of the first repeated
+        let str2 = "MTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKVMTEQIELIKLYSTRILALAAQMPHVGSLDNPDASAMKRSPLCGSKV";
+
+        let seq1 = SequenceAA::from_str(str1).unwrap();
+        let seq2 = SequenceAA::from_str(str2).unwrap();
+        let vseq = vec![&seq1, &seq2];
+        let kmer_size = 5;
+        // if we augment sketch_size we need revoptdens!!!
+        let sketch_size = 80;
+        let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::OPTDENS, DataType::AA);
+        let nb_alphabet_bits = Alphabet::new().get_nb_bits();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        log::debug!("mask = {:b}", mask);
+        //
+        // we need a hash function from u128 to f64
+        let kmer_hash_fn = | kmer : &KmerAA32bit | -> <KmerAA32bit as CompressedKmerT>::Val {
+            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
+            let hashval = kmer.get_compressed_value() & mask;
+            hashval
+        };
+        // first we sketch with OptDensHashSketch<f64>
+        log::info!("calling sketch_compressedkmeraa for OptDensHashSketch::<KmerAA32bit, f64>");
+        let sketcher_f64 = OptDensHashSketch::<KmerAA32bit, f64>::new(&sketch_args);
+        let signatures = sketcher_f64.sketch_compressedkmeraa(&vseq, kmer_hash_fn); 
+        // get distance between the 2 strings  
+        let sig1 = &signatures[0];
+        let sig2 = &signatures[1];
+        //
+        let inter : u64 = sig1.iter().zip(sig2.iter()).map(|(a,b)| if a==b {1} else {0}).sum();
+        let dist = inter as f64/sig1.len() as f64;
+        log::info!("OptDensHashSketch::<KmerAA32bit, f64> inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
+        assert!( (dist-0.5).abs() < 1./10.);
+        //
+        // now we sketch with SuperHashSketch<f32>
+        let sketcher_f32 = OptDensHashSketch::<KmerAA32bit, f32>::new(&sketch_args);
+        let signatures = sketcher_f32.sketch_compressedkmeraa(&vseq, kmer_hash_fn); 
+        // get distance between the 2 strings  
+        let sig1 = &signatures[0];
+        let sig2 = &signatures[1];
+        //
+        let inter : u64 = sig1.iter().zip(sig2.iter()).map(|(a,b)| if a==b {1} else {0}).sum();
+        let dist = inter as f64/sig1.len() as f64;
+        log::info!("OptDensHashSketch::<KmerAA32bit, f32> inter : {:?} length {:?} jaccard distance {:?}", inter, sig1.len(), dist );
+        assert!( (dist-0.5).abs() < 1./10.);
+    } // end of test_seqaa_optdensminhash_trait_32bit
 
 
 

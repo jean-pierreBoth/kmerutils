@@ -496,7 +496,11 @@ impl<'a> IterSequence<'a> {
     pub fn new(seqarg : &'a Sequence, must_decode_arg : bool) -> IterSequence<'a> {
         //
         let nb_bases_by_byte = 8 / (seqarg.nb_bits_by_base() as usize);
-        let mut last_byte = (seqarg.size() / nb_bases_by_byte) - 1;
+        // case if sequence is small than nb_bases_by_byte
+        let mut last_byte = if seqarg.size() >=  nb_bases_by_byte {
+                (seqarg.size() / nb_bases_by_byte) - 1
+                }
+                else { 0 };
         let mut last_bit = 8;
         //
         let nb_bits = seqarg.nb_bits_by_base();
@@ -1011,8 +1015,23 @@ mod tests {
     } // end of test_encode_and_add_with_n
 
 
+    #[test]
+    fn test_encode_and_add_very_small_seq() {
+        log_init_test();
+       // a 14 base sequence
+        let seqstr = String::from("TC");
+        let to_add = seqstr.as_bytes();
+        let mut seq_tocheck = Sequence::with_capacity(2, 4);
+        //
+        let alpha2b = Alphabet2b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we compare with normal initialization, check also for last byte, last byte contains 3
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, String::from("TC"));
+    } // end of test_encode_and_add_with_n
 
-
+    
     #[test]
     fn test_incremental_alpha2_15bases_seq_init() {
         log_init_test();

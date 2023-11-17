@@ -5,7 +5,7 @@
 //! manipulate already hashed values!
 
 
-use std::hash::{Hasher};
+use std::hash::Hasher;
 
 
 pub struct NoHashHasher(u64);
