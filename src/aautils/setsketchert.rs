@@ -16,10 +16,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_writer;
 
 use fnv::{FnvHashMap, FnvBuildHasher};
-use std::hash::BuildHasherDefault;
+use std::hash::{BuildHasherDefault, Hasher};
+
 
 use num;
-use num::{Integer,ToPrimitive, FromPrimitive, Bounded};
+use num::{Integer,ToPrimitive, FromPrimitive, Bounded, Unsigned};
 
 use rand_distr::uniform::SampleUniform;
 
@@ -33,6 +34,9 @@ use rayon::prelude::*;
 use probminhash::{probminhasher::*, superminhasher::SuperMinHash, densminhash::*, setsketcher::SetSketcher, setsketcher::SetSketchParams};
 
 use crate::sketcharg::{SeqSketcherParams, SketchAlgo};
+
+#[cfg(feature="sminhash2")]
+use probminhash::superminhasher2::SuperMinHash2;
 
 /// This trait gathers interface to all sketcher : SuperMinhash, Probminhash3a, Probminhash3, ...  
 /// 
@@ -201,7 +205,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
 
 
 
-/// A structure providing SuperMinHash sketching for SequenceAA by implementing the generic trait SeqSketcherAAT\<Kmer\>.  
+/// A structure providing SuperMinHash sketching for SequenceAAT by implementing the generic trait SeqSketcherAAT\<Kmer\>.  
 ///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
 #[derive(Serialize,Deserialize,Copy,Clone)]
 pub struct SuperHashSketch<Kmer, S : num::Float> {
@@ -342,7 +346,151 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
 
 } // end of SuperHashSketch
 
+//=====================================================================================
+///
+///  A structure providing SuperMinHash2 sketching implementing the generic trait SeqSketcherAAT\<Kmer\>.  
+///  The type argument S encodes for u32 or u64 as the SuperMinHash2 can sketch to u32 or u64
+#[cfg(feature="sminhash2")]
+#[derive(Clone)]
+pub struct SuperHash2Sketch<Kmer, S: Integer  + Unsigned, H : Hasher + Default> {
+    //
+    _kmer_marker: PhantomData<Kmer>,
+    //
+    _sig_marker: PhantomData<S>,
+    //
+    build_hasher : BuildHasherDefault<H>,
+    //
+    params : SeqSketcherParams,
+}
 
+#[cfg(feature="sminhash2")]
+impl <Kmer, S :  Integer  + Unsigned,  H : Hasher + Default> SuperHash2Sketch<Kmer,S, H> {
+
+
+    pub fn new(params : &SeqSketcherParams, build_hasher: BuildHasherDefault<H>) -> Self {
+        SuperHash2Sketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  build_hasher, params : params.clone()}
+    }
+
+} 
+#[cfg(feature="sminhash2")]
+impl <Kmer,S, H> SeqSketcherAAT<Kmer> for SuperHash2Sketch<Kmer, S, H> 
+        where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                H : Hasher + Default,
+                S :Integer  + Unsigned + ToPrimitive + FromPrimitive + Bounded + Copy + Clone + Send + Sync + Serialize + std::fmt::Debug {
+
+    type Sig = S;
+
+    fn get_kmer_size(&self) -> usize {
+        self.params.get_kmer_size()
+    }
+
+    fn get_sketch_size(&self) -> usize {
+        self.params.get_sketch_size()
+    }
+
+    fn get_algo(&self) -> SketchAlgo {
+        SketchAlgo::SUPER2
+    }
+
+    /// a generic implementation of superminhash  against our standard compressed Kmer types.  
+    /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
+    /// F is a hash function returning morally a u32, usize or u64.  
+    /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
+    fn sketch_compressedkmeraa<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+        where F : Fn(&Kmer) -> Kmer::Val + Send + Sync {
+        //
+        log::debug!("entering sketch_compressedkmeraa for superminhash2");
+        //
+        let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<Self::Sig>) {
+            //
+            log::debug!(" in sketch_compressedkmeraa (superminhash2), closure");
+            let mut nb_kmer_generated : u64 = 0;
+            //
+            let mut sminhash : SuperMinHash2<Self::Sig, Kmer::Val, H>= SuperMinHash2::new(self.get_sketch_size(), self.build_hasher.clone());
+
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        if sminhash.sketch(&hashval).is_err() {
+                            log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                            std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                        }
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+            let sigb = sminhash.get_hsketch();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        jaccard_vec
+    } // end of sketch_compressedkmeraa
+
+    #[cfg(feature="sminhash2")]
+    fn sketch_compressedkmeraa_seqs<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+            where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                    F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                    Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                    KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+        //
+        log::debug!("entering  sketch_compressedkmeraa_seqs for SuperHash2Sketch");
+        //
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut setsketch : SuperMinHash2<Self::Sig, Kmer::Val, NoHashHasher> = SuperMinHash2::new(self.get_sketch_size(), bh);
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        if setsketch.sketch(&hashval).is_err() {
+                            log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                            std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
+                        }
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        //
+        let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
+        let sig = setsketch.get_hsketch();
+        v.push(sig.clone());
+        //
+        return v;
+    } // end of sketch_compressedkmeraa_seqs
+
+
+} // end of SuperHash2Sketch
 //=======================================================================================================
 
 ///  A structure providing Optimal Densification MinHash (OptDensMinHash in probminhash crate) sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
@@ -482,9 +630,143 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S>
 
 } // end impl block of SeqSketcherT for SeqSketcherAAT
 
-
-
+///  A structure providing Reverse Optimal Densification MinHash (RevOptDensMinHash in probminhash crate) sketching implementing the generic trait SeqSketcherAAT\<Kmer\>.  
+///  It is based on densification according to Mai, Rao, Kapilevitch, Rossi, Abbasi-Yadkori, Sinha. see [pmlr-2020](http://proceedings.mlr.press/v115/mai20a/mai20a.pdf)
+///  and is more robust than OptDensHashSketch if the sketching size is greater than the sequence length.  
+/// 
+///  Playing with sketching size in the tests *test_seq_optdensminhash_trait* and *test_seq_revoptdensminhash_trait* will illustrate this.
+///  The type argument S encodes for f32 or f64 as for SuperMinHash
 //=========================================================================================================================
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct RevOptDensHashSketch<Kmer, S: num::Float> {
+    //
+    _kmer_marker: PhantomData<Kmer>,
+    //
+    _sig_marker: PhantomData<S>,
+    //
+    params : SeqSketcherParams,
+}
+
+
+impl <Kmer, S : num::Float> RevOptDensHashSketch<Kmer,S> {
+    pub fn new(params : &SeqSketcherParams) -> Self {
+        RevOptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : params.clone()}
+    } 
+}  // end of RevOptDensMinHashSketch
+
+
+impl <Kmer,S> SeqSketcherAAT<Kmer> for RevOptDensHashSketch<Kmer, S> 
+        where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
+                S : num::Float + SampleUniform + Send + Sync + Debug + Serialize  {
+
+    type Sig = S;
+
+    fn get_kmer_size(&self) -> usize {
+        self.params.get_kmer_size()
+    }
+
+    fn get_sketch_size(&self) -> usize {
+        self.params.get_sketch_size()
+    }
+
+    fn get_algo(&self) -> SketchAlgo {
+        SketchAlgo::REVOPTDENS
+    }
+
+    fn sketch_compressedkmeraa<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+    where F : Fn(&Kmer) -> Kmer::Val + Send + Sync {
+        //
+       log::debug!("entering RevOptDensHashSketch::sketch_compressedkmeraa");
+              //
+            let comput_closure = | seqb : &SequenceAA, i:usize | -> (usize,Vec<Self::Sig>) {
+            //
+            log::debug!(" in sketch_compressedkmer, closure");
+            let mut nb_kmer_generated : u64 = 0;
+            //
+            let bh = BuildHasherDefault::<NoHashHasher>::default();
+            let mut sminhash : RevOptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher>= RevOptDensMinHash::new(self.get_sketch_size(), bh);
+
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            kmergen.set_range(0, seqb.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        sminhash.sketch(&hashval);
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+            // do not forget to close sketching (it calls densification!)
+            sminhash.end_sketch();
+            let sigb = sminhash.get_hsketch();
+            // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
+            return (i,sigb.clone());
+        };
+        //
+        let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
+        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
+        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
+        for _ in 0..vseq.len() {
+            jaccard_vec.push(Vec::new());
+        }
+        // CAVEAT , boxing would avoid the clone?
+        for i in 0..sig_with_rank.len() {
+            let slot = sig_with_rank[i].0;
+            jaccard_vec[slot] = sig_with_rank[i].1.clone();
+        }
+        //
+        jaccard_vec
+    } // end of sketch_compressedkmer
+
+
+    fn sketch_compressedkmeraa_seqs<F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Self::Sig> >
+            where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
+                    F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
+                    Kmer::Val : num::PrimInt + Send + Sync + Debug,
+                    KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
+        //
+        log::debug!("entering  RevOptDensHashSketch::sketch_compressedkmer_seqs");
+        //
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        let mut setsketch : RevOptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> = RevOptDensMinHash::new(self.get_sketch_size(), bh);
+        //
+        let mut nb_kmer_generated : u64 = 0;
+        // we loop on sequences and generate kmer. TODO // on sequences
+        for seq in vseq {
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            kmergen.set_range(0, seq.size()).unwrap();
+            loop {
+                match kmergen.next() {
+                    Some(kmer) => {
+                        nb_kmer_generated += 1;
+                        let hashval = fhash(&kmer);
+                        setsketch.sketch(&hashval);
+                    },
+                    None => break,
+                }
+                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                    log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
+                }
+            }  // end loop 
+        }
+        //
+        let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
+        // do not forget to close sketching (it calls densification!)
+        setsketch.end_sketch();
+        let sig = setsketch.get_hsketch();
+        v.push(sig.clone());
+        //
+        return v;
+    } // end of sketch_compressedkmer_seqs
+
+} // end of impl SeqSketcherAAT<Kmer> for RevOptDensHashSketch
 
 
 

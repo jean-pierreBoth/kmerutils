@@ -934,7 +934,7 @@ impl <Kmer, S :  Integer  + Unsigned,  H : Hasher + Default> SuperHash2Sketch<Km
         SuperHash2Sketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  build_hasher, params : params.clone()}
     }
 
-} // end of impl ProbHash3aSketch
+} 
 #[cfg(feature="sminhash2")]
 impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H> 
         where   Kmer : CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
@@ -964,11 +964,11 @@ impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H>
     fn sketch_compressedkmer<F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Self::Sig> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync {
         //
-        log::debug!("entering sketch_superminhash2_compressedkmer");
+        log::debug!("entering sketch_compressedkmer for superminhash2");
         //
         let comput_closure = | seqb : &Sequence, i:usize | -> (usize,Vec<Self::Sig>) {
             //
-            log::debug!(" in sketch_compressedkmer, closure");
+            log::debug!(" in sketch_compressedkmer (superminhash), closure");
             let mut nb_kmer_generated : u64 = 0;
             //
             let mut sminhash : SuperMinHash2<Self::Sig, Kmer::Val, H>= SuperMinHash2::new(self.get_sketch_size(), self.build_hasher.clone());
@@ -1053,7 +1053,7 @@ impl <Kmer,S, H> SeqSketcherT<Kmer> for SuperHash2Sketch<Kmer, S, H>
         v.push(sig.clone());
         //
         return v;
-    }
+    } // end of sketch_compressedkmer_seqs
 
 
 } // end of SuperHash2Sketch
