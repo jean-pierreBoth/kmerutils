@@ -32,8 +32,9 @@ Multiple kmers, stored in a Bloom filter, are dumped in another file with their 
 
 ## Hashing and Sketching of data
 
-Similarity between sequences can be estimated by counting common Kmers between sequences with superminhash, probminhash and hyperloglog algorithms
-as described in Ertl's papers and implemented in [probminhash](https://github.com/jean-pierreBoth/probminhash).
+Similarity between sequences can be estimated by counting common Kmers between sequences with :
+  - superminhash, probminhash and hyperloglog algorithms as described in Ertl's papers and implemented in [probminhash](https://github.com/jean-pierreBoth/probminhash).
+  - optimal densification from Shrivastava [(pmlr-2017)](https://proceedings.mlr.press/v70/shrivastava17a.html) or "reverse" optimal densification from Mai and al. [(pmlr-2020)](http://proceedings.mlr.press/v115/mai20a/mai20a.pdf)
 
 * A probability Jaccard index taking into account Kmer multiplicity is provided with the Probminhash family algorithm associated with the probability Jaccard index.
 For very long sequences where keeping the count of large Kmer costs too much memory it is possible to fallback on the SetSketch (based on HyperLogLog) sketcher or SuperMinHash algorithms also
