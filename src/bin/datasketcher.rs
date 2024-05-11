@@ -29,7 +29,6 @@ use kmerutils::sketching::seqblocksketch::{BlockSeqSketcher, BlockSketched, Dist
 use kmerutils::sketching::*;
 use needletail::FastxReader;
 
-use anndists::dist::distances::*;
 use hnsw_rs::api::AnnT;
 use hnsw_rs::prelude::*;
 

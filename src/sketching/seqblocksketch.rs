@@ -24,7 +24,7 @@ use crate::base::kmergenerator::*;
 
 use rayon::prelude::*;
 
-use anndists::dist::distances::*;
+use hnsw_rs::prelude::*;
 use probminhash::probminhasher::*;
 
 /// signature for dump of probminhash with sequences split in blocks
