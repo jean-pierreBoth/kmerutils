@@ -104,9 +104,9 @@ env_logger = { version = "0.9" }
 memory-stats = { version = "1.1", features = ["always_use_statm"] }
 
 # anndists is provided by hnsw_rs
-# hnsw_rs =  {version = "0.3.0"}
+hnsw_rs = { version = "0.3.0" }
 # hnsw_rs = { path = "../hnswlib-rs" }
-hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs" }
+# hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs" }
 
 [features]
 
