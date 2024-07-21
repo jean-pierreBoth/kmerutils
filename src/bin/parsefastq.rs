@@ -38,7 +38,7 @@ use env_logger::{Builder};
 fn init_log() -> u64 {
     Builder::from_default_env().init();
     println!("\n ************** initializing logger *****************\n");    
-    return 1;
+    1
 }
 
 
@@ -181,14 +181,14 @@ fn main() {
     }
 
     
-    let seqvec;
-    match parse_with_needletail(parse_args.clone()) {
-        Ok(sthing) => seqvec = sthing,
+    
+    let seqvec = match parse_with_needletail(parse_args.clone()) {
+        Ok(sthing) => sthing,
         Err(e) => {
             println!("coud not parse file : {}", e);
             process::exit(1);
         }
-    }
+    };
     //
     println!("got nb read : {}  ", seqvec.len());
     // for long read data a maxreadlen = 1000000 should be OK.
@@ -197,7 +197,7 @@ fn main() {
     let prec = 3;
     let base_distribution_res= get_base_count_par(&seqvec, maxreadlen, prec);
     match base_distribution_res {
-        Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution(&"readlen.histo");
+        Some(base_distribution) => { let _res= base_distribution.ascii_dump_readlen_distribution("readlen.histo");
                                     },
         _                       => std::process::exit(1),
     }
@@ -217,7 +217,7 @@ fn main() {
                                                                                                    parse_args.kmer_args.counter_size,
                                                                                                    parse_args.kmer_args.kmer_size);
                 let _res = threaded_dump_kmer_counter(&kmer_counter, &multi_kmer_file_name, &seqvec,
-                                                      parse_args.kmer_args.nb_threads as usize, parse_args.kmer_args.kmer_size);
+                                                      parse_args.kmer_args.nb_threads, parse_args.kmer_args.kmer_size);
             }
             else if parse_args.kmer_args.kmer_size == 16 {
                 let kmer_counter : KmerCounterPool<Kmer16b32bit> = count_kmer_threaded_one_to_many(&seqvec,
@@ -225,7 +225,7 @@ fn main() {
                                                                                                    parse_args.kmer_args.counter_size,
                                                                                                    parse_args.kmer_args.kmer_size);
                 let _res = threaded_dump_kmer_counter(&kmer_counter, &multi_kmer_file_name, &seqvec,
-                                                      parse_args.kmer_args.nb_threads as usize, parse_args.kmer_args.kmer_size);
+                                                      parse_args.kmer_args.nb_threads, parse_args.kmer_args.kmer_size);
             }
             else if parse_args.kmer_args.kmer_size <= 14 {
                 let kmer_counter : KmerCounterPool<Kmer32bit> = count_kmer_threaded_one_to_many(&seqvec,
@@ -233,7 +233,7 @@ fn main() {
                                                                                                 parse_args.kmer_args.counter_size,
                                                                                                 parse_args.kmer_args.kmer_size);
                 let _res = threaded_dump_kmer_counter(&kmer_counter, &multi_kmer_file_name, &seqvec,
-                                                      parse_args.kmer_args.nb_threads as usize, parse_args.kmer_args.kmer_size);
+                                                      parse_args.kmer_args.nb_threads, parse_args.kmer_args.kmer_size);
             };
         },
         KmerProcessing::Unicity => {

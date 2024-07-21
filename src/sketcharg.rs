@@ -89,7 +89,7 @@ impl SeqSketcherParams {
         }
         // 
         let mut writer = BufWriter::new(fileres.unwrap());
-        let _ = to_writer(&mut writer, &self).unwrap();
+        to_writer(&mut writer, &self).unwrap();
         //
         Ok(())
     } // end of dump

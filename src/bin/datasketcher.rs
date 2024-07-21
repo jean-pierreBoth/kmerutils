@@ -36,7 +36,7 @@ use hnsw_rs::prelude::*;
 fn init_log() -> u64 {
     env_logger::Builder::from_default_env().init();
     println!("\n ************** initializing logger *****************\n");
-    return 1;
+    1
 }
 
 /// format of file dump
@@ -208,7 +208,7 @@ fn main() {
         }
     }
     let start_t = Instant::now();
-    let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
+    let mut reader = needletail::parse_fastx_file(path).expect("expecting valid filename");
     let sequence_pack = if sketch_block { 5000 } else { 10000 };
     // dumping info
     log::info!("sketching sequences by pack size {:?}", sequence_pack);
@@ -221,8 +221,8 @@ fn main() {
     //
     let kmer_revcomp_hash_fn = |kmer: &Kmer32bit| -> u32 {
         let canonical = kmer.reverse_complement().min(*kmer);
-        let hashval = probminhash::invhash::int32_hash(canonical.0);
-        hashval
+        
+        probminhash::invhash::int32_hash(canonical.0)
     };
     //
     // create file to dump signature
@@ -230,11 +230,11 @@ fn main() {
     let mut sigbuf;
     if !sketch_block {
         log::info!("allocating whole sequence SeqSketcher");
-        let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
-        sigbuf = sketcher.create_signature_dump(&dumpfname);
+        let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size, sketch_size);
+        sigbuf = sketcher.create_signature_dump(dumpfname);
     } else {
-        let sketcher = BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
-        sigbuf = sketcher.create_signature_dump(&dumpfname);
+        let sketcher = BlockSeqSketcher::new(block_size, kmer_size, sketch_size);
+        sigbuf = sketcher.create_signature_dump(dumpfname);
     }
     //
     // now we work : read, sketch by block or not, dump, and possibly embed in hnsw
@@ -242,20 +242,20 @@ fn main() {
     let mut nbseq = 0;
     loop {
         let sequencegroup = readblockseq(&mut reader, sequence_pack);
-        if sequencegroup.len() == 0 {
+        if sequencegroup.is_empty() {
             break;
         }
         // do the computation
         if !sketch_block {
             log::info!("sketching entire sequences with probminhash3a algorithm");
-            let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size as usize, sketch_size);
-            let sequencegroup_ref: Vec<&Sequence> = sequencegroup.iter().map(|s| s).collect();
+            let sketcher = seqsketchjaccard::SeqSketcher::new(kmer_size, sketch_size);
+            let sequencegroup_ref: Vec<&Sequence> = sequencegroup.iter().collect();
             let signatures =
                 sketcher.sketch_probminhash3a(&sequencegroup_ref, kmer_revcomp_hash_fn);
             trace!("got nb signatures vector {} ", signatures.len());
             // dump the signature
             let resd = seqsketchjaccard::dump_signatures_block_u32(&signatures, &mut sigbuf);
-            if !resd.is_ok() {
+            if resd.is_err() {
                 println!("\n error occurred dumping signatures");
             }
             if do_ann {
@@ -272,7 +272,7 @@ fn main() {
         } else {
             // sketching by blocks
             // we have sequences from [nbseq..nbseq+sequencegroup.len()] (end excluded recall it is different from Julia)
-            let blocksketcher = BlockSeqSketcher::new(block_size, kmer_size as usize, sketch_size);
+            let blocksketcher = BlockSeqSketcher::new(block_size, kmer_size, sketch_size);
             // transform type from Vec<Sequence> to [(u32, &Sequence)]
             let mut tosketch = Vec::<(u32, &Sequence)>::with_capacity(sequencegroup.len());
             for i in 0..sequencegroup.len() {
@@ -379,5 +379,5 @@ fn readblockseq(reader: &mut Box<dyn FastxReader>, nbseq: usize) -> Vec<Sequence
     }
     trace!("returning from readblockseq , nb seq : {} ", veqseq.len());
     //
-    return veqseq;
+    veqseq
 } // end of readblockseq

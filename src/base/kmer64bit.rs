@@ -34,7 +34,7 @@ impl Kmer64bit {
 impl PartialEq for Kmer64bit {
     // we must check number of bases and equality of field
     fn eq(&self, other: &Kmer64bit) -> bool {
-        if (self.0 == other.0) & (self.1==other.1) { true } else {false}
+        (self.0 == other.0) & (self.1==other.1)
     } // end of eq
 }  // end of PartialEq implementation
 
@@ -50,10 +50,10 @@ impl Eq for Kmer64bit{}
 impl Ord for Kmer64bit {
     fn cmp(&self, other: &Kmer64bit) -> Ordering {
         if self.1 != other.1 {
-            return (self.1).cmp(&(other.1));
+            (self.1).cmp(&(other.1))
         }
         else {
-            return (self.0).cmp(&(other.0));
+            (self.0).cmp(&(other.0))
         }
     } // end cmp
 } // end impl Ord for Kmer32bit
@@ -95,13 +95,13 @@ impl KmerT for Kmer64bit {
         // we do a symetry as explained in Hacker's delight and complement.
         // This depends on our choice for encoding ACGT as respectiveley  00  01 10 11 !!!
         //
-        let mut revcomp = self.0 as u64;
+        let mut revcomp = self.0;
         revcomp = !revcomp;
         // then now we have to swap groups of 2 bits
         revcomp = revcomp.reverse_bits();
         revcomp = (revcomp & 0x55555555_55555555) << 1 | (revcomp & 0xAAAAAAAA_AAAAAAAA) >> 1;
         // We have to shift to the right 64-2*nb_bases as useful values are aligned right
-        revcomp = revcomp >> (64 - 2 * self.1);
+        revcomp >>= 64 - 2 * self.1;
         Kmer64bit(revcomp, self.1)
     }
 
@@ -136,12 +136,12 @@ impl CompressedKmerT for Kmer64bit {
             base = (buf & 0b11) as u8; 
             decompressed_kmer.push(alphabet.decode(base));
         }
-        return decompressed_kmer;
+        decompressed_kmer
     }
     /// return the pure value with part coding number of bases reset to 0.
     #[inline(always)]    
     fn get_compressed_value(&self) -> u64 {
-        return self.0;
+        self.0
     }
     ///
     #[inline(always)]    

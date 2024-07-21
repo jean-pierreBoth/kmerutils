@@ -83,7 +83,7 @@ pub fn from_one_hash_val_to_mult_hash(ksize: u64, hashed: &mut [u64]) {
     //
     for i in 1..hashed.len() {
         // ^ comes after * but it is better showing it
-        tmp_h = hashed[0] * (i as u64 ^ (ksize * MULTISEED)) as u64;
+        tmp_h = hashed[0] * (i as u64 ^ (ksize * MULTISEED));
         tmp_h ^= tmp_h >> MULTISHIFT;
         hashed[i] = tmp_h;
     }  
@@ -169,7 +169,7 @@ pub fn nthash_init_8b(kmer : &[u8]) -> u64 {
         //        hval ^= (BASE_MAPPING_8B[kmer[i] as usize] as u64).rotate_left((ksize- i-1) as u32 %64);
         hval ^= base_map!(kmer[i],8).rotate_left((ksize -i -1) as u32 %64);
     }
-    return hval;   
+    hval
 } // end of nthash_u8
 
 
@@ -201,9 +201,9 @@ pub fn nthash_rcomp_init_8b(kmer : &[u8]) -> u64 {
     let mut hval:u64 = 0;
     let ksize = kmer.len();
     for i in 0..ksize {
-        hval ^= (BASE_MAPPING_8B[OFFSET_COMP_8B + kmer[i] as usize] as u64).rotate_left(i as u32 %64);
+        hval ^= BASE_MAPPING_8B[OFFSET_COMP_8B + kmer[i] as usize].rotate_left(i as u32 %64);
     }
-    return hval;   
+    hval
 } // end of nthash_rcomp_init_8b
 
 
@@ -241,14 +241,14 @@ pub fn nthash_canonical_init_8b(kmer : &[u8], fhash : &mut u64, rhash : &mut u64
     //
     let ksize = kmer.len();
     for i in 0..ksize {
-        (*fhash) = (*fhash) ^ (BASE_MAPPING_8B[kmer[i] as usize] as u64).rotate_left((ksize-i-1) as u32 %64);
-        (*rhash) = (*rhash) ^ (BASE_MAPPING_8B[OFFSET_COMP_8B + kmer[i] as usize] as u64).rotate_left(i as u32 %64);
+        (*fhash) ^= BASE_MAPPING_8B[kmer[i] as usize].rotate_left((ksize-i-1) as u32 %64);
+        (*rhash) ^= BASE_MAPPING_8B[OFFSET_COMP_8B + kmer[i] as usize].rotate_left(i as u32 %64);
     }
     if fhash <= rhash {
-        return (*fhash,0);
+        (*fhash,0)
     }
     else {
-        return (*rhash,1);
+        (*rhash,1)
     }
 } // end of nthash_canonical_init_8b
 
@@ -262,10 +262,10 @@ pub fn nthash_canonical_cycle_8b(ksize: usize, old_base:u8, new_base:u8, fhash: 
     *fhash = nthash_cycle_8b(*fhash, ksize, old_base, new_base);
     *rhash = nthash_rcomp_cycle_8b(*rhash, ksize, old_base, new_base);
     if fhash <= rhash {
-        return (*fhash,0);
+        (*fhash,0)
     }
     else {
-        return (*rhash,1);
+        (*rhash,1)
     }
 } // end of nthash_canonical_cycle_8b
 
@@ -290,7 +290,7 @@ pub fn nthash_mult_canonical_init_8b(kmer : &[u8], fhash : &mut u64, rhash : &mu
     //
     from_one_hash_val_to_mult_hash(kmer.len() as u64, hashed);
     // we return strand of minimum
-    return res_hash.1;
+    res_hash.1
 } // end of nthash_canonical_init_8b
 
 
@@ -304,7 +304,7 @@ pub fn nthash_mult_canonical_cycle_8b(ksize : usize, old_base:u8, new_base:u8, f
     //
     from_one_hash_val_to_mult_hash(ksize as u64, hashed);
     //
-    return res_hash.1;
+    res_hash.1
 } // end of nthash_canonical_init_8b
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,12 +333,12 @@ mod tests {
         let kmer_begin = 0;
         let mut kmer = &slu8[kmer_begin..kmer_size];
         println!("kmer initial {}" , String::from_utf8_lossy(kmer));
-        let mut hval = nthash_init_8b(&kmer);
+        let mut hval = nthash_init_8b(kmer);
         for i in 1..seqstr.len() - kmer_size {
             println!("removed base {}, inserted base {}", slu8[i-1], slu8[i-1+kmer_size]);
             hval = nthash_cycle_8b(hval, kmer_size, slu8[i-1], slu8[i-1+kmer_size]);
             kmer = &slu8[i..i+kmer_size];
-            let hash_cycled = nthash_init_8b(&kmer);
+            let hash_cycled = nthash_init_8b(kmer);
             println!(" i kmer hasval hashval_cycle {}  {}  {}  {}", i, String::from_utf8_lossy(kmer) , hval, hash_cycled);
             assert_eq!(hval, hash_cycled);
         }       
@@ -360,14 +360,14 @@ mod tests {
         let mut rhash:u64 = 0;
         println!("kmer initial {}" , String::from_utf8_lossy(kmer));
         #[allow(unused_assignments)]
-        let mut hval = nthash_canonical_init_8b(&kmer, &mut fhash, &mut rhash);
+        let mut hval = nthash_canonical_init_8b(kmer, &mut fhash, &mut rhash);
         for i in 1..seqstr.len() - kmer_size {
             println!("removed base {}, inserted base {}", slu8[i-1], slu8[i-1+kmer_size]);
             hval = nthash_canonical_cycle_8b(kmer_size, slu8[i-1], slu8[i-1+kmer_size], &mut fhash, &mut rhash);
             kmer = &slu8[i..i+kmer_size];
             let mut fhash_check:u64 = 0;
             let mut rhash_check:u64 = 0;
-            let hash_cycled = nthash_canonical_init_8b(&kmer, &mut fhash_check, &mut rhash_check);
+            let hash_cycled = nthash_canonical_init_8b(kmer, &mut fhash_check, &mut rhash_check);
             log::info!(" i kmer hasval hashval_cycle {}  {}  {}  {}", i, String::from_utf8_lossy(kmer) , hval.0, hash_cycled.0);
             assert_eq!(hval, hash_cycled);
         }       

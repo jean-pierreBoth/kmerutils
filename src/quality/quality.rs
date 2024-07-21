@@ -37,7 +37,7 @@ pub fn quality_to_proba(q:u8, qmin:u8) -> f64 {
 #[inline]
 fn remap_quality8(q:u8) -> u8 {
     if q > 0x37 {
-        return 7
+        7
     }
     else if q < 0x25 {
         return 0
@@ -90,11 +90,11 @@ pub struct QSequenceWM {
 impl QSequence for QSequenceWM {
     /// returns representation mode
     fn get_mode(&self) -> QualityMode {
-        return QualityMode::WM
+        QualityMode::WM
     }
     ///
     fn get_read_num(&self) -> usize {
-        return self.read_num
+        self.read_num
     }
     ///
     fn len(&self) -> usize {
@@ -147,11 +147,11 @@ pub struct QSequenceRaw {
 impl QSequence for QSequenceRaw {
     ///
     fn get_mode(&self) -> QualityMode {
-        return QualityMode::Raw
+        QualityMode::Raw
     }
     ///
     fn get_read_num(&self) -> usize {
-        return self.read_num
+        self.read_num
     }
     ///
     fn len(&self) -> usize {
@@ -192,9 +192,9 @@ pub fn load_quality_wm(filename: &String) ->  Result<Vec<QSequenceWM>, &'static 
     let mut n_read = 0;
     let mut nb_bad_read = 0;    // reads with quality missing
 
-    let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
+    let mut reader = needletail::parse_fastx_file(path).expect("expecting valid filename");
     while let Some(record) = reader.next() {
-        n_read = n_read+1;
+        n_read += 1;
         //
         let seqrec = record.expect("invalid record");
         if let Some(qual) = seqrec.qual() { // match a reference
@@ -224,5 +224,5 @@ pub fn load_quality_wm(filename: &String) ->  Result<Vec<QSequenceWM>, &'static 
     println!("nb_qual {:?}", n_qual);
     println!("nb_read without quality {:?}", nb_bad_read);
     //
-    return Ok(seq_array);
+    Ok(seq_array)
 }  // end of load_quality

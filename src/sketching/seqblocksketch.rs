@@ -85,7 +85,7 @@ impl BlockSeqSketcher {
     /// defines blcok_size, kmer_size, and sketch_size (i.e number of u32 or u64 used in sketching each block)
     pub fn new(block_size: usize, kmer_size: usize, sketch_size: usize) -> BlockSeqSketcher {
         BlockSeqSketcher {
-            sig_size: 4 as u8,
+            sig_size: 4_u8,
             block_size,
             kmer_size,
             sketch_size,
@@ -114,7 +114,7 @@ impl BlockSeqSketcher {
         //
         // get a kmer generator generate all kmers include in range arg. dependance upon kmer_size
         //
-        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, &seq);
+        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(self.kmer_size as u8, seq);
         kmergen.set_range(0, seq.size()).unwrap();
         let mut wa: FnvHashMap<u32, f64> =
             FnvHashMap::with_capacity_and_hasher(self.block_size, FnvBuildHasher::default());
@@ -151,7 +151,7 @@ impl BlockSeqSketcher {
             wa.clear();
         } // end of for numblock
           //
-        return BlockSketchedSeq { numseq, sketch };
+        BlockSketchedSeq { numseq, sketch }
     } // end of sketch_sequence_in_blocks
 
     /// sketch in blocks a pack of sequences. Use Rayon
@@ -169,7 +169,7 @@ impl BlockSeqSketcher {
             .into_par_iter()
             .map(|(i, seq)| self.blocksketch_sequence(*i as usize, seq, fhash))
             .collect();
-        return block_sketched;
+        block_sketched
     }
 
     /// dump a whole pack of sketches relative to a set of sequences split in blocks and sketched
@@ -206,7 +206,7 @@ impl BlockSeqSketcher {
             .write(true)
             .create(true)
             .truncate(true)
-            .open(&dumpfname);
+            .open(dumpfname);
         let dumpfile;
         if dumpfile_res.is_ok() {
             dumpfile = dumpfile_res.unwrap();
@@ -226,7 +226,7 @@ impl BlockSeqSketcher {
         sigbuf.write(&kmer_size_u32.to_le_bytes()).unwrap();
         sigbuf.write(&blocksize_u32.to_le_bytes()).unwrap();
         //
-        return sigbuf;
+        sigbuf
     } // end of create_signature_dump
 } // end implementation block for BlockSeqSketcher
 
@@ -249,7 +249,7 @@ pub struct SigBlockSketchFileReader {
 impl SigBlockSketchFileReader {
     /// initialize the fields fname, sketch_size, kmer_size and allocates signature_buf but signatures will be read by next.
     pub fn new(fname: &String) -> Result<SigBlockSketchFileReader, String> {
-        let dumpfile_res = OpenOptions::new().read(true).open(&fname);
+        let dumpfile_res = OpenOptions::new().read(true).open(fname);
         let dumpfile;
         if dumpfile_res.is_ok() {
             dumpfile = dumpfile_res.unwrap();
@@ -406,7 +406,7 @@ impl SigBlockSketchFileReader {
                 sig.push(sigblock);
             }
         }
-        return Some(sig);
+        Some(sig)
     } // end of next
 } // end impl block for SigBlockSketchFileReader
 
@@ -434,7 +434,7 @@ impl Distance<BlockSketched> for DistBlockSketched {
         let nb_diff = distance_jaccard_serial(&va[0].sketch, &vb[0].sketch);
         //        let nb_diff = distance_jaccard_u32_16_simd(&va[0].sketch, &vb[0].sketch);
         //
-        return nb_diff as f32 / va[0].sketch.len() as f32;
+        nb_diff as f32 / va[0].sketch.len() as f32
     } // end of eval
 } // end implementation Distance for DistBlockSketched
 
@@ -442,7 +442,7 @@ impl Distance<BlockSketched> for DistBlockSketched {
 fn distance_jaccard_serial(va: &[u32], vb: &[u32]) -> u32 {
     assert_eq!(va.len(), vb.len());
     let dist = va.iter().zip(vb.iter()).filter(|t| t.0 != t.1).count();
-    return dist as u32;
+    dist as u32
 } // end of distance_jaccard_serial
 
 #[cfg(packed_simd_2)]
@@ -526,8 +526,8 @@ mod tests {
         // define a closure for our hash function
         let kmer_revcomp_hash_fn = |kmer: &Kmer32bit| -> u32 {
             let canonical = kmer.reverse_complement().min(*kmer);
-            let hashval = probminhash::invhash::int32_hash(canonical.0);
-            hashval
+            
+            probminhash::invhash::int32_hash(canonical.0)
         };
         //
         let seqstra = String::from("TCAAAGGGAAACATTCAAAATCAGTATGCGCCCGTTCAGTTACGTATTGCTCTCGCCGTAGGCCTAATGAGATGGGCTGGGTACAGAG");

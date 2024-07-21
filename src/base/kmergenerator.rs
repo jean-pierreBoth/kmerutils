@@ -68,11 +68,11 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
 
     fn next(&mut self) -> Option<Kmer> {
        // check for end of iterator
-       let next_base;
-       match self.seqiter.next() {
-           Some(b) => next_base = b,
+       
+       let next_base = match self.seqiter.next() {
+           Some(b) => b,
            None => return None,
-       }
+       };
         // now we know we are not at end of iterator
         // if we do not have a previous we have to contruct first kmer
         // we have to push a base.
@@ -80,7 +80,7 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
         if let Some(kmer) = self.previous {
             // in fact we have the base to push
             self.previous = Some(kmer.push(next_base));
-            return self.previous;
+            self.previous
         }
         else {
             // we are at beginning of kmer construction sequence we have first base
@@ -99,7 +99,7 @@ impl <'a, Kmer>  KmerSeqIteratorT for KmerSeqIterator<'a, Kmer>
             } // end of for
             let new_kmer: Kmer = <Kmer as KmerBuilder<Kmer>>::build(new_kmer_val, self.nb_base);
             self.previous = Some(new_kmer);
-            return Some(new_kmer);
+            Some(new_kmer)
         }
     }  // end of next
 
@@ -197,7 +197,7 @@ pub fn hashmap_count_to_vec_count<T:CompressedKmerT+ std::hash::Hash>(kmer_distr
             }
         }
         //
-    return weighted_kmer;
+    weighted_kmer
 }   // end of hashmap_count_to_vec_count
 
 
@@ -206,8 +206,8 @@ pub fn hashmap_count_to_vec_count<T:CompressedKmerT+ std::hash::Hash>(kmer_distr
 // for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
 pub(super) fn get_nbkmer_guess(seq : &Sequence) -> usize {
     let nb = 10_000_000 * (1usize + seq.size().ilog2() as usize);
-    let nb_kmer = seq.size().min(nb);
-    return nb_kmer;
+    
+    seq.size().min(nb)
 } // end of get_nbkmer_guess
 
 
@@ -236,7 +236,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern
 
 
@@ -267,7 +267,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
             }
         }
         //
-        return kmer_distribution;
+        kmer_distribution
     }  // end of generate_kmer_pattern
 
 
@@ -297,7 +297,7 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern
 
 }  // end of impl KmerGenerationPattern<'a, Kmer16b32bit>
@@ -330,7 +330,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern
 
 
@@ -362,7 +362,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         }
 
         //
-        return kmer_distribution;
+        kmer_distribution
     }  // end of generate_kmer_pattern
 
 
@@ -397,7 +397,7 @@ impl<'a> KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern_in_range
 
     
@@ -428,17 +428,15 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
                 Some(kmer) =>  { 
                     kmer_vect.push(kmer);
                     nb_generated += 1;
-                    if log::log_enabled!(Level::Debug) {
-                        if nb_generated % 1_000_000 == 0 {
-                            log::debug!("nb kmer generated  : {}", nb_generated);
-                        }
+                    if log::log_enabled!(Level::Debug) && nb_generated % 1_000_000 == 0 {
+                        log::debug!("nb kmer generated  : {}", nb_generated);
                     }
                 }
                 None => break,
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern
 
 
@@ -470,17 +468,15 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
                         nb_base = kmer.1;
                     }
                     nb_generated += 1;
-                    if log::log_enabled!(Level::Debug) {
-                        if nb_generated % 1_000_000 == 0 {
-                            log::debug!("nb kmer generated  : {}, nb_different kmers {}", nb_generated, kmer_distribution.len());
-                        }
+                    if log::log_enabled!(Level::Debug) && nb_generated % 1_000_000 == 0 {
+                        log::debug!("nb kmer generated  : {}, nb_different kmers {}", nb_generated, kmer_distribution.len());
                     }
                 },
                 None => break,
             }
         }   
         //
-        return kmer_distribution;
+        kmer_distribution
     }  // end of generate_kmer_pattern
 
 
@@ -512,7 +508,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
             }
         }
         //
-        return kmer_vect;
+        kmer_vect
     }  // end of generate_kmer_pattern_in_range
 
     
@@ -530,7 +526,7 @@ pub fn generate_all_kmer16b32bit(seqvec : &Vec<Sequence>) {
     let mut nb_kmer : u64 = 0;
     
     for seq in seqvec {
-        let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16 as u8).generate_kmer(&seq);
+        let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16_u8).generate_kmer(seq);
         nb_kmer += vkmer.len() as u64;
     }
     
@@ -547,7 +543,7 @@ pub fn generate_all_kmer32bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
     let mut nb_kmer : u64 = 0;
     
     for seq in seqvec {
-        let vkmer : Vec<Kmer32bit> = KmerGenerator::new(kmer_size).generate_kmer(&seq);
+        let vkmer : Vec<Kmer32bit> = KmerGenerator::new(kmer_size).generate_kmer(seq);
         nb_kmer += vkmer.len() as u64;
     }
     
@@ -564,7 +560,7 @@ pub fn generate_all_kmer64bit(kmer_size:u8, seqvec : &Vec<Sequence>) {
     let mut nb_kmer : u64 = 0;
     
     for seq in seqvec {
-        let vkmer : Vec<Kmer64bit> = KmerGenerator::new(kmer_size).generate_kmer(&seq);
+        let vkmer : Vec<Kmer64bit> = KmerGenerator::new(kmer_size).generate_kmer(seq);
         nb_kmer += vkmer.len() as u64;
     }
     
@@ -596,7 +592,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let mut kmergen32 = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
         //
         for i in 0..seqstr.len()-16+1 {
@@ -622,7 +618,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let mut kmergen32 = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
         //
         for i in 0..seqstr.len()-16+1 {
@@ -655,7 +651,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let mut kmergen32 = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
         //
         kmergen32.set_range(3,25).unwrap();
@@ -698,7 +694,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let kmer_size : usize = 11;
         let mut kmergen_11b = KmerSeqIterator::<Kmer32bit>::new(kmer_size as u8, &seq);
         //
@@ -810,7 +806,7 @@ mod tests {
         k_count.insert([84, 65, 67].to_vec() , 1);
         k_count.insert([65, 67, 71].to_vec() , 1);
 
-        return k_count;
+        k_count
     } // end of get_weighted_kmer32bit_res
 
 
@@ -826,7 +822,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let weighted_kmer_h : FnvHashMap<Kmer32bit,u32> = KmerGenerator::new(3).generate_weighted_kmer(&seq);
         let weighted_kmer = hashmap_count_to_vec_count(&weighted_kmer_h);
         for x in weighted_kmer {
@@ -847,7 +843,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let weighted_kmer_h : FnvHashMap<Kmer64bit, u32> = KmerGenerator::new(15).generate_weighted_kmer(&seq);
         let weighted_kmer = hashmap_count_to_vec_count(&weighted_kmer_h);
         // first 9 kmers have weight 2 else weight 1
@@ -864,13 +860,13 @@ mod tests {
                 if let Some(pos3) = seqstr[pos1+1+pos2+1..].find(&searched) {
                     log::error!("found kmer : {} more than 2 times, last found at {}", searched, pos1+1+pos2+1+pos3);
                 }       
-                assert!(&seqstr[pos1+1+pos2+1..].find(&searched).is_none());
+                assert!(&!seqstr[pos1+1+pos2+1..].contains(&searched));
             }
             if x.1 == 1 {
                 // check we have it
                 let pos = &seqstr.find(&searched).unwrap();
                 // check we have it once 
-                assert!(&seqstr[pos+1..].find(&searched).is_none());
+                assert!(&!seqstr[pos+1..].contains(&searched));
             }
         }
     } // end of test_generate_weighted_kmer64bit
@@ -884,7 +880,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         //
         let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16).generate_kmer(&seq);
         assert_eq!(vkmer.len(), seqstr.len() - 16 +1);
@@ -907,7 +903,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         //
         let kmer_size : usize = 21;
         let vkmer : Vec<Kmer64bit> = KmerGenerator::new(kmer_size as u8).generate_kmer(&seq);
@@ -931,7 +927,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let kmer_size : usize = 21;
         let mut kmergen_21b = KmerSeqIterator::<Kmer64bit>::new(kmer_size as u8, &seq);
         //

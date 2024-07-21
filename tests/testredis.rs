@@ -4,7 +4,6 @@ extern crate kmerutils;
 // Cf Ch11-03 of rust book second edition
 
 extern crate log;
-use env_logger;
 
 use std::rc::Rc;
 

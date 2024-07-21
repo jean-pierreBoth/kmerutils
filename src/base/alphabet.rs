@@ -29,8 +29,8 @@ pub fn get_ac_from_tg(c : u8) -> u8 {
 }
 
 pub fn count_non_acgt(seq : &[u8]) -> usize {
-    let non_acgt = seq.into_iter().fold(0u32, |acc, &b| acc+ !is_acgt(b) as u32);
-    return non_acgt as usize;
+    let non_acgt = seq.iter().fold(0u32, |acc, &b| acc+ !is_acgt(b) as u32);
+    non_acgt as usize
 }
 
 
@@ -72,13 +72,19 @@ pub struct Alphabet2b {
 }
 
 
+impl Default for Alphabet2b {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Alphabet2b {
     pub fn new() -> Alphabet2b {
         Alphabet2b { bases : String::from("ACGT")}
     }
     //
     pub fn len(&self) -> u8 {
-        return 2;
+        2
     }
     //
     /// This function fills decompressed bases in slice unpacked.  
@@ -109,7 +115,7 @@ impl Alphabet2b {
     #[inline]
     pub fn nb_invalid_bases(&self, seq : &[u8]) -> u32 {
         let sum = seq.iter().fold(0u32, |acc, &b| acc+ !self.is_valid_base(b) as u32);
-        return sum;
+        sum
     }
 
 }  // end impl Alphabet2b
@@ -153,7 +159,7 @@ impl BaseCompress for Alphabet2b {
 
     #[inline(always)]
     fn  get_nb_bits(&self) -> u8 {
-        return 2;
+        2
     }
 
     #[inline(always)]
@@ -168,9 +174,9 @@ impl BaseCompress for Alphabet2b {
     fn base_pack(&self, to_pack: &[u8]) -> u8 {
         let mut packed = 0u8;
         for i in 0..4 {
-            packed = packed | (self.encode(to_pack[i]) << 6 - 2 * i);
+            packed |= self.encode(to_pack[i]) << (6 - 2 * i);
         }
-        return packed;
+        packed
     }
 
 } // end implement section for Alphabet2b
@@ -198,13 +204,19 @@ pub struct Alphabet4b {
 }
 
 
+impl Default for Alphabet4b {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Alphabet4b {
     pub fn new() -> Alphabet4b {
         Alphabet4b { bases : String::from("ACGTN")}
     }
     //
     pub fn len(&self) -> usize {
-        return 4;
+        4
     }
     //
     /// This function fills decompressed bases in slice unpacked.  
@@ -223,13 +235,12 @@ impl Alphabet4b {
         //
 //        println!(" unpacked[0] = {} " , unpacked[0]);
 //        println!(" unpacked[1] = {} " , unpacked[1]);
-        return;
     }
     //
     #[inline]
     pub fn nb_invalid_bases(&self, seq : &[u8]) -> u32 {
         let sum = seq.iter().fold(0u32, |acc, &b| acc+ !self.is_valid_base(b) as u32);
-        return sum;
+        sum
     }
 }  // end impl Alphabet4b
 
@@ -276,7 +287,7 @@ impl BaseCompress for Alphabet4b {
 
     #[inline(always)]
     fn  get_nb_bits(&self) -> u8 {
-        return 4;
+        4
     }
 
     #[inline(always)]
@@ -296,13 +307,13 @@ impl BaseCompress for Alphabet4b {
 //        println!("packing = {}", to_pack[0]);
         packed = self.encode(to_pack[0]);
 //        println!("packed = {}", packed);
-        packed = packed << 4;
+        packed <<= 4;
 //        println!("packed = {}", packed);
 //        println!("packing = {}", to_pack[1]);
         packed |= self.encode(to_pack[1]);
 //        println!("packed = {}", packed);
         //
-        return packed;
+        packed
     }
 } // end implement section Alphabet4b
 
@@ -319,13 +330,19 @@ pub struct Alphabet8b {
     pub bases: String,
 }
 
+impl Default for Alphabet8b {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Alphabet8b {
     pub fn new() -> Alphabet8b{
         Alphabet8b { bases : String::from("ACGT")}
     }
     //
     pub fn len(&self) -> usize {
-        return 8;
+        8
     }
 }
 
@@ -335,12 +352,12 @@ impl BaseCompress for Alphabet8b {
 
     #[inline(always)]
     fn encode(&self, c:u8) -> u8 {
-        return c;
+        c
     } // end of function encode
 
     #[inline(always)]
    fn decode(&self, c:u8) -> u8 {
-       return c;
+       c
     }
 
     /// return base complement
@@ -357,7 +374,7 @@ impl BaseCompress for Alphabet8b {
 
     #[inline(always)]
     fn  get_nb_bits(&self) -> u8 {
-        return 8;
+        8
     }
 
     #[inline(always)]
@@ -371,9 +388,9 @@ impl BaseCompress for Alphabet8b {
     // we expect a slice of one byte
     fn base_pack(&self, to_pack : &[u8]) -> u8 {
         //
-        let packed = to_pack[0];
+        
         //
-        return packed;
+        to_pack[0]
     }
 } // end implement section Alphabet8b
 

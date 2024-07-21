@@ -82,8 +82,8 @@ macro_rules! implement_nthash_for(
                 for i in 0..ksize {
                     buf = buf.rotate_left(2);
                     base = (buf & 0b11) as u8;
-                    (*fhash) = (*fhash) ^ (base_map!(base as usize, 2).rotate_left((ksize-i-1) as u32));
-                    (*rhash) = (*rhash) ^ (base_map_complement!(base as usize, 2).rotate_left(i as u32));                            
+                    (*fhash) ^= (base_map!(base as usize, 2).rotate_left((ksize-i-1) as u32));
+                    (*rhash) ^= (base_map_complement!(base as usize, 2).rotate_left(i as u32));                            
                 }
                 if fhash <= rhash {
                     return (*fhash,0);

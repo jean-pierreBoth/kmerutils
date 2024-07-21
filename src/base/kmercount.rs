@@ -21,7 +21,7 @@ use ::cuckoofilter::*;
 use ::bloom::*;
 
 use std::collections::hash_map::DefaultHasher;
-use metrohash::{MetroHash64};
+use metrohash::MetroHash64;
 use fnv::*;
 
 use probminhash::invhash::*;
@@ -87,7 +87,7 @@ impl <Kmer> KmerCounter<Kmer> where Kmer: CompressedKmerT
     pub fn new(fpr_arg: f32, capacity: usize, nb_bits: usize) -> KmerCounter<Kmer> {
         //
         KmerCounter {  bloom_f_nb_bits: nb_bits as u8 , _fpr: fpr_arg, 
-                       cuckoo_f: CuckooFilter::with_capacity(capacity as usize),
+                       cuckoo_f: CuckooFilter::with_capacity(capacity),
                        cbloom_f: CountingBloomFilter::with_rate(nb_bits, fpr_arg, capacity as u32),
                        nb_distinct:0,
                        _kmertype: PhantomData,
@@ -111,7 +111,7 @@ impl <Kmer> KmerCounter<Kmer> where Kmer: CompressedKmerT
         let nbitems = self.cuckoo_f.len();
         log::info!(" once kmer counter : size = {} , nbitems = {}",  occupied_size, nbitems);
         // purge
-        self.cuckoo_f = CuckooFilter::with_capacity(0 as usize);
+        self.cuckoo_f = CuckooFilter::with_capacity(0_usize);
         log::info!(" after purging size = {}", self.cuckoo_f.memory_usage());       
     }
 
@@ -163,7 +163,7 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
         panic!("kmercount::dump_in_file_counted_kmer , can only dump kmer count using less than 16 bits for count"); 
     }
     // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
-    let file = OpenOptions::new().write(true).create(true).truncate(true).open(&fname)?;
+    let file = OpenOptions::new().write(true).create(true).truncate(true).open(fname)?;
     let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
     let mut nb_kmer_dumped : u64 = 0;
     let kmer_size = kmer_generator.get_kmer_size();
@@ -180,7 +180,7 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
     //
     let mut cuckoo_dumped = CuckooFilter::<MetroHash64>::with_capacity((2 * nb_kmer_to_dump) as usize);
     for seq in seqvec {
-        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
         for kmer in &vkmer {
             // get canonical kmer
             let kmin = kmer.reverse_complement().min(*kmer);
@@ -198,7 +198,7 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
                     kmin.dump(&mut bufw)?;  // dump kmer
                     match nb_bytes_by_count {
                         1 => {
-                            bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count as u8) })?;
+                            bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?;
                         },
                         2 => {
                             bufw.write(unsafe { &mem::transmute::<u16, [u8;2]>(count as u16) })?;
@@ -260,7 +260,7 @@ impl <Kmer> KmerCountT for KmerCounter<Kmer>
      /// get count for a kmer. returns also kmer with .
     fn get_count(&self, kmer: Kmer) -> u32 {
         if self.cbloom_f.contains(& kmer.get_compressed_value()) {
-            return self.cbloom_f.estimate_count(& kmer.get_compressed_value());
+            self.cbloom_f.estimate_count(& kmer.get_compressed_value())
         }
         else {
             self.cuckoo_f.contains(& kmer.get_compressed_value()) as u32
@@ -299,7 +299,7 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
     log::info!("space occupied by cuckoo filter {}", kmer_counter.cuckoo_f.memory_usage());
     //
     for seq in seqvec {
-        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
         for kmer in &vkmer {
             let kmin = kmer.reverse_complement().min(*kmer);
             kmer_counter.insert_kmer(kmin);
@@ -427,7 +427,7 @@ pub struct KmerCounterPool<Kmer>  {
 impl<Kmer> KmerCounterPool<Kmer> {
     pub fn new (counters:Vec<Box<KmerCounter<Kmer>>>) -> KmerCounterPool<Kmer> {
         // CAVEAT we should check that all counters have same number of bits in bloom filter
-        KmerCounterPool{counters: counters}
+        KmerCounterPool{counters}
     }
 
     /// get count for a kmer only if kmer has been seen at least twice.
@@ -437,13 +437,13 @@ impl<Kmer> KmerCounterPool<Kmer> {
     where Kmer: CompressedKmerT+DispatchableT
     {
         let loc = kmer.dispatch(self.counters.len());        
-        self.counters[loc as usize].get_above2_count(kmer)
+        self.counters[loc].get_above2_count(kmer)
     }  // get_above2_count
     
     /// returns number of bits used for a count
     pub fn get_count_nb_bits(&self) -> u8 
         where Kmer: CompressedKmerT {
-        if self.counters.len() > 0 {
+        if !self.counters.is_empty() {
             self.counters[0].as_ref().get_count_nb_bits()
         }
         else { 0}
@@ -473,7 +473,7 @@ impl<Kmer> KmerCounterPool<Kmer> {
         //
         let magic: u32  = COUNTER_MULTIPLE;
         // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
-        let file = OpenOptions::new().write(true).create(true).truncate(true).open(&fname)?;
+        let file = OpenOptions::new().write(true).create(true).truncate(true).open(fname)?;
         let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
         let mut nb_kmer_dumped = 0;
         let kmer_size = kmer_generator.get_kmer_size();
@@ -489,7 +489,7 @@ impl<Kmer> KmerCounterPool<Kmer> {
         // now we must generate kmer once more. But we must keep track of already dumped kmer.
         let mut cuckoo_dumped = CuckooFilter::<MetroHash64>::with_capacity((2.0 * nb_kmer_to_dump as f64) as usize);
         for seq in seqvec {
-            let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+            let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
             for kmer in &vkmer {
                 // get canonical kmer
                 let kmin = kmer.reverse_complement().min(*kmer);
@@ -536,12 +536,12 @@ impl <Kmer> KmerCountT for  KmerCounterPool<Kmer>
     fn insert_kmer(&mut self, kmer: Kmer) {
         // dispatch
         let loc = kmer.dispatch(self.counters.len());        
-        self.counters[loc as usize].insert_kmer(kmer);
+        self.counters[loc].insert_kmer(kmer);
     }  // end of insert_kmer
     
     fn get_count(&self, kmer: Kmer) -> u32 {
         let loc = kmer.dispatch(self.counters.len());        
-        self.counters[loc as usize].get_count(kmer)
+        self.counters[loc].get_count(kmer)
     }   
 
     fn get_nb_distinct(&self) -> u64 {
@@ -582,7 +582,7 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
     //
     let magic: u32  = COUNTER_MULTIPLE;
     // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
-    let file = OpenOptions::new().write(true).create(true).truncate(true).open(&fname)?;
+    let file = OpenOptions::new().write(true).create(true).truncate(true).open(fname)?;
     let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
     let mut nb_kmer_dumped : usize = 0;
     let kmer_size = kmer_generator.get_kmer_size();
@@ -595,13 +595,13 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
     // how many kmer we have to dump?  
     let nb_kmer_to_dump = counter_pool.get_nb_distinct() - counter_pool.get_nb_unique();
     println!(" threaded dump multiple kmer , nb kmer to dump : {} ", nb_kmer_to_dump);
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump as u64) })?;
+    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
         // now we must generate kmer once more. But we must keep track of already dumped kmer.
     let mut cuckoo_dumped = CuckooFilter::<MetroHash64>::with_capacity((1.5 * nb_kmer_to_dump as f64) as usize);
     bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
     // now we must generate kmer once more
     for seq in seqvec {
-        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+        let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
         for kmer in &vkmer {
             let kmin = kmer.reverse_complement().min(*kmer);
             let key = kmin.get_compressed_value();
@@ -616,7 +616,7 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
                     // needs a mutex on bufw and nb_kmer_dumped
                     kmin.dump(&mut bufw)?;
                     // dump count
-                    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count as u8) })?; 
+                    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?; 
                     nb_kmer_dumped += 1;
                 }
             } // end if !already
@@ -624,7 +624,7 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
     } // end of for on seq
     println!("dump_kmer_counter, number of kmer to dump {} , dumped : {} ", nb_kmer_to_dump, nb_kmer_dumped);
     //
-    Ok(nb_kmer_dumped as usize)
+    Ok(nb_kmer_dumped)
 }  // end of dump_in_file
 
 
@@ -643,7 +643,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     //
     let magic: u32  = COUNTER_MULTIPLE;
     // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
-    let file = OpenOptions::new().write(true).create(true).truncate(true).open(&fname)?;
+    let file = OpenOptions::new().write(true).create(true).truncate(true).open(fname)?;
     let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
     // as bloom f allocated have 8 bits per slot ... but we dump so that to have the possibility to change.
     let nb_bytes_by_count;
@@ -663,7 +663,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
     // how many kmer we have to dump?  
     let nb_kmer_to_dump = counter_pool.get_nb_distinct() - counter_pool.get_nb_unique();
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump as u64) })?;
+    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
     println!(" threaded dump multiple kmer , nb kmer to dump : {} ", nb_kmer_to_dump);
     // we set count to u16 beccause of high coverage and high error rates in long reads that force us to reduce kmer size!!
     let (s, r) = crossbeam::channel::bounded::<(Kmer, u16)>(1_000_000);
@@ -684,14 +684,14 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
                 let kmer_generator = KmerGenerator::new(kmer_size as u8);
                 let mut numseq = 0;
                 for seq in seqvec {
-                    let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+                    let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
                     for kmer in &vkmer {
                         let kmin = kmer.reverse_complement().min(*kmer);
                         if kmin.dispatch(nb_threads) == i {
                             let key = kmin.get_compressed_value();                        
                             // the following requires a read access on filter
-                            let already;
-                            already = filter.contains(& key);
+                            
+                            let already = filter.contains(& key);
                             if !already {
                                 // we rely on KmerCounterPool being a partition. counter_pool.get_count does the dispatching job as Kmer:DispatchableT
                                 let count = counter_pool.get_count(kmin) as u16;
@@ -788,15 +788,15 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         
     let poolcounters :KmerCounterPool<Kmer> = crossbeam::thread::scope(|scope| {
         let start_t = std::time::Instant::now();
-        let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
+        let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads);
         for i in 0..nb_threads {
             let mut nbseq_i = 0;
             // can generate thread
             let handle = scope.spawn(move |_| {
-                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/(nb_threads as usize), nb_bits);
+                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/nb_threads, nb_bits);
                 let kmer_generator = KmerGenerator::new(kmer_size as u8);
                 for seq in seqvec {
-                    let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+                    let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
                     for kmer in &vkmer {
                         let kmin = kmer.reverse_complement().min(*kmer);
                         // the idea to dispatch kmer after one more pass of hashing
@@ -818,7 +818,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         } // end of for on threads
         //
         // now we must merge
-        let mut kmer_counters : Vec<Box<KmerCounter<Kmer>>>  = Vec::with_capacity(nb_threads as usize);
+        let mut kmer_counters : Vec<Box<KmerCounter<Kmer>>>  = Vec::with_capacity(nb_threads);
         let mut nb_unique = 0u64;
         let mut nb_distinct = 0u64;
         for handle in join_handles {
@@ -843,8 +843,8 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
 
 
 
-use std::cell::{RefCell};
-use crossbeam::channel::{Sender};
+use std::cell::RefCell;
+use crossbeam::channel::Sender;
 
 /// This function counts K-mers from a vector of Sequence.
 /// One thread generates all kmer and dispatch them to counter threads via messages.
@@ -879,7 +879,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         let mut channels : Vec<RefCell< Sender<Kmer>  > >  = Vec::new();
         //
         let start_t = std::time::Instant::now();
-        let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads as usize);
+        let mut join_handles: Vec<Box<ScopedJoinHandle<KmerCounter<Kmer>>>> = Vec::with_capacity(nb_threads);
         // receptor threads
         for i in 0..nb_threads {
             let channel = crossbeam::channel::bounded::<Kmer>(1_000_000);
@@ -887,7 +887,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
             // can generate thread
             let receiver = channel.1;
             let receptor_handle = scope.spawn( move |_| {
-                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/(nb_threads as usize), nb_bits);
+                let mut kmer_counter_i  = KmerCounter::new(fpr, capacity/nb_threads, nb_bits);
                 let mut nb_received = 0u64;
                 receiver.into_iter().for_each(|msg| { // just insert
                     kmer_counter_i.insert_kmer(msg);
@@ -907,7 +907,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         let kmer_generator = KmerGenerator::new(kmer_size as u8);
         let mut nbseq = 0;
         for seq in seqvec {
-            let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(&seq);
+            let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
             for kmer in &vkmer {
                 let kmin = kmer.reverse_complement().min(*kmer);
                 // the idea to dispatch kmer after one more pass of hashing
@@ -927,7 +927,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
         }
         //
         // now we must merge
-        let mut kmer_counters : Vec<Box<KmerCounter<Kmer>>>  = Vec::with_capacity(nb_threads as usize);
+        let mut kmer_counters : Vec<Box<KmerCounter<Kmer>>>  = Vec::with_capacity(nb_threads);
         let mut nb_unique = 0u64;
         let mut nb_distinct = 0u64;
         for handle in join_handles {
@@ -1020,7 +1020,7 @@ impl KmerFilter1 {
         let magic: u32  = 0xcea2bbdd;
         let kmer_generator = KmerGenerator::<Kmer16b32bit>::new(16);
         // as kmer generation is fast we generate once more all kmers and check for those that are in once_f
-        let file = OpenOptions::new().write(true).create(true).truncate(true).open(&fname)?;
+        let file = OpenOptions::new().write(true).create(true).truncate(true).open(fname)?;
         let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
         let mut nb_kmer_dumped = 0;
         // write magic, kmer_size and number of kmers
@@ -1031,7 +1031,7 @@ impl KmerFilter1 {
         let mut numseq = 0u32;
         // now we must generate kmer once more
         for seq in seqvec {
-            let vkmer : Vec<Kmer16b32bit> = kmer_generator.generate_kmer(&seq);
+            let vkmer : Vec<Kmer16b32bit> = kmer_generator.generate_kmer(seq);
             let mut numkmer = 0u32;
             for kmer in &vkmer {
                 let kmin = kmer.reverse_complement().min(*kmer);
@@ -1065,14 +1065,14 @@ pub fn filter1_kmer_16b32bit(seqvec : &Vec<Sequence>) -> KmerFilter1 {
     let start_t = std::time::Instant::now();
 
     let mut nb_kmer : u64 = 0;
-    let capacity = 1000_000_000;
+    let capacity = 1_000_000_000;
     let mut nbseq = 0u64;
     //
     let mut kmer_counter = KmerFilter1::new(16u8, capacity);
     println!("space occupied by KmerFilter1 filter {}", 2* kmer_counter.once_f.memory_usage());
     //
     for seq in seqvec {
-        let vkmer : Vec<Kmer16b32bit> = KmerGenerator::<Kmer16b32bit>::new(16).generate_kmer(&seq);
+        let vkmer : Vec<Kmer16b32bit> = KmerGenerator::<Kmer16b32bit>::new(16).generate_kmer(seq);
         for kmer in &vkmer {
             // do not forget reverse complement manip
             let kmin = kmer.reverse_complement().min(*kmer);
@@ -1148,7 +1148,7 @@ impl KmerCountReload {
                 h_count = Some(fnv::FnvHashMap::with_capacity_and_hasher(size, Default::default()));
             },
         };
-        KmerCountReload{_c_type: c_type,  kmer_size:kmer_size, nb_kmer:size, h_pos: h_pos, positions: positions, h_count: h_count}
+        KmerCountReload{_c_type: c_type,  kmer_size, nb_kmer:size, h_pos, positions, h_count}
     }  // end of new
     //
     // insert a kmer data vectors positions and count and insert resulting insertion slot in hashmap 
@@ -1182,21 +1182,21 @@ impl KmerCountReload {
         info!(" in  KmerCountReload::load_multiple_kmers");
         let start_t = std::time::Instant::now();
         //
-        let file_r = OpenOptions::new().read(true).open(&fname);
-        let file;
-        match file_r {
-            Ok(sthing) => {file = sthing},
+        let file_r = OpenOptions::new().read(true).open(fname);
+        
+        let file = match file_r {
+            Ok(sthing) => {sthing},
             Err(_e) => { println!("KmerCountReload::load_multiple_kmers_from_file cannot open file {} ", fname);
                          return None;
             }
-        }
+        };
         let mut bufr: io::BufReader<fs::File> = io::BufReader::with_capacity(1_000_000_000, file);
         // we need some 4 bytes buffer
         let mut buf_4bytes_1 = [0u8;4];
         let mut buf_1bytes_1 = [0u8;1];
         let mut buf_2bytes_1 = [0u8;2];
         let mut io_res;
-        let magic;
+        
         let nb_kmer:u64;
         let kmer_size;
         let nb_bytes_by_count;
@@ -1205,13 +1205,13 @@ impl KmerCountReload {
         //
         // write magic (4 bytes), kmer_size, size of counter,  and number of kmers
         io_res = bufr.read_exact(&mut buf_4bytes_1);
-        if io_res.is_err() {
+        let magic = if io_res.is_err() {
             println!("KmerCountReload::load_multiple_kmers_from_file could no read magic");
             return None;
         }
         else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            magic = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
-        }
+            unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+        };
         let c_type = match magic {
             COUNTER_MULTIPLE   => CounterType::Multiple,
             _ => {
@@ -1330,31 +1330,31 @@ impl KmerCountReload {
         println!(" in  KmerCountReload::load_unique_kmer_from_file");
         let start_t = std::time::Instant::now();
         //
-        let file_r = OpenOptions::new().read(true).open(&fname);
-        let file;
-        match file_r {
-            Ok(sthing) => {file = sthing},
+        let file_r = OpenOptions::new().read(true).open(fname);
+        
+        let file = match file_r {
+            Ok(sthing) => {sthing},
             Err(_e) => { println!("KmerCountReload::load_from_file cannot open file {} ", fname);
                          return None;
             }
-        }
+        };
         let mut bufr: io::BufReader<fs::File> = io::BufReader::with_capacity(1_000_000_000, file);
         //
         let mut io_res;
-        let magic;
+        
         let nb_kmer:u64;
         let kmer_size;
         // we need some 4 bytes buffer
         let mut buf_4bytes_1 = [0u8;4];
         // write magic (4 bytes), kmer_size and number of kmers
         io_res = bufr.read_exact(&mut buf_4bytes_1);
-        if io_res.is_err() {
+        let magic = if io_res.is_err() {
             println!("KmerCountReload::load_from_file could no read magic");
             return None;
         }
         else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            magic = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
-        }
+            unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+        };
         let c_type = match magic {
             COUNTER_UNIQUE   => CounterType::Unique,
             _ => {
@@ -1426,11 +1426,9 @@ impl KmerCountReload {
             if ikmer == 0 {
                 println!("KmerCountReload::load_from_file first kmer, numseq, kpos {} {} {} ", kmer, numseq, kmerpos);                
             }
-            else {
-                if ikmer % 10_000_000 == 0 {
-                    println!("KmerCountReload::load_unique_kmer_from_file  kmer rank  kmer, numseq, kpos {} {} {} {} ",
-                             ikmer, kmer, numseq, kmerpos);                
-                }
+            else if ikmer % 10_000_000 == 0 {
+                println!("KmerCountReload::load_unique_kmer_from_file  kmer rank  kmer, numseq, kpos {} {} {} {} ",
+                         ikmer, kmer, numseq, kmerpos);                
             }
            kmer_count.insert_kmer_pos(kmer, numseq, kmerpos);
         }
@@ -1460,12 +1458,12 @@ impl KmerCountReload {
 
     /// finally returns an option on counts
     pub fn get_multi_kmer_counts(&self) -> Option<Vec<u16>> {
-        if self._c_type != CounterType::Multiple || self.h_count == None {
+        if self._c_type != CounterType::Multiple || self.h_count.is_none() {
             None
         }
         // avoid the call to unwrap and use ref to avoid the move out! Rust opaque tricks...
         else if let Some(ref hmap) = self.h_count {
-            let v = hmap.values().map(|x| *x).collect();
+            let v = hmap.values().copied().collect();
             Some(v)
         }
         else { None}
@@ -1506,7 +1504,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16).generate_kmer(&seq);
         // now we will sample 1_000_000 kmers
         let between = Uniform::<usize>::new(2, vkmer.len());        
@@ -1533,8 +1531,8 @@ mod tests {
         //
         //
         let countvec: Vec<u32> = (0..vkmer.len()).map(|i| kmer_counter.get_count(vkmer[i])).collect();
-        let maxpos = (0..countvec.len()).max_by_key(|&x| countvec[x]).unwrap() as usize;
-        let minpos = (0..countvec.len()).min_by_key(|&x| countvec[x]).unwrap() as usize;
+        let maxpos = (0..countvec.len()).max_by_key(|&x| countvec[x]).unwrap();
+        let minpos = (0..countvec.len()).min_by_key(|&x| countvec[x]).unwrap();
         println!(" kmer maxpos {} minpos {} ", maxpos, minpos);
         // now we can check the error rate ?
         for i in 2..countvec.len() {
@@ -1560,7 +1558,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         // seq has 80 chars, we get 65 = 80-16+1 kmers of 16 bases
         let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16).generate_kmer(&seq);
         println!(" got nb kmers : {} ", vkmer.len());
@@ -1576,8 +1574,8 @@ mod tests {
         }
         // now check if we see something between 0 and vkmer.len()/2 - 1
         let countvec: Vec<u32> = (0..vkmer.len()).map(|i| kmer_counter.get_count(vkmer[i])).collect();
-        let maxpos = (0..countvec.len()).max_by_key(|&x| countvec[x]).unwrap() as usize;
-        let minpos = (0..countvec.len()).min_by_key(|&x| countvec[x]).unwrap() as usize;
+        let maxpos = (0..countvec.len()).max_by_key(|&x| countvec[x]).unwrap();
+        let minpos = (0..countvec.len()).min_by_key(|&x| countvec[x]).unwrap();
         println!(" kmer maxpos {} minpos {} ", maxpos, minpos);
         for i in 0..countvec.len() {
             log::debug!(" pos count {}  {} ", i, countvec[i]);

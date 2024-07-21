@@ -73,10 +73,10 @@ pub struct InvHashedItem<T:Clone+Copy> {
 impl <T:Clone+Copy> InvHashedItem<T> {
 
     pub fn new(hash:ItemHash) -> Self {
-        InvHashedItem{hash:hash, t_marker:PhantomData,}
+        InvHashedItem{hash, t_marker:PhantomData,}
     }
     pub fn get_hash(&self) -> ItemHash {
-        return self.hash;
+        self.hash
     } // end of get impl
     
 }  // end of impl InvHashedItem
@@ -122,7 +122,7 @@ pub struct InvHashCount<T:Clone+Copy> {
 
 impl <T:Clone+Copy> InvHashCount<T> {
     pub fn new(hashed: InvHashedItem<T>, count:u8) -> Self {
-        InvHashCount { hashed: hashed, count:count,}
+        InvHashCount { hashed, count,}
     }
     pub fn get_count(&self) -> u8 {
         self.count

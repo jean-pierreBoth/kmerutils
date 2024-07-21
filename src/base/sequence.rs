@@ -96,19 +96,19 @@ impl  Sequence {
         //
        Sequence {
            // struct field : value
-           seq: seq,
+           seq,
            description: [nb_bits, nb_bases_in_last_byte as u8]
        }
     } // end new
 
     #[inline(always)]
     pub fn nb_bits_by_base(&self) -> u8 {
-        return self.description[0];
+        self.description[0]
     }
 
     #[inline(always)]
     fn nb_bases_in_last_byte(&self) -> u8 {
-        return self.description[1];
+        self.description[1]
     }
 
     /// return a u8 encoded base. It is too expensive to allocate the corresponding decoding alphabet
@@ -127,7 +127,7 @@ impl  Sequence {
                 let byte = pos / nb_base_by_byte;
                 let bit_offset = nb_bits * (pos % nb_base_by_byte);
                 // as base are stacked from left to right, we must shift
-                mask & (self.seq[byte] >> 8 - bit_offset - nb_bits) as u8     
+                mask & (self.seq[byte] >> (8 - bit_offset - nb_bits))     
             }
             //
             _ => panic!(" error in Sequence::new , bad number of bits by base must be 2 4 or 8"),
@@ -146,7 +146,7 @@ impl  Sequence {
                 // compression rate 2
                 let alfa4b = Alphabet4b::new();
                 let nb_full_bytes = if self.nb_bases_in_last_byte() > 0 { self.seq.len()-1 } else { self.seq.len() };
-                let seqlen = nb_full_bytes * (2 as usize) + self.nb_bases_in_last_byte() as usize;
+                let seqlen = nb_full_bytes * 2_usize + self.nb_bases_in_last_byte() as usize;
                 log::trace!("seqlen = {} ", seqlen);
                 seqvec = (0..seqlen).map(|_| 0).collect();
                 // get a slice of 2 u8
@@ -157,7 +157,7 @@ impl  Sequence {
                     alfa4b.base_unpack(self.seq[i], small_slice_ref);
                     //
                     seqvec[pos..(pos+2)].copy_from_slice(small_slice_ref);
-                    pos = pos+2;
+                    pos += 2;
                 }
                 // unpack last byte if necessary
                 if self.nb_bases_in_last_byte() > 0 {
@@ -171,7 +171,7 @@ impl  Sequence {
                 // compression rate 4
                 let alfa2b = Alphabet2b::new();
                 let nb_full_bytes = if self.nb_bases_in_last_byte() > 0 { self.seq.len()-1 } else { self.seq.len() };
-                let seqlen = nb_full_bytes * (4 as usize) + self.nb_bases_in_last_byte() as usize;
+                let seqlen = nb_full_bytes * 4_usize + self.nb_bases_in_last_byte() as usize;
                 seqvec = (0..seqlen).map(|_| 0).collect();
                 // get a slice of 4 u8
                 let small_slice_ref : &mut [u8] = &mut [0;4];
@@ -182,7 +182,7 @@ impl  Sequence {
                     alfa2b.base_unpack(self.seq[i], small_slice_ref);
                     //
                     seqvec[pos..(pos+4)].copy_from_slice(small_slice_ref);
-                    pos = pos+4;
+                    pos += 4;
                 }
                 // unpack last byte if necessary
                 if self.nb_bases_in_last_byte() > 0 {
@@ -218,15 +218,15 @@ impl  Sequence {
     /// return length of compressed seq up to last block possibly not full. So it is an upper bound of useful size
     #[inline]
     pub fn compressed_length(&self) -> usize {
-        return self.seq.len();
+        self.seq.len()
     }
 
     /// Get a pointer to an object implementing alphabet.
     pub fn get_alphabet(&self) -> Box<dyn BaseCompress> {
         match self.nb_bits_by_base() {
-            2 => { return Box::new(Alphabet2b::new()); } ,
-            4 => { return Box::new(Alphabet4b::new()); } ,
-            8 => { return Box::new(Alphabet8b::new()); } ,
+            2 => { Box::new(Alphabet2b::new())} ,
+            4 => { Box::new(Alphabet4b::new())} ,
+            8 => { Box::new(Alphabet8b::new())} ,
             _ => panic!("incoherent coding of sequence"),
         }
     } // end get_alphabet
@@ -262,11 +262,11 @@ impl  Sequence {
             let mut rev_byte = byte;
             if do_shift {
                 // take upper part of rev_byte and get it in lower part of byte
-                rev_byte = 0x00 | (rev_byte >> shift_amount);
+                rev_byte >>= shift_amount;
                 // we have left space in rev_byte , take the lower shift_amount bits of 
                 // next byte and transfer it into upper part of current
                 if i < len-1 {
-                    rev_byte = (self.seq[len-1-i-1] & shift_mask) << 8-shift_amount | rev_byte;                    
+                    rev_byte |= (self.seq[len-1-i-1] & shift_mask) << (8-shift_amount);                    
                 }
             }
             // swap adjacent bloc of 2 bits
@@ -292,7 +292,7 @@ impl  Sequence {
         }
         let mut rev_vec : Vec<u8> = Vec::with_capacity(self.size());
         // get a reverse iterator
-        let mut iter = IterSequence::new(&self, false);
+        let mut iter = IterSequence::new(self, false);
         // get alphabet used in sequence, complement base
         let alphabet = self.get_alphabet();
         // transpose
@@ -350,14 +350,14 @@ impl  Sequence {
         }
         for j in 1..sliced_seq.len() {
             match sliced_seq[j] {
-                b'A' => { histo[0] = histo[0] + 1; },     // A
-                b'C' => { histo[1] = histo[1] + 1; },     // C
-                b'G' => { histo[2] = histo[2] + 1; },     // G
-                b'T' => { histo[3] = histo[3] + 1; },     // T
-                _ => nb_bad = nb_bad+1,
+                b'A' => { histo[0] += 1; },     // A
+                b'C' => { histo[1] += 1; },     // C
+                b'G' => { histo[2] += 1; },     // G
+                b'T' => { histo[3] += 1; },     // T
+                _ => nb_bad += 1,
             };
         }
-        return nb_bad;
+        nb_bad
     }  // end of base_count
 
 
@@ -449,7 +449,7 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
             'A' | 'C' | 'T' | 'G' => {
                 let encoded = alphabet.encode(to_add[shift]);
                 log::trace!("encoding : {:?}, encoded : {}, byte before  : 0x{:x}", to_add[shift] as char,encoded, byte);
-                *byte = *byte | (encoded << 8 - nb_bits - *already * nb_bits);
+                *byte |= encoded << (8 - nb_bits - *already * nb_bits);
                 log::trace!("encoding : {:?}, encoded : {}, byte after : 0x{:x}", to_add[shift] as char,encoded, byte);
                 *already += 1;
                 inserted += 1;
@@ -458,7 +458,7 @@ fn update_byte(byte: &mut u8, already : &mut usize, alphabet : & dyn  BaseCompre
         };
         shift += 1;
     }
-    return shift;
+    shift
 } // end of update_byte
 
 
@@ -524,13 +524,13 @@ impl<'a> IterSequence<'a> {
         //
         IterSequence {
             myseq: seqarg,
-            mask : mask,
+            mask,
             must_decode: must_decode_arg,
-            decoder: decoder,
+            decoder,
             byte:0,
             bit:0,
-            last_byte: last_byte,
-            last_bit: last_bit,
+            last_byte,
+            last_bit,
         }
     } // end of new
     /// set range of iterator. By default it is from 0 to end of sequence. But this
@@ -605,12 +605,12 @@ impl<'a> Iterator for IterSequence<'a> {
         // we must check consistency : endbit - bit >= nb_bits. moreover we could check parity of bit
         let nb_bits = self.myseq.nb_bits_by_base();
         assert!(endbit - self.bit >= nb_bits);
-        let base = self.mask & (self.myseq.seq[self.byte as usize] >>  8 - self.bit - nb_bits) as u8;
+        let base = self.mask & (self.myseq.seq[self.byte] >> (8 - self.bit - nb_bits));
         // adjust state
         self.bit += nb_bits;
         if self.bit == endbit {
             // we are now at end of byte, increment byte that will cause eventually next call to return None
-            self.byte = self.byte + 1;
+            self.byte += 1;
             if self.byte <= self.last_byte {
                 // if not above last byte reset self.bit (else we stay at end , could put it at 8
                 self.bit = 0;
@@ -619,7 +619,7 @@ impl<'a> Iterator for IterSequence<'a> {
         // return decoded or not
         match self.must_decode {          
             true =>  { return Some((*(self.decoder.as_ref().unwrap()))(base)); }
-            false => { return Some(base); }
+            false => { Some(base)}
         }
     }  // end of next        
 }  // end of impl<'a> Iterator
@@ -681,13 +681,13 @@ impl<'a> DoubleEndedIterator for IterSequence<'a> {
         else {
             0xFF
         };
-        let base = mask & (self.myseq.seq[self.last_byte as usize] >>  8 - self.last_bit) as u8;
+        let base = mask & (self.myseq.seq[self.last_byte] >> (8 - self.last_bit));
         // adjust state
         self.last_bit -= nb_bits;
         if self.last_bit == endbit {
             // we are now at end of byte, decrement last_byte that will cause eventually next call to return None
             if self.last_byte > self.byte {
-                self.last_byte = self.last_byte - 1;
+                self.last_byte -= 1;
                 if self.byte <= self.last_byte {
                     // if not under self.byte we reset self.last_bit at beginning (in backward path) of new byte.
                     self.last_bit = 8;
@@ -698,7 +698,7 @@ impl<'a> DoubleEndedIterator for IterSequence<'a> {
 //        println!("next_back returning {}",  (*(self.decoder))(base) );
         match self.must_decode {          
             true =>  { return Some((*(self.decoder.as_ref().unwrap()))(base)); }
-            false => { return Some(base); }
+            false => { Some(base)}
         }
     }  // end of next        
 }  // end of impl<'a> Iterator
@@ -926,7 +926,7 @@ mod tests {
         let seqstr = String::from("TACGAGTAGGAT");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
-        let seq = Sequence::new(&slu8,8);
+        let seq = Sequence::new(slu8,8);
         //
         let reverse_4 = seq.get_reverse_complement();
         let reverse = reverse_4.decompress();
@@ -943,7 +943,7 @@ mod tests {
         let seqstr = String::from("TACGAGTAGGAT");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         //
         let reverse_2 = seq.get_reverse_complement();
         let reverse = reverse_2.decompress();
@@ -961,7 +961,7 @@ mod tests {
         let seqstr = String::from("TACGAGTAGGATCC");
         let slu8 = seqstr.as_bytes();
         // get a sequence with 8 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         //
         let reverse_2 = seq.get_reverse_complement();
         let reverse = reverse_2.decompress();

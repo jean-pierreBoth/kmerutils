@@ -25,6 +25,12 @@ pub use super::{nthash::*, alphabet::*};
 pub struct Kmer16b32bit(pub u32);
 
 
+impl Default for Kmer16b32bit {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Kmer16b32bit {
     /// allocate a new kmer. initilized to 0
     pub fn new() -> Kmer16b32bit {
@@ -44,7 +50,7 @@ impl KmerT for Kmer16b32bit {
         // This depends on our choice for encoding ACGT as respectiveley  00  01 10 11 !!!
         // we use the reverse instruction which simplifies the previous impl based on  Hacker's delight 
         // we keep Hacker's delight trick to permut groups of 2bits to restore bases after reverse
-        let mut revcomp = self.0 as u32;
+        let mut revcomp = self.0;
         revcomp = !revcomp;
         //
         revcomp = revcomp.reverse_bits();
@@ -88,12 +94,12 @@ impl CompressedKmerT for Kmer16b32bit {
             base = (buf & 0b11) as u8; 
             decompressed_kmer.push(alphabet.decode(base));
         }
-        return decompressed_kmer;
+        decompressed_kmer
     }
     ///
     #[inline(always)]    
     fn get_compressed_value(&self) -> u32 {
-        return self.0;
+        self.0
     }
     ///
     #[inline(always)]    

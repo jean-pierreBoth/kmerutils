@@ -29,19 +29,19 @@ use log::trace;
 // String to u64   str.parse::<u64>()  
 
 
-pub const FN_KEY          : &'static str  = "prop:fn";
-pub const PROCESS_KEY     : &'static str  = "prop:fn:process";
-pub const NB_BASES_KEY    : &'static str  = "prop:fn:process:bases";
-pub const SLICE_SIZE_KEY  : &'static str  = "prop:fn:process:ssize";
-pub const POS_KEY         : &'static str  = "prop:fn:process:readnum:slicepos";
+pub const FN_KEY          : &str  = "prop:fn";
+pub const PROCESS_KEY     : &str  = "prop:fn:process";
+pub const NB_BASES_KEY    : &str  = "prop:fn:process:bases";
+pub const SLICE_SIZE_KEY  : &str  = "prop:fn:process:ssize";
+pub const POS_KEY         : &str  = "prop:fn:process:readnum:slicepos";
 
 // for inverse indexing
 
 
-pub const MINHASH_1       : &'static str  = "prop:fn:process:minhash_1";
-pub const MINHASH_2       : &'static str  = "prop:fn:process:minhash_2";
+pub const MINHASH_1       : &str  = "prop:fn:process:minhash_1";
+pub const MINHASH_2       : &str  = "prop:fn:process:minhash_2";
 
-pub const SLICE_ANCHOR_KEY : &'static str = "prop:fn:process:ssize:bases:readnum:slicepos";
+pub const SLICE_ANCHOR_KEY : &str = "prop:fn:process:ssize:bases:readnum:slicepos";
 
 
 
@@ -64,13 +64,13 @@ impl redis::ToRedisArgs for SliceAnchorValueRedis {
         let nb_kmer = self.hk_count.len();
         for i in 0..nb_kmer  {
             if i > 0 {
-                key.push(':' as  u8);
+                key.push(b':');
             }
-            key.extend_from_slice(& self.hk_count[i].0.to_string().as_bytes());
-            key.push(',' as  u8);
-            key.extend_from_slice(& self.hk_count[i].1.to_string().as_bytes());
+            key.extend_from_slice(self.hk_count[i].0.to_string().as_bytes());
+            key.push(b',');
+            key.extend_from_slice(self.hk_count[i].1.to_string().as_bytes());
             if i <  nb_kmer {
-                key.push(':' as  u8);
+                key.push(b':');
             }
         }
         trace!("SliceAnchorValueRedis encoded sliceanchor for redis (kmer/count {:?}", &key);
@@ -95,7 +95,7 @@ impl FromRedisValue for SliceAnchorValueRedis {
                 // now we must decode vecu8 byte by byte. Inverse of write_redis_args
                 let res = str::from_utf8(bytes);
                 if res.is_err() {
-                    return Err(redis::RedisError::from((redis::ErrorKind::TypeError,"Not a String")));
+                    Err(redis::RedisError::from((redis::ErrorKind::TypeError,"Not a String")))
                 }
                 else {
                     let str = res.unwrap();
@@ -115,7 +115,7 @@ impl FromRedisValue for SliceAnchorValueRedis {
                             trace!("SliceAnchorValueRedis FromRedisValue pushing  (kmer/count {:?} {:?}", &kmer_h, &count);
                         }                   
                     } // end of for in couple
-                    return Ok(SliceAnchorValueRedis{hk_count: retvec});
+                    Ok(SliceAnchorValueRedis{hk_count: retvec})
                 } // end else
             }, // case ref bytes
             // else return error 
@@ -147,17 +147,17 @@ impl ToRedisArgs for SliceAnchorKeyRedis {
         let mut key:Vec<u8> = Vec::new();
         // This suppose that filename is a valid utf-8 but filename are !?  CAVEAT
         key.extend_from_slice(self.filename.as_bytes());
-        key.push(':' as u8);
+        key.push(b':');
         key.extend_from_slice(self.process.as_bytes());
-        key.push(':' as u8);           
+        key.push(b':');           
         // transfer other numerical values as [u8]
-        key.extend_from_slice(& self.slice_size.to_string().as_bytes());
-        key.push(':' as u8);           
-        key.extend_from_slice(& self.nb_bases.to_string().as_bytes());
-        key.push(':' as u8);           
-        key.extend_from_slice(& self.readnum.to_string().as_bytes());
-        key.push(':' as u8);           
-        key.extend_from_slice(& self.slicepos.to_string().as_bytes());
+        key.extend_from_slice(self.slice_size.to_string().as_bytes());
+        key.push(b':');           
+        key.extend_from_slice(self.nb_bases.to_string().as_bytes());
+        key.push(b':');           
+        key.extend_from_slice(self.readnum.to_string().as_bytes());
+        key.push(b':');           
+        key.extend_from_slice(self.slicepos.to_string().as_bytes());
         //
         out.write_arg(&key);
     }  // end of write_redis_args
@@ -187,15 +187,15 @@ impl ToRedisArgs for  MinhashKeyRedis {
         let mut key:Vec<u8> = Vec::new();
         // This suppose that filename is a valid utf-8 but filename are !?  CAVEAT
         key.extend_from_slice(self.filename.as_bytes());
-        key.push(':' as u8);
+        key.push(b':');
         key.extend_from_slice(self.process.as_bytes());
-        key.push(':' as u8);           
+        key.push(b':');           
         // transfer other numerical values as [u8]
-        key.extend_from_slice(& self.slice_size.to_string().as_bytes());
-        key.push(':' as u8);           
-        key.extend_from_slice(& self.nb_bases.to_string().as_bytes());
-        key.push(':' as u8);           
-        key.extend_from_slice(& self.minhash_val.to_string().as_bytes());
+        key.extend_from_slice(self.slice_size.to_string().as_bytes());
+        key.push(b':');           
+        key.extend_from_slice(self.nb_bases.to_string().as_bytes());
+        key.push(b':');           
+        key.extend_from_slice(self.minhash_val.to_string().as_bytes());
         //
         out.write_arg(&key);
     }  // end of write_redis_args

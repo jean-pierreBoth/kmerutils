@@ -11,7 +11,7 @@ pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
     //
     log::trace!("\n\n make_equal_groups blocks_size : {:?}", blocks_size);
     //
-    let total_size = blocks_size.iter().fold(0, |acc, s | acc + s);
+    let total_size = blocks_size.iter().sum::<usize>();
     let equal_group = (total_size as f64 / nbgroup as f64).round() as i64;
     log::trace!("equal_group : {}", equal_group);
     let mut frontiers = Vec::with_capacity(nbgroup + 1);
@@ -27,7 +27,7 @@ pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
         if current_group_cumul + blocks_size[b] as i64<= equal_group * nb_group {
             // block is in current group, we go on
             current_group_cumul += blocks_size[b] as i64;
-            b = b + 1;
+            b += 1;
         }
         else { // current_group_sum + blocks_size[b] > nb_group * equal_group
             let excess =  current_group_cumul + blocks_size[b] as i64 - equal_group * nb_group;
@@ -44,7 +44,7 @@ pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
                 frontiers.push(b);
             }
             current_group_cumul += blocks_size[b] as i64;
-            b = b + 1;
+            b += 1;
             nb_group += 1;
             let start: usize = frontiers[frontiers.len() - 2];
             let end : usize = frontiers[frontiers.len() - 1];
@@ -58,7 +58,7 @@ pub fn make_equal_groups(blocks_size :&[usize], nbgroup : usize) -> Vec<usize> {
     //
     log::info!("nbgroup = {}", nb_group);
     //
-    return frontiers;
+    frontiers
 } // equal_groups
 
 
@@ -93,8 +93,8 @@ mod tests {
             //
             let between = Uniform::from(std::ops::Range{start : 0, end : maxval});        
             let nb_groups = nbval / groupsize;
-            let blocks_size = (0..nbval).into_iter().map(|_| between.sample(&mut rng)).collect::<Vec<usize>>();
-            let total_size = blocks_size.iter().fold(0, |acc, s | acc + s);
+            let blocks_size = (0..nbval).map(|_| between.sample(&mut rng)).collect::<Vec<usize>>();
+            let total_size = blocks_size.iter().sum::<usize>();
             let groupmean = total_size as f64 / nb_groups as f64;
             let block_size_sum : usize=  blocks_size[..].iter().sum();
             let frontiers = make_equal_groups(&blocks_size, nb_groups);

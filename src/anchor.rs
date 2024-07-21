@@ -97,9 +97,9 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
     pub fn new(params : &Rc<AnchorsGeneratorParameters> , readnum:u32, slicepos:u32, minhash:Vec<InvHashCount<T>>) -> Self {
         SliceAnchor {
             params:params.clone(),
-            readnum:readnum,
-            slicepos:slicepos,
-            minhash: minhash,
+            readnum,
+            slicepos,
+            minhash,
        }
     } // end of new
 
@@ -121,7 +121,7 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
         let nb_kmer = self.minhash.len();
         let mut anchor_value = Vec::<(u64,u8)>::with_capacity(nb_kmer);
         for km in &self.minhash {
-            let couple = (km.hashed.get_hash() as u64, km.get_count());
+            let couple = (km.hashed.get_hash(), km.get_count());
             anchor_value.push(couple);
         }
         SliceAnchorValueRedis{hk_count:anchor_value}
@@ -137,7 +137,7 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
             process: String::from("invhash"),
             slice_size: self.params.get_window(),
             nb_bases: self.params.get_kmer_size(),
-            minhash_val:min_hash_val as u64,
+            minhash_val:min_hash_val,
         }
     } // end of get_minhash_key_for_redis
 
@@ -159,7 +159,7 @@ impl <T:CompressedKmerT> SliceAnchor<T> {
         trace!("dumping key (read/slicepos {:?} {:?}", &key, &value);
         let res = con.hset::<&'static str , SliceAnchorKeyRedis, SliceAnchorValueRedis, redis::Value> (SLICE_ANCHOR_KEY, key, value);
         //         let res = redis::cmd("HSET").arg(key).arg(value).execute(con);
-        if !res.is_ok() {
+        if res.is_err() {
             return Err(String::from("error"));
         }
         //
@@ -216,18 +216,18 @@ pub fn gen_anchor_mininvhash<T:CompressedKmerT>(params: &Rc<AnchorsGeneratorPara
     let nbkmer = params.get_nbkmer() as usize;
     //
     if nb_bases <= 32 {
-        let beg = slicepos as usize;
+        let beg = slicepos;
         let end = cmp::min(beg + slice_size as usize, seq.size()-1);
         let kmers : Vec<T>  = kmer_generator.generate_kmer_pattern_in_range(seq, beg, end);
         let mut minhash_a : MinInvHashCountKmer<T, FnvHasher>= MinInvHashCountKmer::new(nbkmer);
         minhash_a.sketch_kmer_slice(&kmers);
         // returns a Vec<InvHashCount<T> > ... type inference let us forget what we talk about.
         let hashcount = minhash_a.get_sketchcount();
-        return Some(SliceAnchor::<T>::new(&params, readnum as u32, slicepos as u32, hashcount));
+        Some(SliceAnchor::<T>::new(params, readnum as u32, slicepos as u32, hashcount))
     }
     else {
         error!("gen_anchor_mininvhash > 32");
-        return None;
+        None
     }
 } // end of gen_anchor_mininvhash_kmer64bit
 
@@ -298,7 +298,7 @@ impl <T:CompressedKmerT> ReadAnchors<T> {
 
 
     pub fn get_nb_slice(&self) -> usize {
-        return self.anchors.len();
+        self.anchors.len()
     }
 
     // keys is sequence of bytes consisting of readnum+slicepos
@@ -316,7 +316,7 @@ impl <T:CompressedKmerT> ReadAnchors<T> {
                 },
             }  // end match
         }  // end of for
-        return nb_anchor_dumped;
+        nb_anchor_dumped
     } // end of redis_dump
     
 } // end of impl ReadAnchors<T>
@@ -363,8 +363,8 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
             slice_params:Rc::clone(&slice_parameters),
             anchors:Vec::new(),
             _redis_db:redis_addr,
-            con:con,
-            store_anchor:store_anchor,
+            con,
+            store_anchor,
         }        
     } // end of new
 
@@ -390,7 +390,7 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
         let nb_bases = self.slice_params.get_kmer_size();
         let mut num_read = 0;
         let start_t = std::time::Instant::now();
-        let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
+        let mut reader = needletail::parse_fastx_file(path).expect("expecting valid filename");
         while let Some(record) = reader.next() {
             let seqrec = record.expect("invalid record");
             let nb_bad = count_non_acgt(&seqrec.seq());
@@ -430,10 +430,10 @@ impl  <T:CompressedKmerT> FastaAnchors<T> {
     fn redis_bgrewriteaof(&mut self) -> usize {
         if self.con.is_some() {
             redis::cmd("BGREWRITEAOF").execute(self.con.as_mut().unwrap());
-            return 1;
+            1
         }
         else {
-            return 0;
+            0
         }
     }
 

@@ -39,18 +39,18 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
     
     
     let start_t = Instant::now();
-    let mut reader = needletail::parse_fastx_file(&path).expect("expecting valid filename");
+    let mut reader = needletail::parse_fastx_file(path).expect("expecting valid filename");
     while let Some(record) = reader.next() {
         let seqrec = record.expect("invalid record");
         n_bases += seqrec.num_bases();
         let nb_bad = count_non_acgt(&seqrec.seq());
-        nb_bad_bases = nb_bad_bases + nb_bad;
+        nb_bad_bases += nb_bad;
         if nb_bad == 0 {
             let newseq = Sequence::new(&seqrec.seq(), nb_bits);
             seq_array.push(newseq);
         }
         else {
-            nb_bad_read = nb_bad_read+1;
+            nb_bad_read += 1;
         }
         if seq_array.capacity() <= seq_array.len() + 100  {
             let old_len = seq_array.len() as f64;
@@ -74,6 +74,6 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
     println!("nb_bad_bases {:?}", nb_bad_bases);
     println!("nb_bad_read {:?}", nb_bad_read);
     //
-    return Ok(seq_array);
+    Ok(seq_array)
 }  // end of parse_with_needletail
 

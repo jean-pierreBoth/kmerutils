@@ -70,11 +70,11 @@ pub fn compute_probminhash3a_jaccard<D,H, Hidx>(idxa : &IndexMap<D, f64, Hidx>, 
         let sigb = pminhashb.get_signature();
         let jac : f64;
         if !return_object {
-            jac = compute_probminhash_jaccard(&siga, &sigb);
-            return (jac,None);
+            jac = compute_probminhash_jaccard(siga, sigb);
+            (jac,None)
         }
         else {
-            return probminhash_get_jaccard_objects(&siga, &sigb);
+            probminhash_get_jaccard_objects(siga, sigb)
         }
 }  // end of compute_probminhash3a_jaccard
 
@@ -95,10 +95,10 @@ pub fn probminhash_get_jaccard_objects<D:Eq+Copy>(siga : &Vec<D>, sigb : &Vec<D>
     let jp = inter as f64/siga.len() as f64;
     //
     if jp > 0. {
-        return (jp,Some(common_objects));
+        (jp,Some(common_objects))
     }
     else {
-        return (0., None);
+        (0., None)
     }
 }  // end of compute_probminhash_jaccard
 
@@ -148,7 +148,7 @@ impl SeqSketcher {
         }
         // 
         let mut writer = BufWriter::new(fileres.unwrap());
-        let _ = to_writer(&mut writer, &self).unwrap();
+        to_writer(&mut writer, &self).unwrap();
         //
         Ok(())
     } // end of dump
@@ -189,7 +189,7 @@ impl SeqSketcher {
     /// These are the hash functions that make possible to get back to the original kmers (or at least partially in the case using the min)..
     /// 
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_probminhash3a<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
+    pub fn sketch_probminhash3a<Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -200,7 +200,7 @@ impl SeqSketcher {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
             let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -216,7 +216,7 @@ impl SeqSketcher {
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -255,7 +255,7 @@ impl SeqSketcher {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
             let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -271,7 +271,7 @@ impl SeqSketcher {
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -297,7 +297,7 @@ impl SeqSketcher {
     /// S is for f32 of f64 depending on the signature we want from SuperMinHash.  
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_superminhash<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, S, F>(&self, vseq : &'b Vec<&Sequence>, fhash : F) -> Vec<Vec<S> >
+    pub fn sketch_superminhash<Kmer : CompressedKmerT + KmerBuilder<Kmer>, S, F>(&self, vseq : &Vec<&Sequence>, fhash : F) -> Vec<Vec<S> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer>,
@@ -313,7 +313,7 @@ impl SeqSketcher {
             // generic arg is here type sent to sketching
             let mut sminhash : SuperMinHash<S, Kmer::Val, fnv::FnvHasher>= SuperMinHash::<S, Kmer::Val, fnv::FnvHasher>::new(self.sketch_size, bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size as u8, seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -329,7 +329,7 @@ impl SeqSketcher {
             }  // end loop 
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<S>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -356,7 +356,7 @@ impl SeqSketcher {
     /// -  kmer_size    : as u32
     /// 
     pub fn create_signature_dump(&self, dumpfname:&String) -> io::BufWriter<fs::File> {
-        let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(&dumpfname);
+        let dumpfile_res = OpenOptions::new().write(true).create(true).truncate(true).open(dumpfname);
         let dumpfile;
         if dumpfile_res.is_ok() {
             dumpfile = dumpfile_res.unwrap();
@@ -373,7 +373,7 @@ impl SeqSketcher {
         sigbuf.write(& sketch_size_u32.to_le_bytes()).unwrap();
         sigbuf.write(& kmer_size_u32.to_le_bytes()).unwrap();
         //
-        return sigbuf;
+        sigbuf
     }  // end of create_signature_dump
 
 
@@ -412,7 +412,7 @@ pub fn jaccard_index_probminhash3a< Kmer : CompressedKmerT + KmerBuilder<Kmer>, 
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     // seqa
-    let mut kmergen = KmerSeqIterator::<Kmer>::new(kmer_size, &seqa);
+    let mut kmergen = KmerSeqIterator::<Kmer>::new(kmer_size, seqa);
     kmergen.set_range(0, seqa.size()).unwrap();
     loop {
         match kmergen.next() {
@@ -432,7 +432,7 @@ pub fn jaccard_index_probminhash3a< Kmer : CompressedKmerT + KmerBuilder<Kmer>, 
         // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
         let nb_kmer = get_nbkmer_guess(seqb);
         let mut wb : FnvHashMap::<Kmer::Val, u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-        let mut kmergen = KmerSeqIterator::<Kmer>::new(kmer_size, &seqb);
+        let mut kmergen = KmerSeqIterator::<Kmer>::new(kmer_size, seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
             match kmergen.next() {
@@ -447,7 +447,7 @@ pub fn jaccard_index_probminhash3a< Kmer : CompressedKmerT + KmerBuilder<Kmer>, 
         pminhashb.hash_weigthed_hashmap(&wb);
         let sigb = pminhashb.get_signature();
         let jac = compute_probminhash_jaccard(siga, sigb);        
-        return (i,jac);
+        (i,jac)
     };
     //
     let jac_with_rank : Vec::<(usize,f64)> = (0..vseqb.len()).into_par_iter().map(|i| comput_closure(&vseqb[i],i)).collect();
@@ -456,7 +456,7 @@ pub fn jaccard_index_probminhash3a< Kmer : CompressedKmerT + KmerBuilder<Kmer>, 
         let slot = jac_with_rank[i].0;
         jaccard_vec[slot] = jac_with_rank[i].1;
     }
-    return jaccard_vec;
+    jaccard_vec
 } // end of sketch_seqrange_probminhash3a
 
 
@@ -483,7 +483,7 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
     //
     // generate all kmers include in range arg. dependance upon kmer_size 
     // seqa
-    let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqa);
+    let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, seqa);
     kmergen.set_range(0, seqa.size()).unwrap();
     loop {
         match kmergen.next() {
@@ -503,7 +503,7 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
         // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
         let nb_kmer = get_nbkmer_guess(seqb);
         let mut wb : FnvHashMap::<usize,f64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, &seqb);
+        let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size, seqb);
         kmergen.set_range(0, seqb.size()).unwrap();
         loop {
             match kmergen.next() {
@@ -518,7 +518,7 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
         pminhashb.hash_weigthed_hashmap(&wb);
         let sigb = pminhashb.get_signature();
         let jac = compute_probminhash_jaccard(siga, sigb);        
-        return (i,jac);
+        (i,jac)
     };
     let jac_with_rank : Vec::<(usize,f64)> = (0..vseqb.len()).into_par_iter().map(|i| comput_closure(&vseqb[i],i)).collect();
     // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
@@ -526,7 +526,7 @@ pub fn jaccard_index_probminhash3_kmer32bit<F>(seqa: &Sequence, vseqb : &Vec<Seq
         let slot = jac_with_rank[i].0;
         jaccard_vec[slot] = jac_with_rank[i].1;
     }
-    return jaccard_vec;
+    jaccard_vec
 } // end of sketch_seqrange_probminhash3_kmer32bit
 
 
@@ -547,7 +547,7 @@ pub fn dump_signatures_block_u32(signatures : &Vec<Vec<u32>>, out : &mut dyn Wri
         }
     }  // end of for i
     //
-    return Ok(());
+    Ok(())
 } // end of dump_signatures
 
 
@@ -571,7 +571,7 @@ pub struct SigSketchFileReader {
 impl SigSketchFileReader {
     /// initialize the fields fname, sketch_size, kmer_size and allocates signature_buf but signatures will be read by next.
     pub fn new(fname:&String) -> Result<SigSketchFileReader, String> {
-        let dumpfile_res = OpenOptions::new().read(true).open(&fname);
+        let dumpfile_res = OpenOptions::new().read(true).open(fname);
         let dumpfile;
         if dumpfile_res.is_ok() {
             dumpfile = dumpfile_res.unwrap();
@@ -655,7 +655,7 @@ impl SigSketchFileReader {
         if io_res.is_err() {
             // we check that we got EOF or rust ErrorKind::UnexpectedEof
             match io_res.err().unwrap().kind() {
-                ErrorKind::UnexpectedEof => return None,
+                ErrorKind::UnexpectedEof => None,
                         _            =>  { 
                                         println!("an unexpected error occurred reading signature buffer");
                                         std::process::exit(1);
@@ -664,7 +664,7 @@ impl SigSketchFileReader {
         }
         else {
             let sig = Vec::<u32>::with_capacity(self.sketch_size);
-            return Some(sig);        
+            Some(sig)
         }
     } // end of next
      
@@ -686,7 +686,7 @@ mod tests {
 // TODO use probminhash::superminhasher::compute_superminhash_jaccard ASAP probminhash gets to 0.1.7
 #[inline]
     fn compute_superminhash_jaccard(hsketch: &Vec<f64>  , other_sketch: &Vec<f64>)  -> Result<f64, ()>  {
-        return probminhash::superminhasher::get_jaccard_index_estimate(hsketch, other_sketch);
+        probminhash::superminhasher::get_jaccard_index_estimate(hsketch, other_sketch)
     }
 
 
@@ -725,14 +725,14 @@ mod tests {
         log::info!("jac_theo_0 : {:.3e}", jac_theo_0);
         let kmer_revcomp_hash_fn = | kmer : &Kmer32bit | -> u32 {
             let canonical =  kmer.reverse_complement().min(*kmer);
-            let hashval = probminhash::invhash::int32_hash(canonical.0);
-            hashval
+            
+            probminhash::invhash::int32_hash(canonical.0)
         };  
         // for this hash function (40-kmer)/(80-kmer_size) [ (40-kmer)/(80-kmer_size) , epsil]
         // epsil being the proba there is a common small kmer between seqstr and revers comp which can occur
         let kmer_identity = | kmer : &Kmer32bit | -> u32  {
-            let hashval = kmer.0;
-            hashval
+            
+            kmer.0
         };
         let vecsig = jaccard_index_probminhash3a(&seqa, &vecseqb, sketch_size, kmer_size, kmer_revcomp_hash_fn);
         log::info!("vecsig with revcomp hash  {:?}", vecsig);
@@ -816,14 +816,14 @@ mod tests {
         let jac_theo_0 = (40-kmer_size) as f64 / (80-kmer_size) as f64;
         let kmer_revcomp_hash_fn = | kmer : &Kmer16b32bit | -> u32 {
             let canonical =  kmer.reverse_complement().min(*kmer);
-            let hashval = probminhash::invhash::int32_hash(canonical.0);
-            hashval
+            
+            probminhash::invhash::int32_hash(canonical.0)
         };  
         // for this hash function (40-kmer)/(80-kmer_size) [ (40-kmer)/(80-kmer_size) , epsil]
         // epsil being the proba there is a common small kmer between seqstr and revers comp which can occur
         let kmer_identity = | kmer : &Kmer16b32bit | -> u32  {
-            let hashval = kmer.0;
-            hashval
+            
+            kmer.0
         };
         let vec_0 = jaccard_index_probminhash3a(&seqa, &vec![vecseqb[0].clone()], 50, 16,  kmer_revcomp_hash_fn);
         let vec_1 = jaccard_index_probminhash3a(&seqa, &vec![vecseqb[1].clone()], 50, 16, kmer_revcomp_hash_fn);
@@ -861,8 +861,8 @@ mod tests {
         vecseqb.push(seqarevcomp);
         let kmer_revcomp_hash_fn = | kmer : &Kmer64bit | -> u64 {
             let canonical =  kmer.reverse_complement().min(*kmer);
-            let hashval = probminhash::invhash::int64_hash(canonical.0);
-            hashval
+            
+            probminhash::invhash::int64_hash(canonical.0)
         }; 
         let vec_jac = jaccard_index_probminhash3a(&seqa, &vecseqb, 50, 16, kmer_revcomp_hash_fn);
         let jac_theo_0 = (40-kmer_size) as f64 / (80-kmer_size) as f64;
@@ -900,14 +900,14 @@ mod tests {
         let jac_theo_0 = (40-kmer_size) as f64 / (80-kmer_size) as f64;
         let kmer_revcomp_hash_fn = | kmer : &Kmer16b32bit | -> u32 {
             let canonical =  kmer.reverse_complement().min(*kmer);
-            let hashval = probminhash::invhash::int32_hash(canonical.0);
-            hashval
+            
+            probminhash::invhash::int32_hash(canonical.0)
         };  
         // for this hash function (40-kmer)/(80-kmer_size) [ (40-kmer)/(80-kmer_size) , epsil]
         // epsil being the proba there is a common small kmer between seqstr and revers comp which can occur
         let kmer_identity = | kmer : &Kmer16b32bit | -> u32  {
-            let hashval = kmer.0;
-            hashval
+            
+            kmer.0
         };
         // do a superminhash sketching of sequence with kmer_revcomp_hash_fn
         let sketcher = SeqSketcher::new(kmer_size, sketch_size);
@@ -950,7 +950,7 @@ fn test_reload_sketch_file() {
     let fname = String::from("/home.1/jpboth/Rust/kmerutils/Runs/umpsigk8s200");
     
     let sketch_reader_res = SigSketchFileReader::new(&fname);
-    if !sketch_reader_res.is_ok() {
+    if sketch_reader_res.is_err() {
         return;
     }
     // check result with a as_ref to avoid consuming value

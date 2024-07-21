@@ -82,7 +82,7 @@ pub struct ProbHash3aSketch<Kmer> {
 impl <Kmer> ProbHash3aSketch<Kmer> {
 
     pub fn new(params : &SeqSketcherParams) -> Self {
-        ProbHash3aSketch{_kmer_marker : PhantomData,  params : params.clone()}
+        ProbHash3aSketch{_kmer_marker : PhantomData,  params : *params}
     }
 
 } // end of impl ProbHash3aSketch
@@ -118,7 +118,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
             let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -134,7 +134,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -194,7 +194,7 @@ impl <Kmer> SeqSketcherAAT<Kmer> for ProbHash3aSketch<Kmer>
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
         v.push(sigb.clone());
         //
-        return v;
+        v
     }
 
 }  // end of impl SeqSketcherAAT for ProHash3aSketch
@@ -222,7 +222,7 @@ impl <Kmer, S : num::Float> SuperHashSketch<Kmer, S> {
 
 
     pub fn new(params : &SeqSketcherParams) -> Self {
-        SuperHashSketch{_kmer_marker : PhantomData, _sig_marker : PhantomData,  params : params.clone()}
+        SuperHashSketch{_kmer_marker : PhantomData, _sig_marker : PhantomData,  params : *params}
     }
 
 } // end of impl SuperHashSketch
@@ -264,7 +264,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
             let bh = BuildHasherDefault::<NoHashHasher>::default();
             let mut sminhash : SuperMinHash<Self::Sig, Kmer::Val, NoHashHasher>= SuperMinHash::new(self.get_sketch_size(), bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -284,7 +284,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
             }  // end loop 
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -317,7 +317,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
         let mut nb_kmer_generated : u64 = 0;
         // we loop on sequences and generate kmer. TODO // on sequences
         for seq in vseq {
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
             kmergen.set_range(0, seq.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -341,7 +341,7 @@ impl <Kmer, S> SeqSketcherAAT<Kmer> for SuperHashSketch<Kmer, S>
         let sig = setsketch.get_hsketch();
         v.push(sig.clone());
         //
-        return v;
+        v
     }
 
 } // end of SuperHashSketch
@@ -368,7 +368,7 @@ impl <Kmer, S :  Integer  + Unsigned,  H : Hasher + Default> SuperHash2Sketch<Km
 
 
     pub fn new(params : &SeqSketcherParams, build_hasher: BuildHasherDefault<H>) -> Self {
-        SuperHash2Sketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  build_hasher, params : params.clone()}
+        SuperHash2Sketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  build_hasher, params : *params}
     }
 
 } 
@@ -410,7 +410,7 @@ impl <Kmer,S, H> SeqSketcherAAT<Kmer> for SuperHash2Sketch<Kmer, S, H>
             //
             let mut sminhash : SuperMinHash2<Self::Sig, Kmer::Val, H>= SuperMinHash2::new(self.get_sketch_size(), self.build_hasher.clone());
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -430,7 +430,7 @@ impl <Kmer,S, H> SeqSketcherAAT<Kmer> for SuperHash2Sketch<Kmer, S, H>
             }  // end loop 
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -462,7 +462,7 @@ impl <Kmer,S, H> SeqSketcherAAT<Kmer> for SuperHash2Sketch<Kmer, S, H>
         let mut nb_kmer_generated : u64 = 0;
         // we loop on sequences and generate kmer. TODO // on sequences
         for seq in vseq {
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
             kmergen.set_range(0, seq.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -486,7 +486,7 @@ impl <Kmer,S, H> SeqSketcherAAT<Kmer> for SuperHash2Sketch<Kmer, S, H>
         let sig = setsketch.get_hsketch();
         v.push(sig.clone());
         //
-        return v;
+        v
     } // end of sketch_compressedkmeraa_seqs
 
 
@@ -508,7 +508,7 @@ pub struct OptDensHashSketch<Kmer, S : num::Float> {
 
 impl <Kmer, S : num::Float> OptDensHashSketch<Kmer,S> {
     pub fn new(params : &SeqSketcherParams) -> Self {
-        OptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : params.clone()}
+        OptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : *params}
     }
 }  // end of OptDensMinHashSketch
 
@@ -550,7 +550,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S>
             let bh = BuildHasherDefault::<NoHashHasher>::default();
             let mut sminhash : OptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher>= OptDensMinHash::new(self.get_sketch_size(), bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -569,7 +569,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S>
             sminhash.end_sketch();
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -602,7 +602,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S>
         let mut nb_kmer_generated : u64 = 0;
         // we loop on sequences and generate kmer. TODO // on sequences
         for seq in vseq {
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
             kmergen.set_range(0, seq.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -625,7 +625,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for OptDensHashSketch<Kmer, S>
         let sig = setsketch.get_hsketch();
         v.push(sig.clone());
         //
-        return v;
+        v
     } // end of sketch_compressedkmer_seqs
 
 } // end impl block of SeqSketcherT for SeqSketcherAAT
@@ -650,7 +650,7 @@ pub struct RevOptDensHashSketch<Kmer, S: num::Float> {
 
 impl <Kmer, S : num::Float> RevOptDensHashSketch<Kmer,S> {
     pub fn new(params : &SeqSketcherParams) -> Self {
-        RevOptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : params.clone()}
+        RevOptDensHashSketch{_kmer_marker : PhantomData, _sig_marker: PhantomData,  params : *params}
     } 
 }  // end of RevOptDensMinHashSketch
 
@@ -688,7 +688,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for RevOptDensHashSketch<Kmer, S>
             let bh = BuildHasherDefault::<NoHashHasher>::default();
             let mut sminhash : RevOptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher>= RevOptDensMinHash::new(self.get_sketch_size(), bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -707,7 +707,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for RevOptDensHashSketch<Kmer, S>
             sminhash.end_sketch();
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -740,7 +740,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for RevOptDensHashSketch<Kmer, S>
         let mut nb_kmer_generated : u64 = 0;
         // we loop on sequences and generate kmer. TODO // on sequences
         for seq in vseq {
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
             kmergen.set_range(0, seq.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -763,7 +763,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for RevOptDensHashSketch<Kmer, S>
         let sig = setsketch.get_hsketch();
         v.push(sig.clone());
         //
-        return v;
+        v
     } // end of sketch_compressedkmer_seqs
 
 } // end of impl SeqSketcherAAT<Kmer> for RevOptDensHashSketch
@@ -833,7 +833,7 @@ pub struct HyperLogLogSketch<Kmer, S : num::Integer> {
 
 impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
     pub fn new(seq_params : &SeqSketcherParams, hll_params : SetSketchParams, hll_threads : HllSeqsThreading) -> Self {
-        HyperLogLogSketch{params : seq_params.clone(), hll_params, hll_threads, _kmer_marker : PhantomData, _sig_marker: PhantomData}
+        HyperLogLogSketch{params : *seq_params, hll_params, hll_threads, _kmer_marker : PhantomData, _sig_marker: PhantomData}
     }
 
         // building block for sketch_compressedkmer_seqs. sketch a list of sequence and return a sketch to merge!
@@ -852,7 +852,7 @@ impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
     let mut nb_kmer_generated : u64 = 0;
     // we loop on sequences and generate kmer. TODO // on sequences
     for seq in vseq {
-        let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seq);
+        let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seq);
         kmergen.set_range(0, seq.size()).unwrap();
         loop {
             match kmergen.next() {
@@ -872,7 +872,7 @@ impl <Kmer, S : Integer> HyperLogLogSketch<Kmer, S> {
         }  // end loop 
     }
     //
-    return setsketch;
+    setsketch
 }
 
 
@@ -918,7 +918,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
             let bh = BuildHasherDefault::<NoHashHasher>::default();
             let mut setsketch : SetSketcher<Self::Sig, Kmer::Val, NoHashHasher>= SetSketcher::new(self.hll_params, bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -938,7 +938,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
             }  // end loop 
             let sigb = setsketch.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Self::Sig>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -1010,7 +1010,7 @@ impl <Kmer,S> SeqSketcherAAT<Kmer> for HyperLogLogSketch<Kmer, S>
         let mut v = Vec::<Vec<Self::Sig>>::with_capacity(1);
         v.push(sig.clone());
         //
-        return v;
+        v
     } // end of sketch_compressedkmeraa_seqs
 
 } // end of impl SeqSketcherT
@@ -1060,7 +1060,7 @@ impl SeqSketcher {
         }
         // 
         let mut writer = BufWriter::new(fileres.unwrap());
-        let _ = to_writer(&mut writer, &self).unwrap();
+        to_writer(&mut writer, &self).unwrap();
         //
         Ok(())
     } // end of dump
@@ -1093,7 +1093,7 @@ impl SeqSketcher {
 
 
     /// A generic version of sketching with probminhash3a on compressed kmer for amino acids
-    pub fn sketch_probminhash3a<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Kmer::Val> >
+    pub fn sketch_probminhash3a<Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<Kmer::Val> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -1102,7 +1102,7 @@ impl SeqSketcher {
             // if we get very large sequence (many Gb length) we must be cautious on size of hashmap; i.e about number of different kmers!!! 
             let nb_kmer = get_nbkmer_guess(seqb);
             let mut wb : FnvHashMap::<Kmer::Val,u64> = FnvHashMap::with_capacity_and_hasher(nb_kmer, FnvBuildHasher::default());
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -1118,7 +1118,7 @@ impl SeqSketcher {
             pminhashb.hash_weigthed_hashmap(&wb);
             let sigb = pminhashb.get_signature();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<Kmer::Val>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -1142,7 +1142,7 @@ impl SeqSketcher {
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    pub fn sketch_superminhash<'b, Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &'b Vec<&SequenceAA>, fhash : F) -> Vec<Vec<f64> >
+    pub fn sketch_superminhash<Kmer : CompressedKmerT + KmerBuilder<Kmer>, F>(&self, vseq : &Vec<&SequenceAA>, fhash : F) -> Vec<Vec<f64> >
         where F : Fn(&Kmer) -> Kmer::Val + Send + Sync,
               Kmer::Val : num::PrimInt + Send + Sync + Debug,
               KmerGenerator<Kmer> :  KmerGenerationPattern<Kmer> {
@@ -1157,7 +1157,7 @@ impl SeqSketcher {
             // generic arg is here type sent to sketching
             let mut sminhash : SuperMinHash<f64, Kmer::Val, fnv::FnvHasher>= SuperMinHash::new(self.sketch_size, bh);
 
-            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, &seqb);
+            let mut kmergen = KmerSeqIterator::<Kmer>::new(self.kmer_size, seqb);
             kmergen.set_range(0, seqb.size()).unwrap();
             loop {
                 match kmergen.next() {
@@ -1173,7 +1173,7 @@ impl SeqSketcher {
             }  // end loop 
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            return (i,sigb.clone());
+            (i,sigb.clone())
         };
         //
         let sig_with_rank : Vec::<(usize,Vec<f64>)> = (0..vseq.len()).into_par_iter().map(|i| comput_closure(vseq[i],i)).collect();
@@ -1231,11 +1231,11 @@ use std::str::FromStr;
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA64bit | -> <KmerAA64bit as CompressedKmerT>::Val {
-            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
-        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         log::info!("calling sketch_probminhash3a_compressedKmerAA64bit");
@@ -1271,11 +1271,11 @@ use std::str::FromStr;
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA64bit | -> <KmerAA64bit as CompressedKmerT>::Val {
-            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
-        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         log::info!("calling sketch_compressedkmeraa for ProbHash3aSketch::<KmerAA64bit>");
@@ -1308,14 +1308,14 @@ use std::str::FromStr;
         let sketch_size = 800;
         let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::PROB3A, DataType::AA);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
-        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA64bit | -> <KmerAA64bit as CompressedKmerT>::Val {
-            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA64bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
         // first we sketch with SuperHashSketch<f64>
         log::info!("calling sketch_compressedkmeraa for SuperHashSketch::<KmerAA64bit, f64>");
@@ -1363,14 +1363,14 @@ use std::str::FromStr;
         let sketch_size = 80;
         let sketch_args = SeqSketcherParams::new(kmer_size, sketch_size, SketchAlgo::OPTDENS, DataType::AA);
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
-        let mask : u64 = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA32bit | -> <KmerAA32bit as CompressedKmerT>::Val {
-            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u64>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
         // first we sketch with OptDensHashSketch<f64>
         log::info!("calling sketch_compressedkmeraa for OptDensHashSketch::<KmerAA32bit, f64>");
@@ -1419,11 +1419,11 @@ use std::str::FromStr;
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA32bit | -> <KmerAA32bit as CompressedKmerT>::Val {
-            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u32>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u32>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
-        let mask : u64 = num::NumCast::from::<u32>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u32>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         log::info!("calling sketch_probminhash3a_compressedKmerAA32bit");
@@ -1459,11 +1459,11 @@ use std::str::FromStr;
         let nb_alphabet_bits = Alphabet::new().get_nb_bits();
         // we need a hash function from u128 to f64
         let kmer_hash_fn = | kmer : &KmerAA32bit | -> <KmerAA32bit as CompressedKmerT>::Val {
-            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u32>((0b1 << nb_alphabet_bits*kmer.get_nb_base()) - 1).unwrap();
-            let hashval = kmer.get_compressed_value() & mask;
-            hashval
+            let mask : <KmerAA32bit as CompressedKmerT>::Val = num::NumCast::from::<u32>((0b1 << (nb_alphabet_bits*kmer.get_nb_base())) - 1).unwrap();
+            
+            kmer.get_compressed_value() & mask
         };
-        let mask : u64 = num::NumCast::from::<u32>((0b1 << nb_alphabet_bits*kmer_size as u8) - 1).unwrap();
+        let mask : u64 = num::NumCast::from::<u32>((0b1 << (nb_alphabet_bits*kmer_size as u8)) - 1).unwrap();
         log::debug!("mask = {:b}", mask);
         //
         log::info!("calling sketch_probminhash3a_compressed_kmeraa for KmerAA32bit");

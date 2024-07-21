@@ -26,7 +26,7 @@ pub fn sketch_seqrange_superminhash(seq: &Sequence, range:&Range<usize>, kmer_si
     // generate all kmers include in range arg. dependance upon kmer_size 
     match kmer_size {
         16 => {
-            let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(16, seq);
             kmergen.set_range(range.start, range.end).unwrap();
             loop {
                 match kmergen.next() {
@@ -42,7 +42,7 @@ pub fn sketch_seqrange_superminhash(seq: &Sequence, range:&Range<usize>, kmer_si
             sminhash.get_hsketch().clone()
         },
         9..=15 => {
-            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size as u8, &seq);
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size as u8, seq);
             kmergen.set_range(range.start, range.end).unwrap();
             loop {
                 match kmergen.next() {
@@ -72,8 +72,8 @@ pub fn sketch_seqrange_minhash(seq: &Sequence, range:&Range<usize>, kmer_size:us
     // generate all kmers include in range arg. dependance upon kmer_size 
     match kmer_size {
         16 => {
-            let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(16, &seq);
-            if let Err(_) = kmergen.set_range(range.start, range.end) {
+            let mut kmergen = KmerSeqIterator::<Kmer16b32bit>::new(16, seq);
+            if kmergen.set_range(range.start, range.end).is_err() {
                 println!("sketch_seqrange_minhash: bad range, start = {} , end = {}", range.start, range.end);
                 panic!("bad range");
             }
@@ -89,11 +89,11 @@ pub fn sketch_seqrange_minhash(seq: &Sequence, range:&Range<usize>, kmer_size:us
                     None => break,
                 }
             } // end loop
-            return minhash.get_sketchcount();
+            minhash.get_sketchcount()
         },
         9..=15 => {
-            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size as u8, &seq);
-            if let Err(_) = kmergen.set_range(range.start, range.end) {
+            let mut kmergen = KmerSeqIterator::<Kmer32bit>::new(kmer_size as u8, seq);
+            if kmergen.set_range(range.start, range.end).is_err() {
                 println!("sketch_seqrange_minhash: bad range, start = {} , end = {}", range.start, range.end);
                 panic!("bad range");
             }
@@ -109,7 +109,7 @@ pub fn sketch_seqrange_minhash(seq: &Sequence, range:&Range<usize>, kmer_size:us
                     None => break,
                 }
             } // end loop
-            return minhash.get_sketchcount();
+            minhash.get_sketchcount()
         },
         _ => panic!("sketch_sequence_minhash , unimplemented kmer_size {} {} {} ", kmer_size, file!(), line!()),
     }
@@ -130,7 +130,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let range1 :  Range<usize> = Range{start:1, end:65};
         let kmer_size : usize = 16;
         let sketch_size: usize = 20;
@@ -159,7 +159,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let range1 :  Range<usize> = Range{start:1, end:65};
         let kmer_size : usize = 10;
         let sketch_size: usize = 20;
@@ -188,7 +188,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let range1 :  Range<usize> = Range{start:1, end:65};
         let kmer_size : usize = 16;
         let sketch_size: usize = 50;
@@ -216,7 +216,7 @@ mod tests {
         // transform to a Vec<u8> and then a Sequence
         let slu8 = seqstr.as_bytes();
         // get a sequence with 2 bits compression
-        let seq = Sequence::new(&slu8,2);
+        let seq = Sequence::new(slu8,2);
         let range1 :  Range<usize> = Range{start:1, end:65};
         let kmer_size : usize = 10;
         let sketch_size: usize = 20;

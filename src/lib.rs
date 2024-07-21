@@ -41,8 +41,8 @@ pub mod prelude;
 lazy_static! {
     #[allow(dead_code)]
     pub static ref LOG: u64 = {
-        let res = init_log();
-        res
+        
+        init_log()
     };
 }
 // install a logger facility
@@ -50,5 +50,5 @@ lazy_static! {
 fn init_log() -> u64 {
     env_logger::Builder::from_default_env().init();
     println!("\n ************** initializing logger from env *****************\n");    
-    return 1;
+    1
 }

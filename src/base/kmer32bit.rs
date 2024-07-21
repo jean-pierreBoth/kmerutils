@@ -34,14 +34,9 @@ impl PartialEq for Kmer32bit {
         if self.0 & 0xF0000000 == other.0 & 0xF0000000 {
             // now we can test equality of kmer value part.
             // we have to check the lower 2*nb_bases bits of u32 word.
-            if self.0 & 0x0FFFFFFF == other.0 & 0x0FFFFFFF {
-                return true;
-            }
-            else {
-                return false;
-            }
+            return self.0 & 0x0FFFFFFF == other.0 & 0x0FFFFFFF
         }
-        return false;
+        false
     } // end of eq
 }  // end of PartialEq implementation
 
@@ -56,10 +51,10 @@ impl Eq for Kmer32bit{}
 impl Ord for Kmer32bit {
     fn cmp(&self, other: &Kmer32bit) -> Ordering {
         if self.0 & 0xF0000000 != other.0 & 0xF0000000 {
-            return (self.0 & 0xF0000000).cmp(&(other.0 & 0xF0000000));
+            (self.0 & 0xF0000000).cmp(&(other.0 & 0xF0000000))
         }
         else {
-            return (self.0 & 0x0FFFFFFF).cmp(&(other.0 & 0x0FFFFFFF));
+            (self.0 & 0x0FFFFFFF).cmp(&(other.0 & 0x0FFFFFFF))
         }
     } // end cmp
 } // end impl Ord for Kmer32bit
@@ -85,7 +80,7 @@ impl Kmer32bit {
         }
         // insert 4 lower bits of nb_bases in 4 upper bytes of a u32
         let mut kmer = 0u32;
-        kmer = kmer | ((nb_bases as u32) << 28);
+        kmer |= (nb_bases as u32) << 28;
         Kmer32bit(kmer)
     } // end of new
 
@@ -95,9 +90,9 @@ impl Kmer32bit {
             panic!("Kmer32bit cannot store more than 14 bases");
         }
         // clean upper 4 bits
-        self.0 = self.0 & 0x0FFFFFFF;
+        self.0 &= 0x0FFFFFFF;
         // set upper bits
-        self.0 = self.0 | ((nb_bases as u32) << 28)               
+        self.0 |= (nb_bases as u32) << 28               
     } // end of  set_nb_base
 }  // end of impl for 
 
@@ -122,7 +117,7 @@ impl KmerT for Kmer32bit {
         // and lower bits coding value.
         let value_mask :u32 = (0b1 << (2*self.get_nb_base())) - 1;
         let mut new_kmer = ((self.0 << 2) & value_mask) | (base as u32 & 0b11);
-        new_kmer = new_kmer | nb_bases_mask;
+        new_kmer |= nb_bases_mask;
         // and enforce saved number of bases.
         trace!("in push new_kmer = {:b}",  new_kmer);
         Kmer32bit(new_kmer)
@@ -146,7 +141,7 @@ impl KmerT for Kmer32bit {
         revcomp = revcomp.reverse_bits();
         revcomp = (revcomp & 0x55555555) << 1 | (revcomp & 0xAAAAAAAA) >> 1;
         // We have to shift to the right 32-2*nb_bases
-        revcomp = revcomp >> (32 - 2 * nb_bases_mask.rotate_left(4));
+        revcomp >>= 32 - 2 * nb_bases_mask.rotate_left(4);
         // and enforce nb_bases in upper 4 bits
         revcomp = (revcomp & 0x0FFFFFFF) | nb_bases_mask;
         //        
@@ -155,7 +150,7 @@ impl KmerT for Kmer32bit {
     /// we just do a raw write. Error prone when reloading. Any dump file must have a header
     /// describing number of bases! to distinguish from Kmer16b32bit
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>((*self).0) } )
+        bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(self.0) } )
     }
 } // end of impl KmerT for Kmer32bit
 
@@ -181,7 +176,7 @@ impl CompressedKmerT for Kmer32bit {
             base = (buf & 0b11) as u8; 
             decompressed_kmer.push(alphabet.decode(base));
         }
-        return decompressed_kmer;
+        decompressed_kmer
     }
     /// return the pure value with part coding number of bases reset to 0.
     #[inline(always)]    
@@ -189,7 +184,7 @@ impl CompressedKmerT for Kmer32bit {
         // possibly be careful for garbage bits between 4 upper bits of word coding for nb_bases
         // and lower part coding value. We could compute a real mask by using nb_bases * 2 bits lower bits set 1.
         // BUT kmer is initialized to 0 and we have been careful in push method (See comments)
-        return self.0 & 0x0FFFFFFF;
+        self.0 & 0x0FFFFFFF
     }
     ///
     #[inline(always)]    
@@ -231,7 +226,7 @@ impl KmerBuilder<Kmer32bit> for Kmer32bit {
     /// for Kmer32bit we encode the number of bases in the 4 upper bits
     fn build(val: u32, nb_base : u8) -> Kmer32bit {
         let mut new_kmer:u32 = (nb_base as u32) << 28;
-        new_kmer = new_kmer | val;
+        new_kmer |= val;
         Kmer32bit(new_kmer)
     }
 }
