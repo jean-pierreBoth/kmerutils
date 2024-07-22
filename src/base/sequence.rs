@@ -331,6 +331,7 @@ impl Sequence {
     /// simple utility to count base (ACGT) proportions in a sequence
     /// Non ACGT bases are counted in nb_bad
     /// fill_histogram just to avoid copying a histo on stack
+    #[allow(clippy::needless_range_loop)]
     pub fn base_count(&self, histo: &mut [u64]) -> usize {
         let mut nb_bad = 0;
         for i in 0..4 {

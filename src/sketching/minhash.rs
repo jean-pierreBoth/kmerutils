@@ -58,6 +58,7 @@ impl<T: Hash + Clone + Copy + Debug, H: Hasher + Default> MinHashCount<T, H> {
     } // end of new
 
     /// push an item in the sketching
+    #[allow(clippy::map_entry)]
     pub fn push(&mut self, item: &T) {
         //
         // hash
@@ -131,8 +132,8 @@ impl<T: Hash + Clone + Copy + Debug, H: Hasher + Default> MinHashCount<T, H> {
 
 /// compute different distances from sketch.
 pub fn minhash_distance<T: Hash + Clone + Copy>(
-    sketch1: &Vec<HashCount<T>>,
-    sketch2: &Vec<HashCount<T>>,
+    sketch1: &[HashCount<T>],
+    sketch2: &[HashCount<T>],
 ) -> MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;
@@ -214,6 +215,7 @@ impl<T: CompressedKmerT, H: Hasher + Default> MinInvHashCountKmer<T, H> {
     } // end of new
 
     /// push an item in the sketching
+    #[allow(clippy::map_entry)]
     fn push(&mut self, item: &T) {
         //
         // hash with invertible hash 32 or 64 bit depending on size of T::Val
@@ -291,8 +293,8 @@ impl<T: CompressedKmerT, H: Hasher + Default> MinInvHashCountKmer<T, H> {
 /// The arguments are supposed to come from get_sketchcount method that returns sorted (!!!) InvHashCountKmer
 // What do we do of counts? See ProbMinHash
 pub fn mininvhash_distance<T: CompressedKmerT>(
-    sketch1: &Vec<InvHashCount<T>>,
-    sketch2: &Vec<InvHashCount<T>>,
+    sketch1: &[InvHashCount<T>],
+    sketch2: &[InvHashCount<T>],
 ) -> MinHashDist {
     let mut i: usize = 0;
     let mut j: usize = 0;

@@ -379,7 +379,7 @@ pub fn count_kmer64bit(seqvec : & Vec<Sequence>, kmer_size:usize) -> KmerCounter
 /// object counted by KmerCounterPool must be dispatchable
 pub trait DispatchableT {
     type ToDispatch;
-    ///
+    //
     fn dispatch(&self, nb_receiver:usize) -> usize;
 }
 
@@ -399,7 +399,7 @@ impl DispatchableT for Kmer16b32bit {
 impl DispatchableT for Kmer32bit {
     /// compressed value is a u32
     type ToDispatch=u32;
-    ///
+    //
     #[inline(always)]
     fn dispatch(&self, nb_receiver:usize) -> usize {
        (int32_hash(self.get_compressed_value()) % nb_receiver as u32) as usize

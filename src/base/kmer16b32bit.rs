@@ -68,7 +68,7 @@ impl KmerT for Kmer16b32bit {
 
 impl CompressedKmerT for Kmer16b32bit {
     type Val = u32;
-    ///
+    //
     fn get_nb_base_max() -> usize {
         16
     }

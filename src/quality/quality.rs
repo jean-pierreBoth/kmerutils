@@ -55,6 +55,7 @@ pub enum QualityMode {
 ///    - get the quality of a base given its rank.
 ///    - returns the representation mode
 
+#[allow(clippy::len_without_is_empty)]
 pub trait QSequence {
     //    fn get_quality(&self, usize) -> Result<u8, u32>;
     fn get_mode(&self) -> QualityMode;

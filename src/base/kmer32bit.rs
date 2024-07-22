@@ -1,26 +1,24 @@
-//!  Kmer32bit 
-//! 
+//!  Kmer32bit
+//!
 
-use std::mem;
-use std::io;
-use std::cmp::Ordering;
 use std::cmp::Ord;
+use std::cmp::Ordering;
+use std::io;
+use std::mem;
 use std::str::FromStr;
 
 #[allow(unused)]
-use log::{debug,trace};
-
-
+use log::{debug, trace};
 
 // our includes
 
 pub use super::kmertraits::*;
-pub use super::{nthash::*, alphabet::*};
+pub use super::{alphabet::*, nthash::*};
 
 /// This is a type for Kmer less than 14 bases 2 bit encoded
 /// Real number of base is encoded in upper 4 bits!!!!
 
-#[derive(Clone,Copy,Debug, Hash)]
+#[derive(Clone, Copy, Debug, Hash)]
 pub struct Kmer32bit(pub u32);
 
 // we need to implement PartialEq, Eq PartialOrd and Ord for Kmer32bit.
@@ -34,16 +32,14 @@ impl PartialEq for Kmer32bit {
         if self.0 & 0xF0000000 == other.0 & 0xF0000000 {
             // now we can test equality of kmer value part.
             // we have to check the lower 2*nb_bases bits of u32 word.
-            return self.0 & 0x0FFFFFFF == other.0 & 0x0FFFFFFF
+            return self.0 & 0x0FFFFFFF == other.0 & 0x0FFFFFFF;
         }
         false
     } // end of eq
-}  // end of PartialEq implementation
-
+} // end of PartialEq implementation
 
 // read the doc for Eq ....
-impl Eq for Kmer32bit{}
-
+impl Eq for Kmer32bit {}
 
 /// We define ordering as a kind of "lexicographic" order by taking into account first number of base.
 /// The more the number of base the greater. Then we have integer comparison between lower kmer part
@@ -52,13 +48,11 @@ impl Ord for Kmer32bit {
     fn cmp(&self, other: &Kmer32bit) -> Ordering {
         if self.0 & 0xF0000000 != other.0 & 0xF0000000 {
             (self.0 & 0xF0000000).cmp(&(other.0 & 0xF0000000))
-        }
-        else {
+        } else {
             (self.0 & 0x0FFFFFFF).cmp(&(other.0 & 0x0FFFFFFF))
         }
     } // end cmp
 } // end impl Ord for Kmer32bit
-
 
 impl PartialOrd for Kmer32bit {
     fn partial_cmp(&self, other: &Kmer32bit) -> Option<Ordering> {
@@ -66,11 +60,8 @@ impl PartialOrd for Kmer32bit {
     } // end partial_cmp
 } // end impl Ord for Kmer32bit
 
-
-
 // now we can do the real job on Kmer32bit
 //========================================
-
 
 impl Kmer32bit {
     /// allocate a new kmer. Takes the number of base it will store as argument.
@@ -85,18 +76,16 @@ impl Kmer32bit {
     } // end of new
 
     /// fills in upper bits the number of bases this kmer will store
-    pub fn set_nb_base(&mut self, nb_bases : u8) {
+    pub fn set_nb_base(&mut self, nb_bases: u8) {
         if nb_bases >= 15 {
             panic!("Kmer32bit cannot store more than 14 bases");
         }
         // clean upper 4 bits
         self.0 &= 0x0FFFFFFF;
         // set upper bits
-        self.0 |= (nb_bases as u32) << 28               
+        self.0 |= (nb_bases as u32) << 28
     } // end of  set_nb_base
-}  // end of impl for 
-
-
+} // end of impl for
 
 impl KmerT for Kmer32bit {
     /// retrieves the number of bases this kmer stores
@@ -106,30 +95,30 @@ impl KmerT for Kmer32bit {
     }
     /// push a base (2bits) at right end of kmer producing a new Kmer
     /// So arg base must be 2bit encoded !!! and we do not check that so be careful
-    fn push(&self, base : u8) -> Kmer32bit {
+    fn push(&self, base: u8) -> Kmer32bit {
         // store upper 4 bits
         let nb_bases_mask: u32 = self.0 & 0xF0000000;
         // shift left 2 bits, insert new base and enforce saved number of bases.
         // Note that the left shift pushes garbage bit between 4 upper bits and lower bits coding value.
         // We are cautious to clean them by using value_mask which reset those bit to 0!
-        // It is useful when implementing PartialEq and compressed value 
+        // It is useful when implementing PartialEq and compressed value
         // We use a mask for value field : (0b1 << (2*self.get_nb_bases())) - 1 which enforce 0 bit between 4 upper bits
         // and lower bits coding value.
-        let value_mask :u32 = (0b1 << (2*self.get_nb_base())) - 1;
+        let value_mask: u32 = (0b1 << (2 * self.get_nb_base())) - 1;
         let mut new_kmer = ((self.0 << 2) & value_mask) | (base as u32 & 0b11);
         new_kmer |= nb_bases_mask;
         // and enforce saved number of bases.
-        trace!("in push new_kmer = {:b}",  new_kmer);
+        trace!("in push new_kmer = {:b}", new_kmer);
         Kmer32bit(new_kmer)
-    }  // end of push
+    } // end of push
 
     /// just returns the reversed complement 16 bases kmer in 2bit encoding
 
     //  we can build upon the method used for Kmer16b32bit and then do the correct shift
     //  to get bases in the correct right part of a u32 and reset nb_bases in 4 upper bits.
-    // 
-    fn reverse_complement(&self) ->  Kmer32bit {
-        let nb_bases_mask : u32 = self.0 & 0xF0000000;
+    //
+    fn reverse_complement(&self) -> Kmer32bit {
+        let nb_bases_mask: u32 = self.0 & 0xF0000000;
         //
         // we do a symetry as explained in hacker's delight and complement.
         // Note that we skip the swap between 2 adjacent bits as base are encoded in blocks of 2 bits
@@ -144,57 +133,56 @@ impl KmerT for Kmer32bit {
         revcomp >>= 32 - 2 * nb_bases_mask.rotate_left(4);
         // and enforce nb_bases in upper 4 bits
         revcomp = (revcomp & 0x0FFFFFFF) | nb_bases_mask;
-        //        
+        //
         Kmer32bit(revcomp)
     }
     /// we just do a raw write. Error prone when reloading. Any dump file must have a header
     /// describing number of bases! to distinguish from Kmer16b32bit
+    #[allow(clippy::transmute_num_to_bytes)]
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(self.0) } )
+        bufw.write(unsafe { &mem::transmute::<u32, [u8; 4]>(self.0) })
     }
 } // end of impl KmerT for Kmer32bit
-
-
 
 impl CompressedKmerT for Kmer32bit {
     type Val = u32;
     /// This type can store 14 base at max
-    fn get_nb_base_max() -> usize { 14 }
+    fn get_nb_base_max() -> usize {
+        14
+    }
     /// a decompressing function mainly for test and debugging purpose
     fn get_uncompressed_kmer(&self) -> Vec<u8> {
         let nb_bases = (self.0.rotate_left(4) & 0b1111) as usize;
         let alphabet = Alphabet2b::new();
         // we treat each block of 2 bis as u8 end call decoder of Alphabet2b
         let mut decompressed_kmer = Vec::<u8>::with_capacity(nb_bases);
-        let mut base:u8;
+        let mut base: u8;
         //
         let mut buf = self.0;
         // get the base coding part at left end of u32
         buf = buf.rotate_left((self.get_bitsize() - 2 * nb_bases) as u32);
         for _ in 0..nb_bases {
             buf = buf.rotate_left(2);
-            base = (buf & 0b11) as u8; 
+            base = (buf & 0b11) as u8;
             decompressed_kmer.push(alphabet.decode(base));
         }
         decompressed_kmer
     }
     /// return the pure value with part coding number of bases reset to 0.
-    #[inline(always)]    
+    #[inline(always)]
     fn get_compressed_value(&self) -> u32 {
         // possibly be careful for garbage bits between 4 upper bits of word coding for nb_bases
         // and lower part coding value. We could compute a real mask by using nb_bases * 2 bits lower bits set 1.
         // BUT kmer is initialized to 0 and we have been careful in push method (See comments)
         self.0 & 0x0FFFFFFF
     }
-    ///
-    #[inline(always)]    
-    fn get_bitsize(&self) -> usize { 32 }
-}  // end of impl block for CompressedKmerT
+    //
+    #[inline(always)]
+    fn get_bitsize(&self) -> usize {
+        32
+    }
+} // end of impl block for CompressedKmerT
 
-
-
-
- 
 impl FromStr for Kmer32bit {
     type Err = String;
 
@@ -203,29 +191,26 @@ impl FromStr for Kmer32bit {
         if s.len() > 14 {
             return Err(String::from("too long kmer"));
         }
-        let nb_bases=s.len();
+        let nb_bases = s.len();
         let mut kmer = Kmer32bit::new(nb_bases as u8);
         let alphabet = Alphabet2b::new();
         //
         let sbytes = s.as_bytes();
         //
-        for i in 0..nb_bases {
-            if !alphabet.is_valid_base(sbytes[i]) {
+        for b in sbytes {
+            if !alphabet.is_valid_base(*b) {
                 return Err(String::from("char not in ACGT"));
             }
-            kmer = kmer.push(alphabet.encode(sbytes[i]));
+            kmer = kmer.push(alphabet.encode(*b));
         }
         Ok(kmer)
     } // end of from
-    
-}  // end of impl FromStr for Kmer32bit
-
-
+} // end of impl FromStr for Kmer32bit
 
 impl KmerBuilder<Kmer32bit> for Kmer32bit {
     /// for Kmer32bit we encode the number of bases in the 4 upper bits
-    fn build(val: u32, nb_base : u8) -> Kmer32bit {
-        let mut new_kmer:u32 = (nb_base as u32) << 28;
+    fn build(val: u32, nb_base: u8) -> Kmer32bit {
+        let mut new_kmer: u32 = (nb_base as u32) << 28;
         new_kmer |= val;
         Kmer32bit(new_kmer)
     }
@@ -242,72 +227,80 @@ mod tests {
     #[test]
     fn test_reverse_complement_12b_kmer32bit() {
         //
-        let to_reverse : Vec<&'static str> = vec![
+        let to_reverse: Vec<&'static str> = vec![
             // TACG_AGTA_GGAT
             "TACGAGTAGGAT",
             // ACTT_GGAA_CGTT
-            "ACTTGGAACGTT"
+            "ACTTGGAACGTT",
         ];
         //
-        let reversedcomp : Vec<&'static str> = vec! [
+        let reversedcomp: Vec<&'static str> = vec![
             // ATCC_TACT_CGTA
             "ATCCTACTCGTA",
             // AACG_TTCC_AAGT
-            "AACGTTCCAAGT"
+            "AACGTTCCAAGT",
         ];
-        
+
         for i in 0..to_reverse.len() {
-            let revcomp: Kmer32bit = Kmer32bit::from_str(to_reverse[i]).unwrap().reverse_complement();
+            let revcomp: Kmer32bit = Kmer32bit::from_str(to_reverse[i])
+                .unwrap()
+                .reverse_complement();
             let should_be: Kmer32bit = Kmer32bit::from_str(reversedcomp[i]).unwrap();
-            if revcomp.0  !=  should_be.0 {
+            if revcomp.0 != should_be.0 {
                 println!(" i  kmer reversed complement  : {} {:b}", i, revcomp.0);
             }
-            assert_eq!(should_be.get_nb_base(), Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base());
-            assert!(revcomp.0 == should_be.0 );
+            assert_eq!(
+                should_be.get_nb_base(),
+                Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base()
+            );
+            assert!(revcomp.0 == should_be.0);
         }
     } // end of test_reverse_complement_kmer32bit
 
-
-#[test]
+    #[test]
     fn test_reverse_complement_11b_kmer32bit() {
         //
-        let to_reverse : Vec<&'static str> = vec![
+        let to_reverse: Vec<&'static str> = vec![
             // TACG_AGTA_GGA
             "TACGAGTAGGA",
             // ACTT_GGAA_CGT
-            "ACTTGGAACGT"
+            "ACTTGGAACGT",
         ];
         //
-        let reversedcomp : Vec<&'static str> = vec! [
+        let reversedcomp: Vec<&'static str> = vec![
             // TCC_TACT_CGTA
             "TCCTACTCGTA",
             // ACG_TTCC_AAGT
-            "ACGTTCCAAGT"
+            "ACGTTCCAAGT",
         ];
-        
+
         for i in 0..to_reverse.len() {
-            let revcomp: Kmer32bit = Kmer32bit::from_str(to_reverse[i]).unwrap().reverse_complement();
+            let revcomp: Kmer32bit = Kmer32bit::from_str(to_reverse[i])
+                .unwrap()
+                .reverse_complement();
             let should_be: Kmer32bit = Kmer32bit::from_str(reversedcomp[i]).unwrap();
-            if revcomp.0  !=  should_be.0 {
+            if revcomp.0 != should_be.0 {
                 println!(" i  kmer reversed complement  : {} {:b}", i, revcomp.0);
             }
-            assert_eq!(should_be.get_nb_base(), Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base());
-            assert!(revcomp.0 == should_be.0 );
+            assert_eq!(
+                should_be.get_nb_base(),
+                Kmer32bit::from_str(to_reverse[i]).unwrap().get_nb_base()
+            );
+            assert!(revcomp.0 == should_be.0);
         }
     } // end of test_reverse_complement_kmer32bit
 
-
     #[test]
     fn test_ordandeq_kmer32() {
-        let to_compare : Vec<&'static str> = vec![
+        let to_compare: Vec<&'static str> = vec![
             // TACG_AGTA_GGAT
             "TACGAGTAGGAT",
             // ACTT_GGAA_CGTT
             "ACTTGGAACGTT",
             // TACG_AGTA_GGAT,
-            "TACGAGTAGGAT"
+            "TACGAGTAGGAT",
         ];
-        let mut kmer_vect:Vec<Kmer32bit> = Vec::with_capacity(to_compare.len());
+        let mut kmer_vect: Vec<Kmer32bit> = Vec::with_capacity(to_compare.len());
         for i in 0..to_compare.len() {
             let kmer: Kmer32bit = Kmer32bit::from_str(to_compare[i]).unwrap();
             trace!("  kmer i  : {} {:b}", i, kmer.0);
@@ -317,6 +310,4 @@ mod tests {
         assert!(kmer_vect[0] == kmer_vect[2]);
         assert!(kmer_vect[0] > kmer_vect[1]);
     } // end of test_OrdandEq_kmer32
-
-
 }

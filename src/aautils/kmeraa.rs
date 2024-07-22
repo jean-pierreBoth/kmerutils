@@ -422,6 +422,9 @@ impl SequenceAA {
         self.seq.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.seq.len() == 0
+    }
     /// return the the uncompressed lenght (maintained by analogy with DNA case)
     pub fn size(&self) -> usize {
         self.seq.len()
@@ -685,9 +688,9 @@ pub fn hashmap_count_to_vec_count<T: CompressedKmerT + std::hash::Hash + Eq>(
     kmer_distribution: &FnvHashMap<T, usize>,
 ) -> Vec<(T, usize)> {
     // convert to a Vec
-    let mut hashed_kmers = kmer_distribution.keys();
+    let hashed_kmers = kmer_distribution.keys();
     let mut weighted_kmer = Vec::<(T, usize)>::with_capacity(kmer_distribution.len());
-    while let Some(key) = hashed_kmers.next() {
+    for key in hashed_kmers {
         if let Some(weight) = kmer_distribution.get(key) {
             weighted_kmer.push((*key, *weight));
         };
@@ -712,9 +715,8 @@ pub(super) fn get_nbkmer_guess(seq: &SequenceAA) -> usize {
 
 // We need a guess to allocate HashMap used with Kmer Generation
 // for vector of sequenc coming from a non concatnated file, we must avoid nb_kmer to sequence length! Find a  good heuristic
-pub(super) fn get_nbkmer_guess_seqs(vseq: &Vec<&SequenceAA>) -> usize {
+pub(super) fn get_nbkmer_guess_seqs(vseq: &[&SequenceAA]) -> usize {
     let total_nb_base = vseq.iter().fold(0, |acc, seq| acc + seq.size());
-
     total_nb_base.min(10_000_000 * (1usize + total_nb_base.ilog2() as usize))
 } // end of get_nbkmer_guess_seqs
 
