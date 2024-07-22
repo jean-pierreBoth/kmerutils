@@ -55,10 +55,10 @@ impl BlockSketched {
     }
     // dump
     fn dump(&self, out: &mut dyn Write) {
-        out.write(&self.numseq.to_le_bytes()).unwrap();
-        out.write(&self.numblock.to_le_bytes()).unwrap();
+        out.write_all(&self.numseq.to_le_bytes()).unwrap();
+        out.write_all(&self.numblock.to_le_bytes()).unwrap();
         for i in 0..self.sketch.len() {
-            out.write(&self.sketch[i].to_le_bytes()).unwrap();
+            out.write_all(&self.sketch[i].to_le_bytes()).unwrap();
         }
     } // end of dump
 } // end of impl block for BlockSketched
@@ -122,22 +122,14 @@ impl BlockSeqSketcher {
         for numblock in 0..nb_blocks {
             let mut pminhasha = ProbMinHash3a::<u32, NoHashHasher>::new(self.sketch_size, 0);
             let mut kmer_pos = 0;
-            loop {
-                match kmergen.next() {
-                    Some(kmer) => {
-                        let hashval = fhash(&kmer);
-                        *wa.entry(hashval).or_insert(0.) += 1.;
-                        // have we reached end of block
-                        if kmer_pos == self.block_size - 1 {
-                            break;
-                        } else {
-                            kmer_pos += 1;
-                        }
-                    }
-                    None => {
-                        // end of sequence we have to finish sketching this (possibly not full block)
-                        break;
-                    }
+            while let Some(kmer) = kmergen.next() {
+                let hashval = fhash(&kmer);
+                *wa.entry(hashval).or_insert(0.) += 1.;
+                // have we reached end of block
+                if kmer_pos == self.block_size - 1 {
+                    break;
+                } else {
+                    kmer_pos += 1;
                 }
             } // end loop
             pminhasha.hash_weigthed_hashmap(&wa);
@@ -175,15 +167,15 @@ impl BlockSeqSketcher {
     /// dump a whole pack of sketches relative to a set of sequences split in blocks and sketched
     /// we dump a magic as a u32, num of sequence as u32, nbblocks of a sequnece as u32
     /// and the dump of each block by BlockSketched::dump()
-    pub fn dump_blocks(&self, out: &mut dyn Write, seqblocks: &Vec<BlockSketchedSeq>) {
+    pub fn dump_blocks(&self, out: &mut dyn Write, seqblocks: &[BlockSketchedSeq]) {
         for i in 0..seqblocks.len() {
             // dump numseq
             let seqnum = seqblocks[i].numseq as u32;
-            out.write(&seqnum.to_le_bytes()).unwrap();
+            out.write_all(&seqnum.to_le_bytes()).unwrap();
             let nbblock_u32 = seqblocks[i].sketch.len() as u32;
             assert!(nbblock_u32 > 0);
             // dump number of blocks for sequence of current BlockSketchedSeq
-            out.write(&nbblock_u32.to_le_bytes()).unwrap();
+            out.write_all(&nbblock_u32.to_le_bytes()).unwrap();
             // dump blocks
             for j in 0..seqblocks[i].sketch.len() {
                 let block = &(seqblocks[i].sketch)[j][0];
@@ -207,24 +199,26 @@ impl BlockSeqSketcher {
             .create(true)
             .truncate(true)
             .open(dumpfname);
-        let dumpfile;
-        if dumpfile_res.is_ok() {
-            dumpfile = dumpfile_res.unwrap();
+        //
+        let dumpfile = if dumpfile_res.is_ok() {
+            dumpfile_res.unwrap()
         } else {
             println!("cannot open {}", dumpfname);
             std::process::exit(1);
-        }
+        };
         let sketch_size_u32 = self.sketch_size as u32;
         let kmer_size_u32 = self.kmer_size as u32;
         let blocksize_u32 = self.block_size as u32;
         let mut sigbuf: io::BufWriter<fs::File> =
             io::BufWriter::with_capacity(1_000_000_000, dumpfile);
         // dump 17 bytes
-        sigbuf.write(&MAGIC_BLOCKSIG_DUMP.to_le_bytes()).unwrap();
-        sigbuf.write(&self.sig_size.to_le_bytes()).unwrap();
-        sigbuf.write(&sketch_size_u32.to_le_bytes()).unwrap();
-        sigbuf.write(&kmer_size_u32.to_le_bytes()).unwrap();
-        sigbuf.write(&blocksize_u32.to_le_bytes()).unwrap();
+        sigbuf
+            .write_all(&MAGIC_BLOCKSIG_DUMP.to_le_bytes())
+            .unwrap();
+        sigbuf.write_all(&self.sig_size.to_le_bytes()).unwrap();
+        sigbuf.write_all(&sketch_size_u32.to_le_bytes()).unwrap();
+        sigbuf.write_all(&kmer_size_u32.to_le_bytes()).unwrap();
+        sigbuf.write_all(&blocksize_u32.to_le_bytes()).unwrap();
         //
         sigbuf
     } // end of create_signature_dump
@@ -250,13 +244,12 @@ impl SigBlockSketchFileReader {
     /// initialize the fields fname, sketch_size, kmer_size and allocates signature_buf but signatures will be read by next.
     pub fn new(fname: &String) -> Result<SigBlockSketchFileReader, String> {
         let dumpfile_res = OpenOptions::new().read(true).open(fname);
-        let dumpfile;
-        if dumpfile_res.is_ok() {
-            dumpfile = dumpfile_res.unwrap();
+        let dumpfile = if dumpfile_res.is_ok() {
+            dumpfile_res.unwrap()
         } else {
             println!("cannot open {}", fname);
             std::process::exit(1);
-        }
+        };
         let mut signature_buf: io::BufReader<fs::File> =
             io::BufReader::with_capacity(1_000_000_000, dumpfile);
         let mut buf_u32 = [0u8; 4];
@@ -362,7 +355,6 @@ impl SigBlockSketchFileReader {
     pub fn next(&mut self) -> Option<Vec<Vec<u32>>> {
         // must read sequence num and number of blocks which were dumped as u32 in little endian
         let numseq: u32;
-        let nbblock: u32;
         let mut buf_u32 = [0u8; 4];
         let io_res = self.signature_buf.read_exact(&mut buf_u32);
         if io_res.is_err() {
@@ -379,12 +371,12 @@ impl SigBlockSketchFileReader {
         }
         //
         let io_res = self.signature_buf.read_exact(&mut buf_u32);
-        if io_res.is_err() {
+        let nbblock: u32 = if io_res.is_err() {
             println!("cannot read number of blocks for sequence {} ", numseq);
             std::process::exit(1);
         } else {
-            nbblock = u32::from_le_bytes(buf_u32);
-        }
+            u32::from_le_bytes(buf_u32)
+        };
         // now we have everything
         let nb_bytes = self.sketch_size * std::mem::size_of::<u32>();
         let mut buf: Vec<u8> = (0..nb_bytes).map(|_| 0u8).collect();
@@ -445,65 +437,6 @@ fn distance_jaccard_serial(va: &[u32], vb: &[u32]) -> u32 {
     dist as u32
 } // end of distance_jaccard_serial
 
-#[cfg(packed_simd_2)]
-use packed_simd_2::*;
-
-#[cfg(packed_simd_2)]
-fn distance_jaccard_u32_8_simd(va: &[u32], vb: &[u32]) -> u32 {
-    let mut dist = 0_u32;
-    //
-    assert_eq!(va.len(), vb.len());
-    let nb_lanes = u32x8::lanes();
-    assert_eq!(nb_lanes, 8);
-    //
-    let mut dist_simd = u32x8::splat(0);
-    let v_1 = u32x8::splat(1);
-    let nb_simd = va.len() / nb_lanes;
-    let simd_length = nb_simd * nb_lanes;
-    //
-    for i in (0..va.len()).step_by(nb_lanes) {
-        let a = u32x8::from_slice_unaligned(&va[i..]);
-        let b = u32x8::from_slice_unaligned(&vb[i..]);
-        let delta = u32x8::from_cast(a.ne(b)).min(v_1);
-        dist_simd = dist_simd + delta;
-    }
-    // internal sum of lanes
-    dist = dist + dist_simd.wrapping_sum();
-    // residual
-    for i in simd_length..va.len() {
-        dist = dist + if va[i] != vb[i] { 1 } else { 0 };
-    }
-    return dist;
-} // end of distance_jaccard_u32_simd
-
-#[cfg(packed_simd_2)]
-fn distance_jaccard_u32_16_simd(va: &[u32], vb: &[u32]) -> u32 {
-    let mut dist = 0_u32;
-    //
-    assert_eq!(va.len(), vb.len());
-    let nb_lanes = u32x16::lanes();
-    assert_eq!(nb_lanes, 16);
-    //
-    let mut dist_simd = u32x16::splat(0);
-    let v_1 = u32x16::splat(1);
-    let nb_simd = va.len() / nb_lanes;
-    let simd_length = nb_simd * nb_lanes;
-    //
-    for i in (0..va.len()).step_by(nb_lanes) {
-        let a = u32x16::from_slice_unaligned(&va[i..]);
-        let b = u32x16::from_slice_unaligned(&vb[i..]);
-        let delta = u32x16::from_cast(a.ne(b)).min(v_1);
-        dist_simd = dist_simd + delta;
-    }
-    // internal sum of lanes
-    dist = dist + dist_simd.wrapping_sum();
-    // residual
-    for i in simd_length..va.len() {
-        dist = dist + if va[i] != vb[i] { 1 } else { 0 };
-    }
-    return dist;
-} // end of distance_jaccard_u32_simd
-
 //==============================================================================
 
 #[cfg(test)]
@@ -526,7 +459,7 @@ mod tests {
         // define a closure for our hash function
         let kmer_revcomp_hash_fn = |kmer: &Kmer32bit| -> u32 {
             let canonical = kmer.reverse_complement().min(*kmer);
-            
+
             probminhash::invhash::int32_hash(canonical.0)
         };
         //
@@ -559,44 +492,4 @@ mod tests {
         println!("dist_2 = {:?}", dist_2);
         log::info!("dist_2 = {:?}", dist_2);
     } // end of test_block_sketch
-
-    #[cfg(packed_simd_2)]
-    #[test]
-    fn test_simd_jaccard_u32() {
-        println!("test_simd_jaccard_u32");
-        let size_test = 500;
-        let imax = 5;
-        let mut rng = rand::thread_rng();
-        for i in 4..size_test {
-            let between = Uniform::<u32>::from(0..imax);
-            let va: Vec<u32> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
-            let vb: Vec<u32> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
-            // simd call
-            let simd_dist = distance_jaccard_u32_8_simd(&va, &vb);
-            // exact dist
-            let easy_dist: u32 = va
-                .iter()
-                .zip(vb.iter())
-                .map(|(a, b)| if a != b { 1 } else { 0 })
-                .sum();
-            println!("simd exact = {:?} {:?}", simd_dist, easy_dist);
-            if easy_dist != simd_dist {
-                println!(
-                    " test i = {:?} jsimd = {:?} , jexact = {:?}",
-                    i, simd_dist, easy_dist
-                );
-                println!("va = {:?}", va);
-                println!("vb = {:?}", vb);
-                std::process::exit(1);
-            }
-            assert_eq!(easy_dist, simd_dist, "i = {:?}", i);
-            assert_eq!(1, 0);
-        }
-    } // end of test test_simd_jaccard_i32
 } // end of module test

@@ -12,6 +12,8 @@
 
 */
 
+#![allow(clippy::needless_range_loop)]
+
 use std::marker::PhantomData;
 
 use std::fmt::Debug;

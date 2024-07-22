@@ -27,7 +27,7 @@ use crate::sketching::minhash::MinInvHashCountKmer;
 
 #[derive(Default, Clone)]
 pub struct AnchorsGeneratorParameters {
-    ///
+    //
     fasta_name: String,
     /// window size for computing minhash
     window: u32,
@@ -387,19 +387,16 @@ impl<T: CompressedKmerT> FastaAnchors<T> {
         redis_addr: Option<String>,
     ) -> Self {
         let mut con = None;
-        match redis_addr {
-            Some(ref name) => {
-                let res_client = redis::Client::open(name.as_str());
-                if res_client.is_ok() {
-                    let res_con = res_client.unwrap().get_connection();
-                    if res_con.is_ok() {
-                        con = Some(res_con.unwrap());
-                    } else {
-                        panic!("cannot get redis connection");
-                    }
+        if let Some(ref name) = redis_addr {
+            let res_client = redis::Client::open(name.as_str());
+            if res_client.is_ok() {
+                let res_con = res_client.unwrap().get_connection();
+                if res_con.is_ok() {
+                    con = Some(res_con.unwrap());
+                } else {
+                    panic!("cannot get redis connection");
                 }
             }
-            None => (),
         }
         FastaAnchors {
             slice_params: Rc::clone(&slice_parameters),

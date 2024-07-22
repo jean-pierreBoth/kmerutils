@@ -82,11 +82,11 @@ impl QSequence for QSequenceWM {
     fn get_mode(&self) -> QualityMode {
         QualityMode::WM
     }
-    ///
+    //
     fn get_read_num(&self) -> usize {
         self.read_num
     }
-    ///
+    //
     fn len(&self) -> usize {
         self.qseq.len()
     }

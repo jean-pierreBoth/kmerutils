@@ -2,42 +2,37 @@
 
 // for needletail
 
-
 use std::time::*;
 
 use std::path::Path;
 
-use crate::base::{sequence::*};
+use crate::base::sequence::*;
 use crate::parsearg::*;
 
-
-pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Result<Vec<Sequence>, &'static str > {
+pub fn parse_with_needletail(
+    parsed_args: ParseFastqArgs,
+) -> std::result::Result<Vec<Sequence>, &'static str> {
     //
     println!("parsing with needletail file : {} ", parsed_args.filename);
     let path = Path::new(&parsed_args.filename);
     let f_info_res = path.metadata();
-    let filesize:u64;
-    match f_info_res {
-        Ok(meta) => {
-            filesize = meta.len();           
-        },
+    let filesize = match f_info_res {
+        Ok(meta) => meta.len(),
         Err(_e) => {
             println!("file does not exist: {:?}", parsed_args.filename);
             return Err("file does not exist");
-        },
-    }
+        }
+    };
     //
-    let nb_bits:u8 = parsed_args.nb_bits_by_base;
+    let nb_bits: u8 = parsed_args.nb_bits_by_base;
     println!("using nb bits by base : {} ", nb_bits);
     // default size is set to half file size (beccause of quality) divided by 1000
-    let default_len = filesize/(2*1_000);
-    let mut seq_array : Vec<Sequence > = Vec::with_capacity(default_len as usize);
+    let default_len = filesize / (2 * 1_000);
+    let mut seq_array: Vec<Sequence> = Vec::with_capacity(default_len as usize);
     let mut n_bases = 0;
     let mut nb_bad_bases = 0;
     let mut nb_bad_read = 0;
 
-    
-    
     let start_t = Instant::now();
     let mut reader = needletail::parse_fastx_file(path).expect("expecting valid filename");
     while let Some(record) = reader.next() {
@@ -48,11 +43,10 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
         if nb_bad == 0 {
             let newseq = Sequence::new(&seqrec.seq(), nb_bits);
             seq_array.push(newseq);
-        }
-        else {
+        } else {
             nb_bad_read += 1;
         }
-        if seq_array.capacity() <= seq_array.len() + 100  {
+        if seq_array.capacity() <= seq_array.len() + 100 {
             let old_len = seq_array.len() as f64;
             seq_array.reserve((old_len * 1.5) as usize);
         }
@@ -75,5 +69,4 @@ pub fn parse_with_needletail(parsed_args: ParseFastqArgs) ->  std::result::Resul
     println!("nb_bad_read {:?}", nb_bad_read);
     //
     Ok(seq_array)
-}  // end of parse_with_needletail
-
+} // end of parse_with_needletail

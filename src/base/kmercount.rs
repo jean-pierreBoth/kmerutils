@@ -3,6 +3,8 @@
 
 // We take a slice of kmer and count them
 
+#![allow(clippy::transmute_num_to_bytes)]
+#![allow(clippy::explicit_counter_loop)]
 
 use log::info;
 
@@ -77,7 +79,7 @@ pub struct KmerCounter<Kmer>  {
     cbloom_f: CountingBloomFilter,
     /// total number of disctint elements seen
     nb_distinct: u64,
-    ///
+    //
     _kmertype: PhantomData<Kmer>,
 }
 
@@ -168,13 +170,13 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
     let mut nb_kmer_dumped : u64 = 0;
     let kmer_size = kmer_generator.get_kmer_size();
     // write magic, kmer_size and number of kmers and size of in bytes used for counting in bloomfilter.
-    bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
     // total number of kmer 
     let nb_kmer_to_dump : u64 = counter.get_nb_distinct() - counter.get_nb_unique();
     println!("dumping nb kmer {}", nb_kmer_to_dump);
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
+    bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
     //
     // now we must generate kmer once more. But we must keep track of already dumped kmer.
     //
@@ -198,10 +200,10 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
                     kmin.dump(&mut bufw)?;  // dump kmer
                     match nb_bytes_by_count {
                         1 => {
-                            bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?;
+                            bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?;
                         },
                         2 => {
-                            bufw.write(unsafe { &mem::transmute::<u16, [u8;2]>(count as u16) })?;
+                            bufw.write_all(unsafe { &mem::transmute::<u16, [u8;2]>(count as u16) })?;
                         },
                         _ => panic!("kmercount::dump_in_file_counted_kmer incoherent number of bytes for count"),
                     };                
@@ -386,7 +388,7 @@ pub trait DispatchableT {
 impl DispatchableT for Kmer16b32bit {
     /// compressed value is a u32
     type ToDispatch=u32;
-    ///
+    //
     #[inline(always)]
     fn dispatch(&self, nb_receiver:usize) -> usize {
         (int32_hash(self.get_compressed_value()) % nb_receiver as u32) as usize
@@ -408,7 +410,7 @@ impl DispatchableT for Kmer32bit {
 impl DispatchableT for Kmer64bit {
     /// compressed value is a u32
     type ToDispatch=u64;
-    ///
+    //
     #[inline(always)]
     fn dispatch(&self, nb_receiver:usize) -> usize {
         (int64_hash(self.get_compressed_value()) % nb_receiver as u64) as usize
@@ -480,12 +482,12 @@ impl<Kmer> KmerCounterPool<Kmer> {
         // as bloom f allocated have 8 bits per slot ... but we dump that to have the possibility to change.
         let nb_bytes_by_count = 1;
         // write magic, kmer_size and number of kmers
-        bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
-        bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
-        bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
+        bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
+        bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
+        bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
         // how many kmer we have to dump?  
         let nb_kmer_to_dump = self.get_nb_distinct() - self.get_nb_unique();
-        bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
+        bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
         // now we must generate kmer once more. But we must keep track of already dumped kmer.
         let mut cuckoo_dumped = CuckooFilter::<MetroHash64>::with_capacity((2.0 * nb_kmer_to_dump as f64) as usize);
         for seq in seqvec {
@@ -504,7 +506,7 @@ impl<Kmer> KmerCounterPool<Kmer> {
                         cuckoo_dumped.add(&key).unwrap();
                         kmin.dump(&mut bufw)?;
                         // dump count
-                        bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?; 
+                        bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?; 
                         nb_kmer_dumped += 1;
                         if nb_kmer_dumped % 100_000_000 == 0 {
                             println!("dump_kmer_counter, number of kmer dumped : {} ", nb_kmer_dumped);
@@ -532,7 +534,7 @@ impl <Kmer> KmerCountT for  KmerCounterPool<Kmer>
 {
     // in type equation, left Kmer is associated type of KmerCountT , right is template parameter
     type Kmer=Kmer;
-    ///
+    //
     fn insert_kmer(&mut self, kmer: Kmer) {
         // dispatch
         let loc = kmer.dispatch(self.counters.len());        
@@ -589,16 +591,16 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
     // as bloom f allocated have 8 bits per slot ... but we dump that to have the possibility to change.
     let nb_bytes_by_count = 1;
     // write magic, kmer_size and number of kmers
-    bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
     // how many kmer we have to dump?  
     let nb_kmer_to_dump = counter_pool.get_nb_distinct() - counter_pool.get_nb_unique();
     println!(" threaded dump multiple kmer , nb kmer to dump : {} ", nb_kmer_to_dump);
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
         // now we must generate kmer once more. But we must keep track of already dumped kmer.
     let mut cuckoo_dumped = CuckooFilter::<MetroHash64>::with_capacity((1.5 * nb_kmer_to_dump as f64) as usize);
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
+    bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) } )?;
     // now we must generate kmer once more
     for seq in seqvec {
         let vkmer : Vec<Kmer> = kmer_generator.generate_kmer(seq);
@@ -616,7 +618,7 @@ pub fn dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fname: &Str
                     // needs a mutex on bufw and nb_kmer_dumped
                     kmin.dump(&mut bufw)?;
                     // dump count
-                    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?; 
+                    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(count) })?; 
                     nb_kmer_dumped += 1;
                 }
             } // end if !already
@@ -658,12 +660,12 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
     }
     //
     // write magic, kmer_size and number of kmers
-    bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
-    bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(kmer_size as u8) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(nb_bytes_by_count as u8) })?;
     // how many kmer we have to dump?  
     let nb_kmer_to_dump = counter_pool.get_nb_distinct() - counter_pool.get_nb_unique();
-    bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
+    bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer_to_dump) })?;
     println!(" threaded dump multiple kmer , nb kmer to dump : {} ", nb_kmer_to_dump);
     // we set count to u16 beccause of high coverage and high error rates in long reads that force us to reduce kmer size!!
     let (s, r) = crossbeam::channel::bounded::<(Kmer, u16)>(1_000_000);
@@ -731,7 +733,7 @@ pub fn threaded_dump_kmer_counter<Kmer>(counter_pool: &KmerCounterPool<Kmer>, fn
             let mut nb_received : u64 = 0;
             let mut idump = 1;
             r.into_iter().for_each(|msg| { let _res = msg.0.dump(&mut bufw);
-                               bufw.write(unsafe { &mem::transmute::<u16, [u8;2]>(msg.1)} ).unwrap();
+                               bufw.write_all(unsafe { &mem::transmute::<u16, [u8;2]>(msg.1)} ).unwrap();
                                nb_received += 1;
                                if (nb_received * 10) >= idump * nb_kmer_to_dump {
                                    // an impression every 10%
@@ -1024,10 +1026,10 @@ impl KmerFilter1 {
         let mut bufw : io::BufWriter<fs::File> = io::BufWriter::with_capacity(1_000_000_000, file);
         let mut nb_kmer_dumped = 0;
         // write magic, kmer_size and number of kmers
-        bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
-        bufw.write(unsafe { &mem::transmute::<u8, [u8;1]>(self.kmer_size) })?;
+        bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(magic) } )?;
+        bufw.write_all(unsafe { &mem::transmute::<u8, [u8;1]>(self.kmer_size) })?;
         let nb_kmer : u64 = self.once_f.len() as u64;
-        bufw.write(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer) } )?;
+        bufw.write_all(unsafe { &mem::transmute::<u64, [u8;8]>(nb_kmer) } )?;
         let mut numseq = 0u32;
         // now we must generate kmer once more
         for seq in seqvec {
@@ -1038,8 +1040,8 @@ impl KmerFilter1 {
                 if self.once_f.contains(&kmin.0) {
                     (kmin as Kmer16b32bit).dump(&mut bufw)?;
                     // dump numseq and numkmer 4 bytes each
-                    bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(numseq) })?; 
-                    bufw.write(unsafe { &mem::transmute::<u32, [u8;4]>(numkmer)} )?;
+                    bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(numseq) })?; 
+                    bufw.write_all(unsafe { &mem::transmute::<u32, [u8;4]>(numkmer)} )?;
                     nb_kmer_dumped += 1;
                 }
                 numkmer += 1;
@@ -1117,7 +1119,7 @@ pub enum CounterType {
 
 
 pub struct  KmerCountReload {
-    ///
+    //
     _c_type: CounterType,
     /// kmer size
     kmer_size: u32,
@@ -1126,7 +1128,7 @@ pub struct  KmerCountReload {
     /// a hashmap mapping kmer to a slot in description array
     // The indirect acces to positions via hmap cost us some memory but enables Julia to ask positions of unique kmers via position
     h_pos: Option<fnv::FnvHashMap<u32,u32> >,
-    ///
+    //
     positions: Vec<KmerCoord>,
     /// This is the field that corresponds to count of multiple kmers.
     h_count: Option<fnv::FnvHashMap<u32,u16 > >,
@@ -1160,7 +1162,7 @@ impl KmerCountReload {
         self.h_pos.as_mut().unwrap().insert(kmer,slot as u32);
         self.positions.push(coord);
     }
-    ///
+    //
     fn insert_kmer_count(&mut self, kmer:u32, count : u16) {
         self.h_count.as_mut().unwrap().insert(kmer, count);
     }
