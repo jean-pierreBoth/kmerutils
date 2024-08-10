@@ -19,6 +19,7 @@
 
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::needless_range_loop)]
+#![allow(clippy::unnecessary_unwrap)]
 
 use log::*;
 

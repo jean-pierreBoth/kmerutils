@@ -3,6 +3,8 @@
 //! This module is adapted to long reads with variable length.
 //!
 
+#![allow(clippy::unnecessary_unwrap)]
+
 use log::*;
 
 use serde::{Deserialize, Serialize};
@@ -168,17 +170,17 @@ impl BlockSeqSketcher {
     /// we dump a magic as a u32, num of sequence as u32, nbblocks of a sequnece as u32
     /// and the dump of each block by BlockSketched::dump()
     pub fn dump_blocks(&self, out: &mut dyn Write, seqblocks: &[BlockSketchedSeq]) {
-        for i in 0..seqblocks.len() {
+        for seqblock in seqblocks {
             // dump numseq
-            let seqnum = seqblocks[i].numseq as u32;
+            let seqnum = seqblock.numseq as u32;
             out.write_all(&seqnum.to_le_bytes()).unwrap();
-            let nbblock_u32 = seqblocks[i].sketch.len() as u32;
+            let nbblock_u32 = seqblock.sketch.len() as u32;
             assert!(nbblock_u32 > 0);
             // dump number of blocks for sequence of current BlockSketchedSeq
             out.write_all(&nbblock_u32.to_le_bytes()).unwrap();
             // dump blocks
-            for j in 0..seqblocks[i].sketch.len() {
-                let block = &(seqblocks[i].sketch)[j][0];
+            for j in 0..seqblock.sketch.len() {
+                let block = &(seqblock.sketch)[j][0];
                 block.dump(out);
             }
         }

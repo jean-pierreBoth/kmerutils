@@ -50,6 +50,7 @@ use probminhash::superminhasher2::SuperMinHash2;
 /// This trait gathers interface to all sketcher : SuperMinhash, Probminhash3a, Probminhash3, ...  
 ///
 /// It is useful when we need to send various sketchers in external functionsas as a impl Trait.
+#[allow(clippy::ptr_arg)]
 pub trait SeqSketcherT<Kmer>
 where
     Kmer: CompressedKmerT + KmerBuilder<Kmer>,
@@ -149,18 +150,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Kmer::Val>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        log::debug!("exiting sketch_probminhash3a_compressedkmer");
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     }
 
     // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector
@@ -297,17 +290,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
@@ -431,18 +417,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        //
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
@@ -572,17 +550,10 @@ where
             .map(|i| comput_closure(vseq[i], i))
             .collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        //
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
@@ -825,17 +796,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     // This function implement the sketching a File of Sequences.
@@ -1033,17 +997,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     #[cfg(feature = "sminhash2")]

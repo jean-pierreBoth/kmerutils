@@ -1,7 +1,7 @@
-//! This module gathers quality mapping, compression and service 
+//! This module gathers quality mapping, compression and service
 
-pub mod quality;
 pub mod qserverclient;
+pub mod quality;
 
-#[cfg(withzmq)]
+#[cfg(feature = "withzmq")]
 pub mod qualclient;

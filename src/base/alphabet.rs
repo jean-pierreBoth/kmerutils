@@ -62,7 +62,7 @@ pub trait BaseCompress {
 /// - C maps to 0b01
 /// - G maps to 0b10
 /// - T maps to 0b11
-/// note : the lexicographic order is preserved and bases are conjugated
+// note : the lexicographic order is preserved and bases are conjugated
 
 pub struct Alphabet2b {
     pub bases: String,

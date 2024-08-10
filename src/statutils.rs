@@ -29,7 +29,8 @@ use crate::base::sequence::*;
 ///  - readsizehisto  
 ///    an histogram of read length distribution
 ///   
-///  - acgt_distribution  
+///  - acgt_distribution
+///  
 ///  For each  percentage and each base we store the fraction of reads in acgt_distribution.  
 ///  So  acgt_distribution[percent, cbase] = f means there is a fraction f of reads where cbase occurs at level percent%.   
 ///  base columns are in order a,c,g,t. For a given column we have the fraction of reads in which the base occurs at each

@@ -2,33 +2,26 @@
 //! to quality requests for a server responsible for loading and servicing
 //! qualities for a data file
 
-
-
-extern crate zmq;
-extern crate xdr_codec;
 extern crate rand;
+extern crate xdr_codec;
+extern crate zmq;
 
-
-use std::mem;
 use std::cmp;
+use std::mem;
 use std::process;
 
 use self::xdr_codec::{Pack, Unpack};
 
-use std::io::{Cursor,Read};
-use self::zmq::{Message};
+use self::zmq::Message;
+use std::io::{Cursor, Read};
 
-use rand::{Rng,thread_rng};
+use rand::{thread_rng, Rng};
 
 // our mod
 
-use crate::quality::{quality::*, qserverclient::*};
+use crate::quality::{qserverclient::*, quality::*};
 
-
-const DEBUG : u64 = 0;
-
-
-
+const DEBUG: u64 = 0;
 
 pub struct QualityClient {
     /// name of server
@@ -40,13 +33,10 @@ pub struct QualityClient {
     //
     _filename: String,
     //
-}  // end of struct QualityClient
-
-
-
+} // end of struct QualityClient
 
 impl QualityClient {
-    pub fn new(server : String, port : u64, filename: String) -> QualityClient {
+    pub fn new(server: String, port: u64, filename: String) -> QualityClient {
         let context = zmq::Context::new();
         let socket = context.socket(zmq::REQ).unwrap();
         let mut connection_str = String::from("tcp://");
@@ -66,22 +56,26 @@ impl QualityClient {
                 process::exit(1);
             }
         }
-        QualityClient{_server:server, _port:port, socket:socket, _filename:filename}
-    }  // end of new
-
+        QualityClient {
+            _server: server,
+            _port: port,
+            socket: socket,
+            _filename: filename,
+        }
+    } // end of new
 
     // CAVEAT  this is not thread safe as thread_rng is not Sync!!
     fn get_request_handle(&self) -> Qhandle {
         thread_rng().gen::<u64>() as Qhandle
     }
-    
+
     /// return a Quality sequence given its number
-    pub fn get_quality_sequence(&self, numseq:u64) -> Result<QSequenceRaw, StatusCode> {
+    pub fn get_quality_sequence(&self, numseq: u64) -> Result<QSequenceRaw, StatusCode> {
         // we must first send a requestId
         log::debug!("get_quality requesting qsequence {}", numseq);
-        let len = mem::size_of::<RequestId>()  + 8 + 4;
-        let vec:Vec<u8> = Vec::with_capacity(len);
-        let mut buffer  = Cursor::new(vec);
+        let len = mem::size_of::<RequestId>() + 8 + 4;
+        let vec: Vec<u8> = Vec::with_capacity(len);
+        let mut buffer = Cursor::new(vec);
         // construct a request with Qhandle and request code
         let handle = self.get_request_handle();
         let req_code = RequestCode::GetQRead;
@@ -97,14 +91,14 @@ impl QualityClient {
             return Err(StatusCode::ErrXdr);
         }
         // check how many have been packed.
-        
+
         // now have a full buffer to transmit, get a &[u8] slice from cursor
         let rawbuf = buffer.get_ref().as_slice();
         // make up a zmq message
         let resmsg = Message::try_from(rawbuf);
         if resmsg.is_err() {
             println!(" construction of msg from slice failed ... ");
-        }        
+        }
         let msg = resmsg.unwrap();
         log::debug!(" sending message ");
         let _res = self.socket.send(msg, 0).unwrap();
@@ -112,7 +106,7 @@ impl QualityClient {
         // must wait for handle back from server
         //
         if DEBUG > 0 {
-            println!(" waiting for server ... "); 
+            println!(" waiting for server ... ");
         }
         // the 0 flag is for blocks...
         if let Ok(v) = self.socket.recv_bytes(0) {
@@ -123,13 +117,13 @@ impl QualityClient {
             let (handle_got, _) = u64::unpack(&mut cursor).unwrap();
             assert_eq!(handle_got, handle);
             // now get response status
-            let (ret_code , _) = u64::unpack(&mut cursor).unwrap();
+            let (ret_code, _) = u64::unpack(&mut cursor).unwrap();
             if ret_code != StatusCode::Ok as u64 {
                 log::info!("get_quality got an error status from server");
-                return Err(StatusCode::ErrGen); 
+                return Err(StatusCode::ErrGen);
             }
             // now get len of quality vector
-            if let Ok((nb_qual, _)) = u64::unpack(&mut cursor) {            
+            if let Ok((nb_qual, _)) = u64::unpack(&mut cursor) {
                 // get QsequenceRaw. The u8 slice is not xdr encoded. We get it directly from cursor
                 // after allocating a vector of the right size
                 log::info!("got a qseq size: {} ", nb_qual);
@@ -140,22 +134,23 @@ impl QualityClient {
                 cursor.read_exact(qualv.as_mut_slice()).unwrap();
                 if DEBUG > 0 {
                     for i in 0..cmp::min(10, qualv.len()) {
-                        println!("client got qual {} {}" , i, qualv[i]);
+                        println!("client got qual {} {}", i, qualv[i]);
                     }
-                }                
+                }
                 // we return our quality vector
-                log::info!("returning a QSequenceRaw with size : {:?} ", cursor.position());
-                return Ok(QSequenceRaw{read_num: numseq as usize, qseq: qualv});
+                log::info!(
+                    "returning a QSequenceRaw with size : {:?} ",
+                    cursor.position()
+                );
+                return Ok(QSequenceRaw {
+                    read_num: numseq as usize,
+                    qseq: qualv,
+                });
+            } else {
+                return Err(StatusCode::ErrGen);
             }
-            else {
-                return Err(StatusCode::ErrGen); 
-            }
-        }
-        else {
-            return Err(StatusCode::ErrGen); 
+        } else {
+            return Err(StatusCode::ErrGen);
         }
     } // end of get_quality_sequence
-
-    
-    
 } // end of implementation QualityClient

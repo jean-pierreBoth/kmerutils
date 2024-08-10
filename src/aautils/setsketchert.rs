@@ -143,17 +143,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Kmer::Val>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        //
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     }
 
     // recall we revceive a vecor of sequences originating from one file, we return a vector of size 1
@@ -293,17 +286,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        // check order (useless)
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmeraa
 
     fn sketch_compressedkmeraa_seqs<F>(
@@ -453,16 +439,9 @@ where
             .map(|i| comput_closure(vseq[i], i))
             .collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmeraa
 
     #[cfg(feature = "sminhash2")]
@@ -596,16 +575,9 @@ where
             .map(|i| comput_closure(vseq[i], i))
             .collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmeraa
 
     fn sketch_compressedkmeraa_seqs<F>(
@@ -737,17 +709,9 @@ where
             .map(|i| comput_closure(vseq[i], i))
             .collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        //
-        jaccard_vec
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmer
 
     fn sketch_compressedkmeraa_seqs<F>(
@@ -994,17 +958,10 @@ where
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Self::Sig>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        // check order
+        let (rank, sig): (Vec<usize>, Vec<Vec<Self::Sig>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_compressedkmeraa
 
     fn sketch_compressedkmeraa_seqs<F>(
@@ -1204,17 +1161,10 @@ impl SeqSketcher {
             .into_par_iter()
             .map(|i| comput_closure(vseq[i], i))
             .collect();
-        // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<Kmer::Val>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        //
+        let (rank, sig): (Vec<usize>, Vec<Vec<Kmer::Val>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_probminhash3a
 
     //  Superminhash
@@ -1264,16 +1214,9 @@ impl SeqSketcher {
             .map(|i| comput_closure(vseq[i], i))
             .collect();
         // re-order from jac_with_rank to jaccard_vec as the order of return can be random!!
-        let mut jaccard_vec = Vec::<Vec<f64>>::with_capacity(vseq.len());
-        for _ in 0..vseq.len() {
-            jaccard_vec.push(Vec::new());
-        }
-        // CAVEAT , boxing would avoid the clone?
-        for i in 0..sig_with_rank.len() {
-            let slot = sig_with_rank[i].0;
-            jaccard_vec[slot].clone_from(&sig_with_rank[i].1);
-        }
-        jaccard_vec
+        let (rank, sig): (Vec<usize>, Vec<Vec<f64>>) = sig_with_rank.into_iter().unzip();
+        assert_eq!(rank, (0usize..vseq.len()).collect::<Vec<usize>>());
+        sig
     } // end of sketch_superminhash
 } // end of SeqSketcher (AA case)
 
