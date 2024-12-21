@@ -221,7 +221,7 @@ fn main() {
     //
     let kmer_revcomp_hash_fn = |kmer: &Kmer32bit| -> u32 {
         let canonical = kmer.reverse_complement().min(*kmer);
-        
+
         probminhash::invhash::int32_hash(canonical.0)
     };
     //
@@ -332,14 +332,19 @@ fn main() {
             let mut hnswname = dumpfname.clone();
             hnswname.push_str("-ann");
             println!(" dumping sketch hnsw in {:?} files", hnswname);
-            res_dump = hnsw_opt_seq.as_mut().unwrap().file_dump(&hnswname);
+            let cwd = std::path::PathBuf::from(".");
+            res_dump = hnsw_opt_seq.as_mut().unwrap().file_dump(&cwd, &hnswname);
         } else {
             // ann and sketch by block
             hnsw_opt_seqblock.as_ref().unwrap().dump_layer_info();
             let mut hnswname = dumpfname.clone();
             hnswname.push_str("-ann");
             println!(" dumping block sketch hnsw in {:?} files", hnswname);
-            res_dump = hnsw_opt_seqblock.as_mut().unwrap().file_dump(&hnswname);
+            let cwd = std::path::PathBuf::from(".");
+            res_dump = hnsw_opt_seqblock
+                .as_mut()
+                .unwrap()
+                .file_dump(&cwd, &hnswname);
         }
         if res_dump.is_ok() {
             println!(" hnsw dump suceeded");
