@@ -116,5 +116,5 @@ default = ["sminhash2"]
 withzmq = ["zmq"]
 
 simdeez_f = ["hnsw_rs/simdeez_f"]
-
+stdsimd = ["hnsw_rs/stdsimd"]
 sminhash2 = ["probminhash/sminhash2"]
