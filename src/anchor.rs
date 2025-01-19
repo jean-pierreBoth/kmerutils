@@ -472,7 +472,7 @@ impl<T: CompressedKmerT> FastaAnchors<T> {
 
     fn redis_bgrewriteaof(&mut self) -> usize {
         if self.con.is_some() {
-            redis::cmd("BGREWRITEAOF").execute(self.con.as_mut().unwrap());
+            let _ = redis::cmd("BGREWRITEAOF").exec(self.con.as_mut().unwrap());
             1
         } else {
             0
