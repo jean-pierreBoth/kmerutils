@@ -86,9 +86,9 @@ fnv = { version = "1.0" }
 
 ##
 
-# probminhash = { version = "0.1.11" }
-# probminhash =  {git = "https://github.com/jean-pierreBoth/probminhash"}
-probminhash = { path = "../probminhash" }
+# probminhash = { version = "0.1.12" }
+probminhash =  {git = "https://github.com/jean-pierreBoth/probminhash"}
+# probminhash = { path = "../probminhash" }
 #
 
 anyhow = { version = "1.0" }
