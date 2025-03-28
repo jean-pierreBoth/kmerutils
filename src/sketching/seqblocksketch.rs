@@ -447,7 +447,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use rand::distributions::{Distribution, Uniform};
+    use rand::distr::{Distribution, Uniform};
 
     fn log_init_test() {
         let mut builder = env_logger::Builder::from_default_env();

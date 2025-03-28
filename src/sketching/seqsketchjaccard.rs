@@ -733,7 +733,7 @@ mod tests {
     fn compute_superminhash_jaccard(
         hsketch: &Vec<f64>,
         other_sketch: &Vec<f64>,
-    ) -> Result<f64, ()> {
+    ) -> anyhow::Result<f64> {
         probminhash::superminhasher::get_jaccard_index_estimate(hsketch, other_sketch)
     }
 

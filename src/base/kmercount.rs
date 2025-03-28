@@ -1483,7 +1483,7 @@ impl KmerCountReload {
 mod tests {
     use super::*;
     use std::ops::Range;
-    use rand::distributions::*;
+    use rand::distr::*;
 
 
     fn log_init_test() {
@@ -1509,8 +1509,8 @@ mod tests {
         let seq = Sequence::new(slu8,2);
         let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16).generate_kmer(&seq);
         // now we will sample 1_000_000 kmers
-        let between = Uniform::<usize>::new(2, vkmer.len());        
-        let mut rng = rand::thread_rng();
+        let between = Uniform::<usize>::new(2, vkmer.len()).unwrap();        
+        let mut rng = rand::rng();
         let mut xsi;
         // we insert once vkmer[0]
         kmer_counter.insert_kmer(vkmer[0]);
@@ -1565,8 +1565,8 @@ mod tests {
         let vkmer : Vec<Kmer16b32bit> = KmerGenerator::new(16).generate_kmer(&seq);
         println!(" got nb kmers : {} ", vkmer.len());
         // now we will sample 1_000_000 kmers in upper half of kmers so from kmer 31 to 
-        let between = Uniform::from(Range{start: vkmer.len()/2, end: vkmer.len()});        
-        let mut rng = rand::thread_rng();
+        let between = Uniform::try_from(Range{start: vkmer.len()/2, end: vkmer.len()}).unwrap();        
+        let mut rng = rand::rng();
         let nb_random = 1_000_000;
         let mut xsi;
         for _ in 0..nb_random {
