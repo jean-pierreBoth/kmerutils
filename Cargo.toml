@@ -99,12 +99,12 @@ redis = { version = "0.28" }
 # decreasing order of log for release build (release_max_level_)  .. idem
 #log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"] }
 log = { version = "0.4" }
-env_logger = { version = "0.9" }
+env_logger = { version = "0.11" }
 # to monitor memory usage (if log::Debug )
 memory-stats = { version = "1.1", features = ["always_use_statm"] }
 
 # anndists is provided by hnsw_rs
-hnsw_rs = { version = "0.3.1" }
+hnsw_rs = { version = "0.3" }
 # hnsw_rs = { path = "../hnswlib-rs" }
 # hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs" }
 
