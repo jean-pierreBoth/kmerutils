@@ -523,26 +523,14 @@ impl<'a> IterSequence<'a> {
     /// we want next method returning a base compressed or uncompressed.
     pub fn new(seqarg: &'a Sequence, must_decode_arg: bool) -> IterSequence<'a> {
         //
-        let nb_bases_by_byte = 8 / (seqarg.nb_bits_by_base() as usize);
-        // case if sequence is small than nb_bases_by_byte
-        let mut last_byte = if seqarg.size() >= nb_bases_by_byte {
-            (seqarg.size() / nb_bases_by_byte) - 1
-        } else {
-            0
-        };
-        let mut last_bit = 8;
-        //
         let nb_bits = seqarg.nb_bits_by_base();
-        let mask: u8 = if nb_bits < 8 {
-            (1 << nb_bits) - 1
+        let mask: u8 = if nb_bits < 8 { (1 << nb_bits) - 1 } else { 0xFF };
+        let last_byte = seqarg.seq.len() - 1;
+        let last_bit  = if seqarg.nb_bases_in_last_byte() > 0 {
+            nb_bits * seqarg.nb_bases_in_last_byte()
         } else {
-            0xFF
+            8
         };
-        // could use seqarg.description[1] instead of seqarg.size() % nb_bases_by_byte
-        if seqarg.size() % nb_bases_by_byte > 0 {
-            last_byte += 1;
-            last_bit = seqarg.nb_bits_by_base() * (seqarg.size() % nb_bases_by_byte) as u8;
-        }
         log::trace!(
             "IterSequence constructor seq size last byte, last bit =  {} {} {} ",
             seqarg.size(),
@@ -1153,4 +1141,12 @@ mod tests {
         seqstr.push_str(&seqstr2);
         assert_eq!(restored_str, seqstr);
     } // end of test_incremental_15b_seq_init
+    #[test]
+    fn iter_seq_short_2bit() {
+        let alpha = Alphabet2b::new();
+        let mut s = Sequence::with_capacity(2, 2);
+        s.encode_and_add(b"ACG", &alpha);          // < 4 bases
+        let collected: Vec<u8> = IterSequence::new(&s, true).collect();
+        assert_eq!(collected, b"ACG");
+    }
 } // end module test
