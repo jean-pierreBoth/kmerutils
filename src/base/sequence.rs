@@ -525,6 +525,20 @@ impl<'a> IterSequence<'a> {
         //
         let nb_bits = seqarg.nb_bits_by_base();
         let mask: u8 = if nb_bits < 8 { (1 << nb_bits) - 1 } else { 0xFF };
+
+        if seqarg.size() == 0 {
+            return IterSequence {
+                myseq:       seqarg,
+                mask,
+                must_decode: must_decode_arg,
+                decoder:     None,        // nothing to decode
+                byte:        0,
+                bit:         0,
+                last_byte:   0,
+                last_bit:    0,
+            };
+        }
+
         let last_byte = seqarg.seq.len() - 1;
         let last_bit  = if seqarg.nb_bases_in_last_byte() > 0 {
             nb_bits * seqarg.nb_bases_in_last_byte()
@@ -557,8 +571,17 @@ impl<'a> IterSequence<'a> {
     /// set range of iterator. By default it is from 0 to end of sequence. But this
     /// can be modified by this method. Careful , it is a range with end excluded as in rust usage!
     pub fn set_range(&mut self, begin: usize, end: usize) -> Result<(), ()> {
-        if end <= begin || end > self.myseq.size() {
-            return Err(());
+        if begin > end || end > self.myseq.size() {
+            return Err(());                   // unchanged
+        }
+
+        // Special case: empty range → iterator already at end
+        if begin == end {
+            self.byte      = 0;
+            self.bit       = 0;
+            self.last_byte = 0;
+            self.last_bit  = 0;
+            return Ok(());
         }
         // we must initialize self.byte and self.bit to a position in compressed sequence corresponding begin in
         // uncompressed sequence
