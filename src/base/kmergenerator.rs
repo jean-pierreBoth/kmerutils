@@ -207,7 +207,7 @@ pub fn hashmap_count_to_vec_count<T: CompressedKmerT + std::hash::Hash>(
 // We need a guess to allocate HashMap used with Kmer Generation
 // for very long sequence we must avoid nb_kmer to sequence length! Find a  good heuristic
 pub(super) fn get_nbkmer_guess(seq: &Sequence) -> usize {
-    let nb = 10_000_000 * (1usize + seq.size().ilog2() as usize);
+    let nb = 10_000_000 * (1usize + (seq.size() + 1).ilog2() as usize);
 
     seq.size().min(nb)
 } // end of get_nbkmer_guess
@@ -591,6 +591,41 @@ mod tests {
     //   11010000001010100000000100111101
     //    T C A A A G G G A A A C A T T C
     //   In this test all bytes are complete
+
+    #[test]
+    fn test_kmer_iter_short_sequence_k21() {
+        // initialise logger only once for the whole test suite
+        log_init();
+
+        // A 12-bp toy sequence – shorter than k = 21
+        let seq_ascii = "ACGTACGTACGT";
+        assert!(seq_ascii.len() < 21);
+
+        // Encode to 2-bit Sequence
+        let seq = Sequence::new(seq_ascii.as_bytes(), 2);
+        assert_eq!(seq.size(), seq_ascii.len());
+
+        // (1) Direct iterator: should yield no kmers
+        let mut iter = KmerSeqIterator::<Kmer64bit>::new(21, &seq);
+        assert!(iter.next().is_none(), "iterator over short sequence should be empty");
+
+        // (2) High-level helper: should return empty Vec
+        let kg = KmerGenerator::<Kmer64bit>::new(21);
+        let v = kg.generate_kmer(&seq);
+        assert!(
+            v.is_empty(),
+            "generate_kmer() on short sequence should return empty Vec"
+        );
+    }
+    #[test]
+    fn test_kmer_iter_empty_sequence() {
+        let empty = Sequence::new(b"", 2);
+        let mut it = KmerSeqIterator::<Kmer32bit>::new(11, &empty);
+        assert!(it.next().is_none());
+
+        let kg = KmerGenerator::<Kmer32bit>::new(11);
+        assert!(kg.generate_kmer(&empty).is_empty());
+    }
     #[test]
     fn test_gen_kmer16b32bit_80bases() {
         log_init();
