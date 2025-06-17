@@ -122,7 +122,7 @@ impl Alphabet2b {
 impl BaseCompress for Alphabet2b {
     #[inline(always)]
     fn encode(&self, c: u8) -> u8 {
-        match c {
+        match c.to_ascii_uppercase() {
             b'A' => 0b00,
             b'C' => 0b01,
             b'G' => 0b10,
@@ -242,7 +242,7 @@ impl Alphabet4b {
 impl BaseCompress for Alphabet4b {
     #[inline(always)]
     fn encode(&self, c: u8) -> u8 {
-        match c {
+        match c.to_ascii_uppercase() {
             b'A' => 0b0001,
             b'C' => 0b0010,
             b'G' => 0b0100,
@@ -283,14 +283,16 @@ impl BaseCompress for Alphabet4b {
     }
 
     #[inline(always)]
+    /// valids are ATCGatcg
     fn is_valid_base(&self, c: u8) -> bool {
-        match c {
+        match c.to_ascii_uppercase() {
             b'A' | b'C' | b'G' | b'T' | b'N' => true,
             _ => false,
         }
     } // end is_valid_base
 
-    // we expect a slice of at least 2 bytes
+    /// we expect a slice of at least 2 bytes
+    // TODO:
     fn base_pack(&self, to_pack: &[u8]) -> u8 {
         debug_assert!(to_pack.len() >= 2);
         //
