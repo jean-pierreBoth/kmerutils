@@ -82,7 +82,7 @@ impl FromRedisValue for SliceAnchorValueRedis {
         let mut retvec = Vec::<(u64, u8)>::new();
         //
         match v {
-            redis::Value::BulkString(ref bytes) => {
+            redis::Value::BulkString(bytes) => {
                 // We must be in this case as we encode all values in one flat string in ToRedisArgs for SliceAnchorValueRedis.
                 // We should not get a Value::Bulk
                 // now we must decode vecu8 byte by byte. Inverse of write_redis_args
@@ -97,7 +97,7 @@ impl FromRedisValue for SliceAnchorValueRedis {
                     let vcouple: Vec<&str> = str.split(':').collect(); // we get in v a vector of "kmer,count"
                     for couple in vcouple {
                         let vterms: Vec<&str> = couple.split(',').collect(); // we get in vterms[0] kmer, in vterm[1] count as strings
-                                                                             // convert from strings to u64 and u8
+                        // convert from strings to u64 and u8
                         let resu64 = vterms[0].parse::<u64>();
                         let resu8 = vterms[1].parse::<u8>();
                         if resu64.is_err() || resu8.is_err() {
@@ -110,7 +110,10 @@ impl FromRedisValue for SliceAnchorValueRedis {
                             let kmer_h = resu64.unwrap();
                             let count = resu8.unwrap();
                             retvec.push((kmer_h, count));
-                            trace!("SliceAnchorValueRedis FromRedisValue pushing  (kmer/count {:?} {:?}", &kmer_h, &count);
+                            trace!(
+                                "SliceAnchorValueRedis FromRedisValue pushing  (kmer/count {:?} {:?}",
+                                &kmer_h, &count
+                            );
                         }
                     } // end of for in couple
                     Ok(SliceAnchorValueRedis { hk_count: retvec })

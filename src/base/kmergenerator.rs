@@ -1,7 +1,7 @@
 //! This file contains structure for Kmer generation from a compressed sequence
 //! Essentially we provide for iterators which extract kmer from a range in a sequence
 //
-use log::{trace, Level};
+use log::{Level, trace};
 
 use fnv::{FnvBuildHasher, FnvHashMap};
 
@@ -27,7 +27,6 @@ pub trait KmerSeqIteratorT {
 /// usage: see examples in tests
 ///
 /// The structure [KmerGenerationPattern] is there to provide absraction over it.
-
 pub struct KmerSeqIterator<'a, T>
 where
     T: CompressedKmerT + KmerBuilder<T>,
@@ -47,7 +46,10 @@ where
     /// Constructor for a given sequence and kmersize
     pub fn new(ksize: u8, sequence: &'a Sequence) -> KmerSeqIterator<'a, T> {
         if ksize as usize > T::get_nb_base_max() {
-            panic!("\n KmerSeqIterator cannot support so many bases for given kmer type, kmer size  {}", ksize);
+            panic!(
+                "\n KmerSeqIterator cannot support so many bases for given kmer type, kmer size  {}",
+                ksize
+            );
         }
         let seqiter_arg = IterSequence::new(sequence, false);
         KmerSeqIterator {
@@ -73,10 +75,7 @@ where
     fn next(&mut self) -> Option<Kmer> {
         // check for end of iterator
 
-        let next_base = match self.seqiter.next() {
-            Some(b) => b,
-            None => return None,
-        };
+        let next_base = self.seqiter.next()?;
         // now we know we are not at end of iterator
         // if we do not have a previous we have to contruct first kmer
         // we have to push a base.
@@ -146,7 +145,6 @@ use std::marker::PhantomData;
 /// NOTE: The sequence must be encoded with 2 bit alphabet to generate compressed Kmer on 2 bits.
 ///       The Kmer must have an encoding larger than the one used in the sequence encoding!
 ///       A panic is provoked in other cases!!
-
 pub struct KmerGenerator<T: KmerT> {
     /// size of kmer we generate
     pub kmer_size: u8,
@@ -308,7 +306,6 @@ impl KmerGenerationPattern<Kmer16b32bit> for KmerGenerator<Kmer16b32bit> {
 // ======================= implementation for Kmer32bit ====================
 
 /// implementation of kmer generation pattern for Kmer32bit
-
 impl KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
     fn generate_kmer_pattern(&self, seq: &Sequence) -> Vec<Kmer32bit> {
         if self.kmer_size > 14u8 {
@@ -382,7 +379,9 @@ impl KmerGenerationPattern<Kmer32bit> for KmerGenerator<Kmer32bit> {
         }
         //
         if end <= begin {
-            panic!("KmerGenerationPattern<'a, Kmer32bit>:generate_kmer_pattern_in_range incoherent range");
+            panic!(
+                "KmerGenerationPattern<'a, Kmer32bit>:generate_kmer_pattern_in_range incoherent range"
+            );
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short
@@ -502,7 +501,9 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
             panic!("Sequence must be 2-bit encoded for 2-bit compressed kmer generation!!");
         }
         if end <= begin {
-            panic!("KmerGenerationPattern<'a, Kmer64bit>:generate_kmer_pattern_in_range incoherent range");
+            panic!(
+                "KmerGenerationPattern<'a, Kmer64bit>:generate_kmer_pattern_in_range incoherent range"
+            );
         }
         // For a sequence of size the number of kmer is seq.size - kmer.size + 1  !!!
         // But it happens that "long reads" are really short

@@ -190,8 +190,7 @@ impl<T: CompressedKmerT> SliceAnchor<T> {
         // logging
         trace!(
             "dumping inverse key (read/slicepos {:?} {:?}",
-            &inv_key,
-            &inv_value
+            &inv_key, &inv_value
         );
         let res = con.hset::<&'static str, MinhashKeyRedis, SliceAnchorKeyRedis, redis::Value>(
             MINHASH_1, inv_key, inv_value,
@@ -308,33 +307,22 @@ impl<T: CompressedKmerT> ReadAnchors<T> {
         let mut beg = 0;
         let mut anchor_opt;
         while beg < seqlen {
-            if beg == 0 {
-                debug!("anchoring beg {}", beg);
-                anchor_opt = gen_anchor_mininvhash(
-                    &self.slice_params,
-                    self.readnum,
-                    beg as usize,
-                    kmer_generator,
-                    seq,
-                );
-                beg = beg + self.slice_params.get_window() - self.slice_params.get_overlap();
-            } else {
-                debug!("anchoring beg {}", beg);
-                anchor_opt = gen_anchor_mininvhash(
-                    &self.slice_params,
-                    self.readnum,
-                    beg as usize,
-                    kmer_generator,
-                    seq,
-                );
-                beg = beg + self.slice_params.get_window() - self.slice_params.get_overlap();
-            }
+            debug!("anchoring beg {}", beg);
+            anchor_opt = gen_anchor_mininvhash(
+                &self.slice_params,
+                self.readnum,
+                beg as usize,
+                kmer_generator,
+                seq,
+            );
+            beg = beg + self.slice_params.get_window() - self.slice_params.get_overlap();
+            //
             match anchor_opt {
                 Some(anchor) => self.anchors.push(anchor),
                 None => panic!("anchor creation failed"),
             }
         } // end while
-          //
+        //
         self.anchors.shrink_to_fit();
         //
         trace!("nb anchors generated for read {}", self.anchors.len());
@@ -370,7 +358,6 @@ impl<T: CompressedKmerT> ReadAnchors<T> {
 ///
 /// gathers anchors for a Fasta/q file
 ///
-
 pub struct FastaAnchors<T: CompressedKmerT> {
     slice_params: Rc<AnchorsGeneratorParameters>,
     anchors: Vec<ReadAnchors<T>>,

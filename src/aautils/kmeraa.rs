@@ -187,9 +187,10 @@ impl KmerT for KmerAA32bit {
     } // end of reverse_complement
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write_all(unsafe { &mem::transmute::<u8, [u8; 1]>(self.nb_base) })
-            .unwrap();
-        bufw.write(unsafe { &mem::transmute::<u32, [u8; 4]>(self.aa) })
+        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.nb_base) };
+        bufw.write_all(&val).unwrap();
+        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.aa) };
+        bufw.write(&val)
     }
 } // end of impl KmerT block for KmerAA128bit
 
@@ -205,8 +206,6 @@ impl Eq for KmerAA32bit {}
 /// We define ordering as a kind of "lexicographic" order by taking into account first number of base.
 /// The more the number of base the greater. Then we have integer comparison between aa parts
 ///
-///
-
 impl CompressedKmerT for KmerAA32bit {
     type Val = u32;
 
@@ -318,9 +317,11 @@ impl KmerT for KmerAA64bit {
     } // end of reverse_complement
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write_all(unsafe { &mem::transmute::<u8, [u8; 1]>(self.nb_base) })
-            .unwrap();
-        bufw.write(unsafe { &mem::transmute::<u64, [u8; 8]>(self.aa) })
+        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.nb_base) };
+        bufw.write_all(&val).unwrap();
+        //
+        let val = unsafe { mem::transmute::<u64, [u8; 8]>(self.aa) };
+        bufw.write(&val)
     }
 } // end of impl KmerT block for KmerAA64bit
 
@@ -683,7 +684,6 @@ impl<T: KmerT> KmerGenerator<T> {
 } // end of impl KmerGenerator
 
 /// A utility to convert FnvHashMap<T,usize> to Vec<(T, usize)>
-
 pub fn hashmap_count_to_vec_count<T: CompressedKmerT + std::hash::Hash + Eq>(
     kmer_distribution: &FnvHashMap<T, usize>,
 ) -> Vec<(T, usize)> {
@@ -929,7 +929,7 @@ mod tests {
         let mut seq_iterator = KmerSeqIterator::<KmerAA32bit>::new(4, &seqaa);
         // set a range
         seq_iterator.set_range(3, 10).unwrap(); // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
-                                                // So we must havr from "QIEL"
+        // So we must havr from "QIEL"
         let mut kmer_num = 0;
         let kmer_res = ["QIEL", "IELI", "ELIK", "LIKL"];
         while let Some(kmer) = seq_iterator.next() {
@@ -938,7 +938,10 @@ mod tests {
             //            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
             if kmer_str != kmer_res[kmer_num] {
                 log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
-                panic!("error in KmerAA32bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
+                panic!(
+                    "error in KmerAA32bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}",
+                    kmer_num, kmer_str, kmer_res[kmer_num]
+                );
             }
             kmer_num += 1;
         }
@@ -964,7 +967,7 @@ mod tests {
         let mut seq_iterator = KmerSeqIterator::<KmerAA64bit>::new(4, &seqaa);
         // set a range
         seq_iterator.set_range(3, 10).unwrap(); // so that we have 4 4-Kmer  (4 = 10-1-kmer_size-3)
-                                                // So we must havr from "QIEL"
+        // So we must havr from "QIEL"
         let mut kmer_num = 0;
         let kmer_res = ["QIEL", "IELI", "ELIK", "LIKL"];
         while let Some(kmer) = seq_iterator.next() {
@@ -973,7 +976,10 @@ mod tests {
             //            log::info!(" kmer {} = {:?}", kmer_num, kmer_str);
             if kmer_str != kmer_res[kmer_num] {
                 log::error!(" kmer {} = {:?}", kmer_num, kmer_str);
-                panic!("error in KmerAA64bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}", kmer_num, kmer_str, kmer_res[kmer_num]);
+                panic!(
+                    "error in KmerAA64bit test::test_seq_aa_iterator \n at kmer num {}, got {:?} instead of {:?}",
+                    kmer_num, kmer_str, kmer_res[kmer_num]
+                );
             }
             kmer_num += 1;
         }

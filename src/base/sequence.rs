@@ -117,7 +117,6 @@ impl Sequence {
 
     /// return a u8 encoded base. It is too expensive to allocate the corresponding decoding alphabet
     /// at each call. Use an iterator instead which allocates a decoder for the whole sequence.
-
     pub fn get_base(&self, pos: usize) -> u8 {
         let nb_bits = self.description[0] as usize;
         match nb_bits {
@@ -244,7 +243,7 @@ impl Sequence {
         }
     } // end get_alphabet
 
-    /// fast version of reverse complement for 2bit encoded sequence
+    // fast version of reverse complement for 2bit encoded sequence
     // if we had a 2bit encoded sequence (as we use for Kmer16b32bit) we could have done bit manipulation
     // with shift to the right of all bytes if last byte is incomplete
     // and then bit-symetry in byte followed by xor to complement bit and transposition
@@ -296,7 +295,6 @@ impl Sequence {
     } // end of get_reverse_complement_2bitseq
 
     /// get reverse complement of sequence.
-
     pub fn get_reverse_complement(&self) -> Sequence {
         //
         if self.nb_bits_by_base() == 2 {
@@ -389,7 +387,12 @@ impl Sequence {
     /// The argument alphabet must correspond to the number of bits / base declared in Sequence initialization
     pub fn encode_and_add(&mut self, to_add: &[u8], alphabet: &dyn BaseCompress) {
         //
-        log::trace!("encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}", self.seq.len(), self.seq.capacity(), to_add.len());
+        log::trace!(
+            "encode_and_add, self.vec (vec in bytes) len : {}, capacity : {}, to_add length (bases): {:?}",
+            self.seq.len(),
+            self.seq.capacity(),
+            to_add.len()
+        );
         log::trace!(" to_add : {:?}", to_add);
         //
         let nb_bits: usize = self.nb_bits_by_base() as usize;
@@ -410,7 +413,7 @@ impl Sequence {
         let mut nb_scanned: usize = 0;
         let mut already = self.description[1] as usize;
         let mut to_encode: u8; // the byte we work on
-                               // if we had a last incomplete byte we fill it
+        // if we had a last incomplete byte we fill it
         if already > 0 {
             to_encode = self.seq[self.seq.len() - 1];
             nb_scanned += update_byte(
@@ -465,26 +468,23 @@ fn update_byte(
     let mut inserted = 0;
     // special care for N and non ACTG. We must fill byte so we loop until byte is filled or we are at end of to_add! Nasty bug
     while shift < to_add.len() && inserted < nb_max {
-        match to_add[shift] as char {
-            'A' | 'C' | 'T' | 'G' => {
-                let encoded = alphabet.encode(to_add[shift]);
-                log::trace!(
-                    "encoding : {:?}, encoded : {}, byte before  : 0x{:x}",
-                    to_add[shift] as char,
-                    encoded,
-                    byte
-                );
-                *byte |= encoded << (8 - nb_bits - *already * nb_bits);
-                log::trace!(
-                    "encoding : {:?}, encoded : {}, byte after : 0x{:x}",
-                    to_add[shift] as char,
-                    encoded,
-                    byte
-                );
-                *already += 1;
-                inserted += 1;
-            }
-            _ => {}
+        if alphabet.is_valid_base(to_add[shift]) {
+            let encoded = alphabet.encode(to_add[shift]);
+            log::trace!(
+                "encoding : {:?}, encoded : {}, byte before  : 0x{:x}",
+                to_add[shift] as char,
+                encoded,
+                byte
+            );
+            *byte |= encoded << (8 - nb_bits - *already * nb_bits);
+            log::trace!(
+                "encoding : {:?}, encoded : {}, byte after : 0x{:x}",
+                to_add[shift] as char,
+                encoded,
+                byte
+            );
+            *already += 1;
+            inserted += 1;
         };
         shift += 1;
     }
@@ -496,7 +496,6 @@ fn update_byte(
 //========================================
 
 /// an iterator sequence diving into byte and bits offset
-
 pub struct IterSequence<'a> {
     /// the sequence i am an iterator of
     myseq: &'a Sequence,
@@ -524,9 +523,13 @@ impl<'a> IterSequence<'a> {
     pub fn new(seqarg: &'a Sequence, must_decode_arg: bool) -> IterSequence<'a> {
         //
         let nb_bits = seqarg.nb_bits_by_base();
-        let mask: u8 = if nb_bits < 8 { (1 << nb_bits) - 1 } else { 0xFF };
+        let mask: u8 = if nb_bits < 8 {
+            (1 << nb_bits) - 1
+        } else {
+            0xFF
+        };
         let last_byte = seqarg.seq.len() - 1;
-        let last_bit  = if seqarg.nb_bases_in_last_byte() > 0 {
+        let last_bit = if seqarg.nb_bases_in_last_byte() > 0 {
             nb_bits * seqarg.nb_bases_in_last_byte()
         } else {
             8
@@ -639,15 +642,11 @@ impl<'a> Iterator for IterSequence<'a> {
         }
         // return decoded or not
         match self.must_decode {
-            true => {
-                return Some((*(self.decoder.as_ref().unwrap()))(base));
-            }
+            true => Some((*(self.decoder.as_ref().unwrap()))(base)),
             false => Some(base),
         }
     } // end of next
 } // end of impl<'a> Iterator
-
-/// implementation of trait DoubleEndedIterator  for IterSequence<'a>
 
 // read the description for DoubleEndedIterator!! It makes the doubleendediterator algorithms fully symetric
 
@@ -661,6 +660,7 @@ impl<'a> Iterator for IterSequence<'a> {
 // Consequently if we enter with bit (==7) we are at end of sequence
 // otherwise we should have bit = 0 i.e we are at beginning of new byte.
 
+/// implementation of trait DoubleEndedIterator  for IterSequence<'a>
 impl<'a> DoubleEndedIterator for IterSequence<'a> {
     //
     #[allow(clippy::comparison_chain)]
@@ -715,16 +715,13 @@ impl<'a> DoubleEndedIterator for IterSequence<'a> {
         // return decoded or not
         //        println!("next_back returning {}",  (*(self.decoder))(base) );
         match self.must_decode {
-            true => {
-                return Some((*(self.decoder.as_ref().unwrap()))(base));
-            }
+            true => Some((*(self.decoder.as_ref().unwrap()))(base)),
             false => Some(base),
         }
     } // end of next
 } // end of impl<'a> Iterator
 
 /// implementation of IntoIterator generates an iterator with decoding flag on !
-
 impl<'a> IntoIterator for &'a Sequence {
     type Item = u8;
     type IntoIter = IterSequence<'a>;
@@ -1022,6 +1019,23 @@ mod tests {
         assert_eq!(restored_str, String::from("TCGCAGTTGGATCCC"));
     } // end of test_encode_and_add_with_n
 
+    // test mixed case upper and lower and filtering N
+    #[test]
+    fn test_encode_lower_upper_and_add_with_n() {
+        log_init_test();
+        // a 14 base sequence
+        let seqstr = String::from("tcNgcAgtTggATccc");
+        let to_add = seqstr.as_bytes();
+        let mut seq_tocheck = Sequence::with_capacity(2, 4);
+        //
+        let alpha2b = Alphabet2b::new();
+        //
+        seq_tocheck.encode_and_add(to_add, &alpha2b);
+        // we compare with normal initialization, check also for last byte, last byte contains 3
+        let restored_str = String::from_utf8(seq_tocheck.decompress()).unwrap();
+        assert_eq!(restored_str, String::from("TCGCAGTTGGATCCC"));
+    } // end of test_encode_and_add_with_n
+
     #[test]
     fn test_encode_and_add_very_small_seq() {
         log_init_test();
@@ -1145,7 +1159,7 @@ mod tests {
     fn iter_seq_short_2bit() {
         let alpha = Alphabet2b::new();
         let mut s = Sequence::with_capacity(2, 2);
-        s.encode_and_add(b"ACG", &alpha);          // < 4 bases
+        s.encode_and_add(b"ACG", &alpha); // < 4 bases
         let collected: Vec<u8> = IterSequence::new(&s, true).collect();
         assert_eq!(collected, b"ACG");
     }

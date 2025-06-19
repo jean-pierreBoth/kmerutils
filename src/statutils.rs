@@ -36,7 +36,6 @@ use crate::base::sequence::*;
 ///  base columns are in order a,c,g,t. For a given column we have the fraction of reads in which the base occurs at each
 ///  percentage.
 ///
-
 pub struct ReadBaseDistribution {
     /// to store read length distribution
     pub readsizehisto: hdrhistogram::Histogram<u64>,
@@ -82,7 +81,6 @@ impl ReadBaseDistribution {
     /// where a base (a,c,g,t) occurs at a given percentage.
     /// format is 4 column for bases in order a,c,g,t
     /// This file can be reloaded by Julia module BaseDistribution
-
     pub fn ascii_dump_acgt_distribution(&self, name: &String) -> result::Result<(), io::Error> {
         // open filename
         let fileres = OpenOptions::new()
@@ -228,7 +226,6 @@ fn get_base_count(seq_array: &Vec<Sequence>, maxreadlen: usize) {
 /// takes a slice on sequences and sendback base distribution on a channel
 /// maxreadlen is the maximum size we record in histogram. It must be adapted to read length distribution
 /// to get a significant historgram
-
 fn get_base_count_by_slice(
     seq_array: &[Sequence],
     maxreadlen: usize,

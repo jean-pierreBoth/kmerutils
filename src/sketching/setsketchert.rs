@@ -67,14 +67,14 @@ where
     /// This function receive a vector of (possibly concatenated) sequences and returns for each sequence a sketch.  
     /// The function returns a vector of Sketches (one for each sequence).
     /// F is a hashing function (possibly just extracting Kmer::Val) to apply to kmer before sending to sketcher.
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync;
     /// This function implements the sketching a file of Sequences,
     /// (The sequence are not concatenated, so we have many sequences) and make one sketch Vector for the sequence collection (for the file).  
     /// **It returns the same signature as sketch_compressedkmer for interface homogeneity (same msg system for //)
     /// but the returned intern vec has size 1!**
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync;
 } // end of SeqSketcherT<Kmer>
@@ -118,7 +118,7 @@ where
         SketchAlgo::PROB3A
     }
 
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -157,7 +157,7 @@ where
     }
 
     // This functin implement the sketching a File of Sequences, (The sequence are not concatenated, so we have many sequences) and make one sketch Vector
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         Kmer: CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
@@ -252,7 +252,7 @@ where
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -296,7 +296,7 @@ where
         sig
     } // end of sketch_compressedkmer
 
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         Kmer: CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
@@ -380,7 +380,7 @@ where
         SketchAlgo::OPTDENS
     }
 
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -406,7 +406,7 @@ where
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
-              // do not forget to close sketching (it calls densification!)
+            // do not forget to close sketching (it calls densification!)
             sminhash.end_sketch();
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
@@ -423,7 +423,7 @@ where
         sig
     } // end of sketch_compressedkmer
 
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         Kmer: CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
@@ -512,7 +512,7 @@ where
         SketchAlgo::REVOPTDENS
     }
 
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -538,7 +538,7 @@ where
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
-              // do not forget to close sketching (it calls densification!)
+            // do not forget to close sketching (it calls densification!)
             sminhash.end_sketch();
             let sigb = sminhash.get_hsketch();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
@@ -556,7 +556,7 @@ where
         sig
     } // end of sketch_compressedkmer
 
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         Kmer: CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
@@ -756,7 +756,7 @@ where
 
     // This funtions sketch a list of of Sequence and returns a Sketch vector for each one.
     // In fact each sequence is a file that was concatenated in a sequence.
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -808,7 +808,7 @@ where
     // The sequence are not concatenated, so we have many sequences. We dispatch sequences to sketch_compressedkmer_seqs_block
     // by parallelizing and merge sketch Vector.
     //
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -960,7 +960,7 @@ where
     /// Kmer::Val is the base type u32, u64 on which compressed kmer representations relies.
     /// F is a hash function returning morally a u32, usize or u64.  
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-    fn sketch_compressedkmer<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,
     {
@@ -1004,7 +1004,7 @@ where
     } // end of sketch_compressedkmer
 
     #[cfg(feature = "sminhash2")]
-    fn sketch_compressedkmer_seqs<F>(&self, vseq: &Vec<&Sequence>, fhash: F) -> Vec<Vec<Self::Sig>>
+    fn sketch_compressedkmer_seqs<F>(&self, vseq: &[&Sequence], fhash: F) -> Vec<Vec<Self::Sig>>
     where
         Kmer: CompressedKmerT + KmerBuilder<Kmer> + Send + Sync,
         F: Fn(&Kmer) -> Kmer::Val + Send + Sync,

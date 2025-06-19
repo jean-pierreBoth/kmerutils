@@ -269,7 +269,6 @@ impl SeqSketcher {
     /// These are the hash function that make possible to get back to the original kmers (or at least partially in the case using the min).  
     ///
     /// The argument type of the hashing function F specify the type of Kmer to generate along the sequence.  
-
     pub fn sketch_probminhash3<Kmer: CompressedKmerT + KmerBuilder<Kmer>, F>(
         &self,
         vseq: &[&Sequence],
@@ -414,11 +413,6 @@ impl SeqSketcher {
         sigbuf
     } // end of create_signature_dump
 } // end of impl SeqSketcher
-
-//========================================================================================================
-
-/// A structure providing ProbMinHash3a sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
-///
 
 //=========================================================================================================
 
@@ -586,7 +580,7 @@ pub fn dump_signatures_block_u32(signatures: &[Vec<u32>], out: &mut dyn Write) -
             out.write_all(&sig[j].to_le_bytes()).unwrap();
         }
     } // end of for i
-      //
+    //
     Ok(())
 } // end of dump_signatures
 
@@ -852,7 +846,7 @@ mod tests {
                 debug!("common kemrs {:?}", common.unwrap());
             }
         } // end search of intersecting kmers
-          //
+        //
         assert!(vecsig[1] <= 0.1);
     } // end of test_probminhasha_kmer_smallb
 

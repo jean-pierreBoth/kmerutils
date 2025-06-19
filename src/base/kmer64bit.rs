@@ -42,7 +42,6 @@ impl Eq for Kmer64bit {}
 /// We define ordering as a kind of "lexicographic" order by taking into account first number of base.
 /// The more the number of base the greater. Then we have integer comparison between lower kmer part
 /// which corresponds to lexicographic order as we have A < C < G < T in 2bit
-
 impl Ord for Kmer64bit {
     fn cmp(&self, other: &Kmer64bit) -> Ordering {
         if self.1 != other.1 {
@@ -97,9 +96,11 @@ impl KmerT for Kmer64bit {
     }
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write_all(unsafe { &mem::transmute::<u8, [u8; 1]>(self.1) })
-            .unwrap();
-        bufw.write(unsafe { &mem::transmute::<u64, [u8; 8]>(self.0) })
+        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.1) };
+        bufw.write_all(&val).unwrap();
+        //
+        let val = unsafe { mem::transmute::<u64, [u8; 8]>(self.0) };
+        bufw.write(&val)
     }
 } // end of impl KmerT for Kmer64bit
 

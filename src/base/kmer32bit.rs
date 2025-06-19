@@ -112,11 +112,10 @@ impl KmerT for Kmer32bit {
         Kmer32bit(new_kmer)
     } // end of push
 
-    /// just returns the reversed complement 16 bases kmer in 2bit encoding
-
     //  we can build upon the method used for Kmer16b32bit and then do the correct shift
     //  to get bases in the correct right part of a u32 and reset nb_bases in 4 upper bits.
     //
+    /// just returns the reversed complement 16 bases kmer in 2bit encoding
     fn reverse_complement(&self) -> Kmer32bit {
         let nb_bases_mask: u32 = self.0 & 0xF0000000;
         //
@@ -140,7 +139,8 @@ impl KmerT for Kmer32bit {
     /// describing number of bases! to distinguish from Kmer16b32bit
     #[allow(clippy::transmute_num_to_bytes)]
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write(unsafe { &mem::transmute::<u32, [u8; 4]>(self.0) })
+        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.0) };
+        bufw.write(&val)
     }
 } // end of impl KmerT for Kmer32bit
 

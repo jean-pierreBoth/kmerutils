@@ -30,7 +30,6 @@ pub fn quality_to_proba(q: u8, qmin: u8) -> f64 {
 /// From 0x37 above it will be remmapped to 7
 /// remap qualities to 1:6 qualities in  (0x25, 0x37)
 ///
-
 #[inline]
 fn remap_quality8(q: u8) -> u8 {
     if q > 0x37 {
@@ -42,8 +41,8 @@ fn remap_quality8(q: u8) -> u8 {
         1 + nqf.floor() as u8
     }
 }
-/// a quality record can be either in raw data Vec\<u8\> or in WaveletMatrix
 
+/// a quality record can be either in raw data Vec\<u8\> or in WaveletMatrix
 pub enum QualityMode {
     /// represent u8 encoding of quality
     Raw,
@@ -54,7 +53,6 @@ pub enum QualityMode {
 /// a sequence provides 2 methods :
 ///    - get the quality of a base given its rank.
 ///    - returns the representation mode
-
 #[allow(clippy::len_without_is_empty)]
 pub trait QSequence {
     //    fn get_quality(&self, usize) -> Result<u8, u32>;

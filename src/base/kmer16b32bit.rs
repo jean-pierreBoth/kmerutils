@@ -61,8 +61,10 @@ impl KmerT for Kmer16b32bit {
     }
 
     //
+    #[allow(clippy::transmute_num_to_bytes)]
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        bufw.write(unsafe { &mem::transmute::<u32, [u8; 4]>(self.0) })
+        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.0) };
+        bufw.write(&val)
     }
 } // end implementation
 
@@ -121,7 +123,7 @@ impl FromStr for Kmer16b32bit {
         //
         for b in sbytes {
             if !alphabet.is_valid_base(*b) {
-                return Err(String::from("char not in ACGT"));
+                return Err(String::from("char not in actgACGT"));
             }
             kmer = kmer.push(alphabet.encode(*b));
         }

@@ -13,10 +13,7 @@
 
 /// check if a base is ACGT
 pub fn is_acgt(c: u8) -> bool {
-    match c {
-        b'A' | b'C' | b'G' | b'T' => true,
-        _ => false,
-    }
+    matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T')
 }
 
 /// return lower conjugate from CG
@@ -36,7 +33,6 @@ pub fn count_non_acgt(seq: &[u8]) -> usize {
 /// We provide here small (and fast) utilities for encoding restricted DNA (A,T,C,G,N)
 /// alphabet to 2 or 4 bits (or 8 bits) and utilities to manage corresponding sequences.
 ///
-
 /// this trait provides basic encode/decode methods. methods panics if patterns are not in the alphabet.
 pub trait BaseCompress {
     /// get a code on a reduced number of bits depending on implementation . Puts 1 in higher bit if fail
@@ -62,8 +58,8 @@ pub trait BaseCompress {
 /// - C maps to 0b01
 /// - G maps to 0b10
 /// - T maps to 0b11
-// note : the lexicographic order is preserved and bases are conjugated
-
+///
+/// note : the lexicographic order is preserved and bases are conjugated
 pub struct Alphabet2b {
     pub bases: String,
 }
@@ -84,6 +80,11 @@ impl Alphabet2b {
     pub fn len(&self) -> u8 {
         2
     }
+
+    //
+    //
+    // Morally only some one that has consistently packed data can call unpack. Ugly but faster.
+    // We could return a u32 but the caller would have to do decoding job
     //
     /// This function fills decompressed bases in slice unpacked.  
     /// The slice must be larger than number of bases to be returned i.e 4 for Alphabet2b.  
@@ -92,10 +93,6 @@ impl Alphabet2b {
     /// The caller must be aware that the byte packed must be fully initialized with consistent
     /// For non full bytes some bits can be garbage decode will return anything.
     /// It is the reason why in Sequence::new we fill the byte with a decodable pattern.
-    //
-    // Morally only some one that has consistently packed data can call unpack. Ugly but faster.
-    // We could return a u32 but the caller would have to do decoding job
-    //
     pub fn base_unpack(&self, packed: u8, unpacked: &mut [u8]) {
         // get each nibble and decode. just symetric as pack
         unpacked[3] = packed & 0b0011;
@@ -112,10 +109,8 @@ impl Alphabet2b {
 
     #[inline]
     pub fn nb_invalid_bases(&self, seq: &[u8]) -> u32 {
-        let sum = seq
-            .iter()
-            .fold(0u32, |acc, &b| acc + !self.is_valid_base(b) as u32);
-        sum
+        seq.iter()
+            .fold(0u32, |acc, &b| acc + !self.is_valid_base(b) as u32)
     }
 } // end impl Alphabet2b
 
@@ -160,10 +155,7 @@ impl BaseCompress for Alphabet2b {
 
     #[inline(always)]
     fn is_valid_base(&self, c: u8) -> bool {
-        match c {
-            b'A' | b'C' | b'G' | b'T' => true,
-            _ => false,
-        }
+        matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T')
     } // end is_valid_base
 
     // we expect a slice of size at least 4 bytes
@@ -178,6 +170,11 @@ impl BaseCompress for Alphabet2b {
 
 //  Alphabet4b
 
+// It should, later, implement IUPAC ambiguity code  <http://www.bioinformatics.org/sms/iupac.html>.
+// note : the lexicographic order is preserved and bases are NOT conjugated
+//         and converting form  Alphabet2b to Alphabet_4b by shifting
+//         possibly we could encode A | C and so on
+
 /// this structure compress to 4 bits the 5 bases ACGTN
 ///  
 /// A maps to 0b0001 = 1 = 0x01  
@@ -186,11 +183,6 @@ impl BaseCompress for Alphabet2b {
 /// T maps to 0b1000 = 8 = 0x08  
 /// N maps to 0b1111
 ///
-/// It should, later, implement IUPAC ambiguity code  <http://www.bioinformatics.org/sms/iupac.html>.
-// note : the lexicographic order is preserved and bases are NOT conjugated
-//         and converting form  Alphabet2b to Alphabet_4b by shifting
-//         possibly we could encode A | C and so on
-
 pub struct Alphabet4b {
     pub bases: String,
 }
@@ -232,10 +224,8 @@ impl Alphabet4b {
     //
     #[inline]
     pub fn nb_invalid_bases(&self, seq: &[u8]) -> u32 {
-        let sum = seq
-            .iter()
-            .fold(0u32, |acc, &b| acc + !self.is_valid_base(b) as u32);
-        sum
+        seq.iter()
+            .fold(0u32, |acc, &b| acc + !self.is_valid_base(b) as u32)
     }
 } // end impl Alphabet4b
 
@@ -285,10 +275,7 @@ impl BaseCompress for Alphabet4b {
     #[inline(always)]
     /// valids are ATCGatcg
     fn is_valid_base(&self, c: u8) -> bool {
-        match c.to_ascii_uppercase() {
-            b'A' | b'C' | b'G' | b'T' | b'N' => true,
-            _ => false,
-        }
+        matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T' | b'N')
     } // end is_valid_base
 
     /// we expect a slice of at least 2 bytes
@@ -356,6 +343,7 @@ impl BaseCompress for Alphabet8b {
             b'C' => b'G',
             b'G' => b'C',
             b'T' => b'A',
+            b'N' => b'N',
             _ => panic!("pattern not a code in alpahabet_2b"),
         }
     } // end of complement
@@ -367,16 +355,12 @@ impl BaseCompress for Alphabet8b {
 
     #[inline(always)]
     fn is_valid_base(&self, c: u8) -> bool {
-        match c {
-            b'A' | b'C' | b'G' | b'T' => true,
-            _ => false,
-        }
+        matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T' | b'N')
     } // end is_valid_base
 
     // we expect a slice of one byte
     fn base_pack(&self, to_pack: &[u8]) -> u8 {
         //
-
         //
         to_pack[0]
     }
