@@ -508,8 +508,8 @@ where
     KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>,
     S: num::Float + SampleUniform + Send + Sync + Debug + Serialize,
 {
-    type Sig = S;
-
+    //type Sig = S;
+    type Sig = u16;
     fn get_kmer_size(&self) -> usize {
         self.params.get_kmer_size()
     }
@@ -539,7 +539,7 @@ where
             let mut nb_kmer_generated: u64 = 0;
             //
             let bh = BuildHasherDefault::<NoHashHasher>::default();
-            let mut sminhash: OptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> =
+            let mut sminhash: OptDensMinHash<S, Kmer::Val, NoHashHasher> =
                 OptDensMinHash::new(self.get_sketch_size(), bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
@@ -554,9 +554,9 @@ where
             } // end loop
             // DO NOT forget to call end_sketch as OptDensMinHash needs to be told we got end of stream
             sminhash.end_sketch();
-            let sigb = sminhash.get_hsketch();
+            let sigb: Vec<u16> = sminhash.get_hsketch_lower16_u16();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            (i, sigb.clone())
+            (i, sigb)
         };
         //
         let sig_with_rank: Vec<(usize, Vec<Self::Sig>)> = (0..vseq.len())
@@ -580,7 +580,7 @@ where
         log::debug!("entering  OptDensHashSketch::sketch_compressedkmer_seqs");
         //
         let bh = BuildHasherDefault::<NoHashHasher>::default();
-        let mut setsketch: OptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> =
+        let mut setsketch: OptDensMinHash<S, Kmer::Val, NoHashHasher> =
             OptDensMinHash::new(self.get_sketch_size(), bh);
         //
         let mut nb_kmer_generated: u64 = 0;
@@ -600,11 +600,9 @@ where
         //
         // do not forget to close sketching (it calls densification!)
         setsketch.end_sketch();
-        let sig = setsketch.get_hsketch();
+        let sig: Vec<u16> = setsketch.get_hsketch_lower16_u16();
         //
-        let v = vec![sig.clone()];
-        //
-        v
+        vec![sig]
     } // end of sketch_compressedkmer_seqs
 } // end impl block of SeqSketcherT for SeqSketcherAAT
 
@@ -642,7 +640,7 @@ where
     KmerGenerator<Kmer>: KmerGenerationPattern<Kmer>,
     S: num::Float + SampleUniform + Send + Sync + Debug + Serialize,
 {
-    type Sig = S;
+    type Sig = u16;
 
     fn get_kmer_size(&self) -> usize {
         self.params.get_kmer_size()
@@ -669,7 +667,7 @@ where
             let mut nb_kmer_generated: u64 = 0;
             //
             let bh = BuildHasherDefault::<NoHashHasher>::default();
-            let mut sminhash: RevOptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> =
+            let mut sminhash: RevOptDensMinHash<S, Kmer::Val, NoHashHasher> =
                 RevOptDensMinHash::new(self.get_sketch_size(), bh);
 
             let mut kmergen = KmerSeqIterator::<Kmer>::new(self.get_kmer_size(), seqb);
@@ -684,9 +682,9 @@ where
             } // end loop
             // do not forget to close sketching (it calls densification!)
             sminhash.end_sketch();
-            let sigb = sminhash.get_hsketch();
+            let sigb: Vec<u16> = sminhash.get_hsketch_lower16_u16();
             // get back from usize to Kmer32bit ?. If fhash is inversible possible, else NO.
-            (i, sigb.clone())
+            (i, sigb)
         };
         //
         let sig_with_rank: Vec<(usize, Vec<Self::Sig>)> = (0..vseq.len())
@@ -710,7 +708,7 @@ where
         log::debug!("entering  RevOptDensHashSketch::sketch_compressedkmer_seqs");
         //
         let bh = BuildHasherDefault::<NoHashHasher>::default();
-        let mut setsketch: RevOptDensMinHash<Self::Sig, Kmer::Val, NoHashHasher> =
+        let mut setsketch: RevOptDensMinHash<S, Kmer::Val, NoHashHasher> =
             RevOptDensMinHash::new(self.get_sketch_size(), bh);
         //
         let mut nb_kmer_generated: u64 = 0;
@@ -731,10 +729,9 @@ where
         // do not forget to close sketching (it calls densification!)
         setsketch.end_sketch();
         //
-        let sig = setsketch.get_hsketch();
-        let v = vec![sig.clone()];
-        //
-        v
+        //let sig: Vec<u64> = setsketch.get_hsketch_u64();
+        let sig: Vec<u16> = setsketch.get_hsketch_lower16_u16();
+        vec![sig]
     } // end of sketch_compressedkmer_seqs
 } // end of impl SeqSketcherAAT<Kmer> for RevOptDensHashSketch
 
