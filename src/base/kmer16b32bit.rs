@@ -2,7 +2,6 @@
 //!
 
 use std::io;
-use std::mem;
 
 use std::cmp::Ord;
 use std::str::FromStr;
@@ -63,7 +62,7 @@ impl KmerT for Kmer16b32bit {
     //
     #[allow(clippy::transmute_num_to_bytes)]
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.0) };
+        let val = self.0.to_ne_bytes();
         bufw.write(&val)
     }
 } // end implementation

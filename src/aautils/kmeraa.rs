@@ -8,7 +8,6 @@
 
 #![allow(clippy::transmute_num_to_bytes)]
 
-use std::mem;
 use std::mem::size_of;
 
 use std::io;
@@ -187,9 +186,9 @@ impl KmerT for KmerAA32bit {
     } // end of reverse_complement
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.nb_base) };
+        let val = [self.nb_base];
         bufw.write_all(&val).unwrap();
-        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.aa) };
+        let val = self.aa.to_ne_bytes();
         bufw.write(&val)
     }
 } // end of impl KmerT block for KmerAA128bit
@@ -317,10 +316,10 @@ impl KmerT for KmerAA64bit {
     } // end of reverse_complement
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.nb_base) };
+        let val = [self.nb_base];
         bufw.write_all(&val).unwrap();
         //
-        let val = unsafe { mem::transmute::<u64, [u8; 8]>(self.aa) };
+        let val = self.aa.to_ne_bytes();
         bufw.write(&val)
     }
 } // end of impl KmerT block for KmerAA64bit

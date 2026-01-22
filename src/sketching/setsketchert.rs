@@ -208,7 +208,7 @@ where
 ///  A structure providing SuperMinHash sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 ///  The type argument S encodes for f32 or f64 as the SuperMinHash can sketch to f32 or f64
 #[derive(Serialize, Deserialize, Copy, Clone)]
-pub struct SuperHashSketch<Kmer, S: num::Float> {
+pub struct SuperHashSketch<Kmer, S> {
     //
     _kmer_marker: PhantomData<Kmer>,
     //
@@ -340,7 +340,7 @@ where
 ///  A structure providing Optimal Densification MinHash (OptDensMinHash in probminhash crate) sketching implementing the generic trait SeqSketcherT\<Kmer\>.  
 ///  The type argument S encodes for f32 or f64 as for SuperMinHash
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct OptDensHashSketch<Kmer, S: num::Float> {
+pub struct OptDensHashSketch<Kmer, S> {
     //
     _kmer_marker: PhantomData<Kmer>,
     //
@@ -349,7 +349,7 @@ pub struct OptDensHashSketch<Kmer, S: num::Float> {
     params: SeqSketcherParams,
 }
 
-impl<Kmer, S: num::Float> OptDensHashSketch<Kmer, S> {
+impl<Kmer, S> OptDensHashSketch<Kmer, S> {
     pub fn new(params: &SeqSketcherParams) -> Self {
         OptDensHashSketch {
             _kmer_marker: PhantomData,
@@ -472,7 +472,7 @@ where
 ///  Playing with sketching size in the tests *test_seq_optdensminhash_trait* and *test_seq_revoptdensminhash_trait* will illustrate this.
 ///  The type argument S encodes for f32 or f64 as for SuperMinHash
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct RevOptDensHashSketch<Kmer, S: num::Float> {
+pub struct RevOptDensHashSketch<Kmer, S> {
     //
     _kmer_marker: PhantomData<Kmer>,
     //
@@ -481,7 +481,7 @@ pub struct RevOptDensHashSketch<Kmer, S: num::Float> {
     params: SeqSketcherParams,
 }
 
-impl<Kmer, S: num::Float> RevOptDensHashSketch<Kmer, S> {
+impl<Kmer, S> RevOptDensHashSketch<Kmer, S> {
     pub fn new(params: &SeqSketcherParams) -> Self {
         RevOptDensHashSketch {
             _kmer_marker: PhantomData,

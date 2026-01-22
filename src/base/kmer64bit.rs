@@ -7,7 +7,6 @@
 use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::io;
-use std::mem;
 use std::str::FromStr;
 
 #[allow(unused)]
@@ -96,10 +95,10 @@ impl KmerT for Kmer64bit {
     }
 
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        let val = unsafe { mem::transmute::<u8, [u8; 1]>(self.1) };
+        let val = [self.1];
         bufw.write_all(&val).unwrap();
         //
-        let val = unsafe { mem::transmute::<u64, [u8; 8]>(self.0) };
+        let val = self.0.to_ne_bytes();
         bufw.write(&val)
     }
 } // end of impl KmerT for Kmer64bit

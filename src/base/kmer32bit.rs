@@ -4,7 +4,6 @@
 use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::io;
-use std::mem;
 use std::str::FromStr;
 
 #[allow(unused)]
@@ -139,7 +138,7 @@ impl KmerT for Kmer32bit {
     /// describing number of bases! to distinguish from Kmer16b32bit
     #[allow(clippy::transmute_num_to_bytes)]
     fn dump(&self, bufw: &mut dyn io::Write) -> io::Result<usize> {
-        let val = unsafe { mem::transmute::<u32, [u8; 4]>(self.0) };
+        let val = self.0.to_ne_bytes();
         bufw.write(&val)
     }
 } // end of impl KmerT for Kmer32bit
