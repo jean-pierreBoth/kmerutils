@@ -9,7 +9,6 @@
 use log::info;
 
 
-use ::std::mem;
 use ::std::io;
 use ::std::io::{Write,Read};
 use ::std::fs;
@@ -1238,8 +1237,8 @@ impl KmerCountReload {
             println!("KmerCountReload::load_multiple_kmers_from_file could no read magic");
             return None;
         }
-        else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+        else { 
+            u32::from_ne_bytes(buf_4bytes_1)
         };
         let c_type = match magic {
             COUNTER_MULTIPLE   => CounterType::Multiple,
@@ -1255,7 +1254,7 @@ impl KmerCountReload {
             return None;
         }
         else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            kmer_size = unsafe { mem::transmute::<[u8;1], u8>(buf_1bytes_1)};
+            kmer_size = u8::from_ne_bytes(buf_1bytes_1);
             println!("KmerCountReload::load_multiple_kmers_from_file got kmer size {}", kmer_size);
         }
         // read counter size (one byte)
@@ -1265,7 +1264,7 @@ impl KmerCountReload {
             return None;
         }
         else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            nb_bytes_by_count = unsafe { mem::transmute::<[u8;1], u8>(buf_1bytes_1)};
+            nb_bytes_by_count = u8::from_ne_bytes(buf_1bytes_1);
             println!("KmerCountReload::load_multiple_kmers_from_file got counter size {}", nb_bytes_by_count);
         }
         if nb_bytes_by_count > 2 {
@@ -1280,7 +1279,7 @@ impl KmerCountReload {
             return None;
         }
         else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            nb_kmer = unsafe { mem::transmute::<[u8;8], u64>(buf_8bytes)};
+            nb_kmer = u64::from_ne_bytes(buf_8bytes);
             println!("KmerCountReload::load_multiple_kmers_from_file got nb kmer {}", nb_kmer);
         }
         // increase a little nb_kmer to take into account false positive in dumping
@@ -1316,7 +1315,7 @@ impl KmerCountReload {
                     };
                 },
                 Ok(()) => {
-                    kmer = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)};
+                    kmer = u32::from_ne_bytes(buf_4bytes_1);
                 },
             };
             // read count on 1 or 2 bytes.
@@ -1326,8 +1325,8 @@ impl KmerCountReload {
                     println!("KmerCountReload::load_from_file could no seq num");
                     return None;
                 }
-                else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-                    count = unsafe { mem::transmute::<[u8;1], u8>(buf_1bytes_1)} as u16
+                else { 
+                    count = u8::from_ne_bytes(buf_1bytes_1) as u16;
                 }
             }
             else {
@@ -1336,8 +1335,8 @@ impl KmerCountReload {
                     println!("KmerCountReload::load_from_file could no seq num");
                     return None;
                 }
-                else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-                    count = unsafe { mem::transmute::<[u8;2], u16>(buf_2bytes_1)} as u16
+                else { 
+                    count = u16::from_ne_bytes(buf_2bytes_1);
                 }
             }
             // now we can insert kmer.
@@ -1381,8 +1380,8 @@ impl KmerCountReload {
             println!("KmerCountReload::load_from_file could no read magic");
             return None;
         }
-        else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+        else { 
+            u32::from_ne_bytes(buf_4bytes_1)
         };
         let c_type = match magic {
             COUNTER_UNIQUE   => CounterType::Unique,
@@ -1398,8 +1397,8 @@ impl KmerCountReload {
             println!("KmerCountReload::load_from_file could no read kmer_size");
             return None;
         }
-        else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            kmer_size = unsafe { mem::transmute::<[u8;1], u8>(b)};
+        else { 
+            kmer_size = u8::from_ne_bytes(b);
             println!("KmerCountReload::load_from_file got kmer size {}", kmer_size);
         }
         // read number of kmers , 8 bytes
@@ -1409,8 +1408,8 @@ impl KmerCountReload {
             println!("KmerCountReload::load_from_file could read number of kmers");
             return None;
         }
-        else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-            nb_kmer = unsafe { mem::transmute::<[u8;8], u64>(buf_8bytes)};
+        else { 
+            nb_kmer = u64::from_ne_bytes(buf_8bytes);
             println!("KmerCountReload::load_from_file got nb kmer {}", nb_kmer);
         }
         // increase a little nb_kmer to take into account false positive in dumping
@@ -1430,8 +1429,8 @@ impl KmerCountReload {
                 println!("KmerCountReload::load_from_file could no read kmer");
                 return None;
             }
-            else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-                kmer = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+            else { 
+                kmer = u32::from_ne_bytes(buf_4bytes_1)
             }
             // read numseq
             io_res = bufr.read_exact(&mut buf_4bytes_1);
@@ -1439,8 +1438,8 @@ impl KmerCountReload {
                 println!("KmerCountReload::load_from_file could no seq num");
                 return None;
             }
-            else { // to be replaced by from_bytes as soon as API goes from nightly to stable
-                numseq = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)}
+            else { 
+                numseq = u32::from_ne_bytes(buf_4bytes_1);
             }
             // read kmer pos
             io_res = bufr.read_exact(&mut buf_4bytes_1);
@@ -1449,7 +1448,7 @@ impl KmerCountReload {
                 return None;
             }
             else { // s we have kmer_size, we will be able to generalize.
-                kmerpos = unsafe { mem::transmute::<[u8;4], u32>(buf_4bytes_1)};
+                kmerpos = u32::from_ne_bytes(buf_4bytes_1);
             }
             // now we can insert kmer.
             if ikmer == 0 {
