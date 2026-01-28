@@ -182,7 +182,9 @@ where
                 nb_kmer_generated += 1;
                 let hashval = fhash(&kmer);
                 *wb.entry(hashval).or_insert(0) += 1;
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -277,7 +279,9 @@ where
                     log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -322,7 +326,9 @@ where
                     log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -402,7 +408,9 @@ where
                 nb_kmer_generated += 1;
                 let hashval = fhash(&kmer);
                 sminhash.sketch(&hashval);
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -446,7 +454,9 @@ where
                 nb_kmer_generated += 1;
                 let hashval = fhash(&kmer);
                 setsketch.sketch(&hashval);
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -534,7 +544,9 @@ where
                 nb_kmer_generated += 1;
                 let hashval = fhash(&kmer);
                 sminhash.sketch(&hashval);
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -579,7 +591,9 @@ where
                 nb_kmer_generated += 1;
                 let hashval = fhash(&kmer);
                 setsketch.sketch(&hashval);
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -714,7 +728,9 @@ impl<Kmer, S: Integer> HyperLogLogSketch<Kmer, S> {
                     log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -781,7 +797,9 @@ where
                     log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -984,7 +1002,9 @@ where
                     log::error!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
@@ -1031,7 +1051,9 @@ where
                     std::panic!("could not hash kmer : {:?}", kmer.get_uncompressed_kmer());
                 }
                 //
-                if log::log_enabled!(log::Level::Debug) && nb_kmer_generated % 500_000_000 == 0 {
+                if log::log_enabled!(log::Level::Debug)
+                    && nb_kmer_generated.is_multiple_of(500_000_000)
+                {
                     log::debug!("nb kmer generated : {:#}", nb_kmer_generated);
                 }
             } // end loop
