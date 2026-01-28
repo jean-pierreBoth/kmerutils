@@ -433,7 +433,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
         while let Some(kmer) = kmeriter.next() {
             kmer_vect.push(kmer);
             nb_generated += 1;
-            if log::log_enabled!(Level::Debug) && nb_generated % 1_000_000 == 0 {
+            if log::log_enabled!(Level::Debug) && nb_generated.is_multiple_of(1_000_000) {
                 log::debug!("nb kmer generated  : {}", nb_generated);
             }
         }
@@ -475,7 +475,7 @@ impl KmerGenerationPattern<Kmer64bit> for KmerGenerator<Kmer64bit> {
                 nb_base = kmer.1;
             }
             nb_generated += 1;
-            if log::log_enabled!(Level::Debug) && nb_generated % 1_000_000 == 0 {
+            if log::log_enabled!(Level::Debug) && nb_generated.is_multiple_of(1_000_000) {
                 log::debug!(
                     "nb kmer generated  : {}, nb_different kmers {}",
                     nb_generated,

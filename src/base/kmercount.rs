@@ -3,7 +3,6 @@
 
 // We take a slice of kmer and count them
 
-#![allow(clippy::transmute_num_to_bytes)]
 #![allow(clippy::explicit_counter_loop)]
 
 use log::info;
@@ -214,7 +213,7 @@ pub fn dump_in_file_multiple_kmer<Kmer>(counter: &KmerCounter<Kmer>, fname: &Str
                         _ => panic!("kmercount::dump_in_file_counted_kmer incoherent number of bytes for count"),
                     };                
                     nb_kmer_dumped += 1;
-                    if nb_kmer_dumped % 100_000_000 == 0 {
+                    if nb_kmer_dumped.is_multiple_of(100_000_000) {
                         log::info!("dump_kmer_counter, number of kmer dumped : {} ", nb_kmer_dumped);
                     }
                 } // end count >= 2
@@ -314,7 +313,7 @@ fn count_kmer<Kmer>(seqvec : &Vec<Sequence>,  kmer_generator : &KmerGenerator<Km
         }
         nb_kmer += vkmer.len() as u64;
         nbseq += 1;
-        if nbseq % 100_000 == 0 {
+        if nbseq.is_multiple_of(100_000) {
             log::info!(" nb  read treated = {} ", nbseq);
             log::info!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.cuckoo_f.len(), kmer_counter.nb_distinct, nb_kmer);
         }        
@@ -917,7 +916,7 @@ where Kmer: CompressedKmerT+DispatchableT+Send,
                 receiver.into_iter().for_each(|msg| { // just insert
                     kmer_counter_i.insert_kmer(msg);
                     nb_received += 1;
-                    if nb_received % 500_000_000 == 0 {
+                    if nb_received.is_multiple_of(500_000_000) {
                         log::info!(" nb  kmer treated  by thread i = {} {} ", i, nb_received);
                     }
                 }); // end for_each
@@ -1109,7 +1108,7 @@ pub fn filter1_kmer_16b32bit(seqvec : &Vec<Sequence>) -> KmerFilter1 {
         }
         nb_kmer += vkmer.len() as u64;
         nbseq += 1;
-       if nbseq % 100_000 == 0 {
+       if nbseq.is_multiple_of(100_000) {
            println!(" nb  read treated = {} ", nbseq);
            println!(" nb once kmer = {} nb distinct = {} nb generated = {} ", kmer_counter.once_f.len(), kmer_counter.all_f.len() , nb_kmer);
         }        

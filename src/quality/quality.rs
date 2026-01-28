@@ -35,7 +35,7 @@ fn remap_quality8(q: u8) -> u8 {
     if q > 0x37 {
         7
     } else if q < 0x25 {
-        return 0;
+        0
     } else {
         let nqf = (cmp::min(q, 0x37) - 0x25) as f32 * 6.0_f32 / 18.0_f32;
         1 + nqf.floor() as u8
@@ -192,7 +192,7 @@ pub fn load_quality_wm(filename: &String) -> Result<Vec<QSequenceWM>, &'static s
             let old_len = seq_array.len() as f64;
             seq_array.reserve((old_len * 1.5) as usize);
         }
-        if seq_array.len() % 200000 == 0 {
+        if seq_array.len().is_multiple_of(200000) {
             println!(" nb rec read = {} ", seq_array.len());
         }
         //
